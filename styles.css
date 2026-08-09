@@ -1,0 +1,581 @@
+/* ===== CardBox 卡片盒 ===== */
+
+.cardbox-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* ---------- 顶部筛选栏 ---------- */
+
+.cardbox-filterbar {
+	flex: none;
+	padding: 8px 10px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	z-index: 2;
+}
+
+.cardbox-mode-toggle {
+	display: flex;
+	gap: 4px;
+	margin-bottom: 8px;
+}
+
+.cardbox-mode-btn {
+	flex: 1;
+	min-height: 32px;
+	padding: 4px 8px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.cardbox-mode-btn.is-active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.cardbox-search-row {
+	position: relative;
+	margin-bottom: 8px;
+}
+
+.cardbox-search-input {
+	width: 100%;
+	min-height: 36px;
+	padding: 4px 30px 4px 10px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.cardbox-search-input:focus {
+	border-color: var(--interactive-accent);
+}
+
+.cardbox-search-clear {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 28px;
+	height: 28px;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	font-size: 16px;
+	cursor: pointer;
+	border-radius: var(--radius-s);
+}
+
+.cardbox-search-clear:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.cardbox-chips-scroll {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
+	margin-bottom: 6px;
+}
+
+.cardbox-chips-scroll::-webkit-scrollbar {
+	display: none;
+}
+
+.cardbox-chips {
+	display: flex;
+	gap: 6px;
+	padding: 2px 0 6px;
+	white-space: nowrap;
+}
+
+/* ---------- 通用 chip ---------- */
+
+.cardbox-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	border: 1px solid transparent;
+	cursor: pointer;
+	user-select: none;
+	-webkit-touch-callout: none;
+	min-height: 26px;
+}
+
+.cardbox-chip.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.cardbox-chip-add {
+	border-style: dashed;
+	border-color: var(--background-modifier-border-hover);
+	color: var(--text-faint);
+}
+
+.cardbox-chip-sm {
+	font-size: 11px;
+	padding: 1px 7px;
+	min-height: 18px;
+	background: var(--background-secondary);
+	cursor: default;
+}
+
+.cardbox-chip-remove {
+	font-size: 14px;
+	line-height: 1;
+	padding-left: 2px;
+	cursor: pointer;
+}
+
+/* ---------- 快速开关 ---------- */
+
+.cardbox-toggles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.cardbox-pill {
+	min-height: 28px;
+	padding: 3px 10px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.cardbox-pill.is-active {
+	background: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.cardbox-sortrow {
+	display: flex;
+	align-items: center;
+	margin-bottom: 2px;
+}
+
+.cardbox-sort-select {
+	min-height: 28px;
+	font-size: 12px;
+}
+
+/* ---------- 操作栏 ---------- */
+
+.cardbox-actionbar {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+.cardbox-action-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.cardbox-action-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* ---------- 多选操作栏 ---------- */
+
+.cardbox-selectionbar {
+	flex: none;
+	display: none;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--interactive-accent);
+	background: var(--background-secondary);
+}
+
+.cardbox-selectionbar.is-visible {
+	display: flex;
+}
+
+.cardbox-selection-count {
+	font-weight: 600;
+	color: var(--text-normal);
+	margin-right: 4px;
+}
+
+/* ---------- 列表 ---------- */
+
+.cardbox-list {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px 10px 24px;
+}
+
+.cardbox-list.is-hidden {
+	display: none;
+}
+
+.cardbox-sentinel {
+	height: 1px;
+}
+
+.cardbox-placeholder {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 40px 20px;
+	text-align: center;
+	color: var(--text-faint);
+	font-size: 14px;
+}
+
+.cardbox-placeholder.is-hidden {
+	display: none;
+}
+
+/* ---------- 卡片瓦片 ---------- */
+
+.cardbox-tile {
+	position: relative;
+	margin-left: calc(var(--depth, 0) * 14px);
+	margin-bottom: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	transition: border-color 0.15s ease;
+	-webkit-touch-callout: none;
+	touch-action: manipulation;
+	user-select: none;
+}
+
+.cardbox-tile.is-child {
+	background: var(--background-secondary);
+}
+
+.cardbox-tile.is-archived {
+	opacity: 0.65;
+}
+
+.cardbox-tile.is-selected {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-active-hover);
+}
+
+@media (hover: hover) {
+	.cardbox-tile:hover {
+		border-color: var(--background-modifier-border-hover);
+	}
+}
+
+.cardbox-tile-main {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 10px 8px;
+}
+
+.cardbox-expand-btn,
+.cardbox-more-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	flex: none;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+@media (hover: hover) {
+	.cardbox-expand-btn:hover,
+	.cardbox-more-btn:hover {
+		background: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+/* 多选勾选框（选择模式下显示） */
+.cardbox-check {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	flex: none;
+	margin-top: 4px;
+	border: 1.5px solid var(--background-modifier-border-hover);
+	border-radius: var(--radius-s);
+	color: var(--text-on-accent);
+	background: var(--background-primary);
+}
+
+.cardbox-root.cardbox-is-selecting .cardbox-check {
+	display: flex;
+}
+
+.cardbox-check.is-checked {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.cardbox-check.is-checked::after {
+	content: '✓';
+	font-size: 13px;
+	line-height: 1;
+}
+
+.cardbox-tile-body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.cardbox-tile-text {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.cardbox-tile-title {
+	font-size: 14px;
+	color: var(--text-normal);
+	line-height: 1.4;
+	word-break: break-word;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	flex: 1;
+	min-width: 0;
+}
+
+.cardbox-tile-title.is-empty {
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+.cardbox-tile-snippet {
+	font-size: 12px;
+	color: var(--text-muted);
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	word-break: break-word;
+}
+
+.cardbox-tile-icons {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	flex: none;
+}
+
+.cardbox-tile-icon {
+	display: inline-flex;
+	color: var(--text-faint);
+}
+
+.cardbox-tile-icon svg {
+	width: 13px;
+	height: 13px;
+}
+
+.cardbox-tile-meta {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.cardbox-tile-time {
+	font-size: 11px;
+	color: var(--text-faint);
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+/* ---------- 时间轴 ---------- */
+
+.cardbox-day-group {
+	margin-bottom: 4px;
+}
+
+.cardbox-day-header {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding: 8px 4px 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-muted);
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* ---------- 模态框 ---------- */
+
+.cardbox-capture-input {
+	width: 100%;
+	resize: vertical;
+	padding: 10px;
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+	line-height: 1.5;
+}
+
+.cardbox-capture-input:focus {
+	border-color: var(--interactive-accent);
+}
+
+.cardbox-modal-footer {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 12px;
+}
+
+.cardbox-spacer {
+	flex: 1;
+}
+
+.cardbox-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.cardbox-modal-search {
+	width: 100%;
+}
+
+.cardbox-setting-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.cardbox-muted {
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.cardbox-tag-picker {
+	max-height: 40vh;
+	overflow-y: auto;
+	margin-top: 8px;
+}
+
+.cardbox-tag-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 6px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+@media (hover: hover) {
+	.cardbox-tag-row:hover {
+		background: var(--background-modifier-hover);
+	}
+}
+
+.cardbox-tag-count {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+.cardbox-setting-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 4px 0 12px;
+}
+
+.cardbox-confirm p {
+	margin: 0;
+	color: var(--text-normal);
+}
+
+/* ---------- 移动端优化 ---------- */
+
+body.is-mobile .cardbox-mode-btn,
+body.is-mobile .cardbox-pill,
+body.is-mobile .cardbox-action-btn,
+body.is-mobile .cardbox-expand-btn,
+body.is-mobile .cardbox-more-btn,
+body.is-mobile .cardbox-chip {
+	min-height: 44px;
+}
+
+body.is-mobile .cardbox-search-input {
+	min-height: 44px;
+	font-size: 16px;
+}
+
+body.is-mobile .cardbox-chip {
+	font-size: 13px;
+}
+
+body.is-mobile .cardbox-tile-main {
+	padding: 12px 8px;
+}
+
+body.is-mobile .cardbox-tile-title {
+	font-size: 15px;
+}
+
+body.is-mobile .cardbox-day-header {
+	font-size: 14px;
+	padding: 10px 4px;
+}
+
+body.is-mobile .cardbox-selectionbar .btn {
+	min-height: 44px;
+}
+
+body.is-mobile .cardbox-capture-input {
+	font-size: 16px;
+}

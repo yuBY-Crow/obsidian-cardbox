@@ -1,0 +1,9 @@
+{
+	"id": "cardbox",
+	"name": "CardBox 卡片盒",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Writeathon 风格卡片盒：闪念卡片快速捕获、卡片盒/时间轴视图、筛选、批量标签、子卡片、合并成文。移动端友好。",
+	"author": "CardBox",
+	"isDesktopOnly": false
+}
