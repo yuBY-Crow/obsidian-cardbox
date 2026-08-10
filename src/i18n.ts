@@ -81,6 +81,8 @@ export const i18n = {
 
 	// 卡片盒
 	boxAll: '全部卡片',
+	boxUnnamed: '未命名卡片盒',
+	boxEdit: '卡片盒设置',
 	boxNew: '新建卡片盒',
 	boxEditTitle: '卡片盒设置',
 	boxNameLabel: '卡片盒名称',

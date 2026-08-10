@@ -151,6 +151,8 @@ var i18n = {
   },
   // 卡片盒
   boxAll: "\u5168\u90E8\u5361\u7247",
+  boxUnnamed: "\u672A\u547D\u540D\u5361\u7247\u76D2",
+  boxEdit: "\u5361\u7247\u76D2\u8BBE\u7F6E",
   boxNew: "\u65B0\u5EFA\u5361\u7247\u76D2",
   boxEditTitle: "\u5361\u7247\u76D2\u8BBE\u7F6E",
   boxNameLabel: "\u5361\u7247\u76D2\u540D\u79F0",
@@ -1573,8 +1575,9 @@ function buildCardTile(opts) {
   if (card.color) el.createDiv({ cls: "cardbox-tile-colorbar" });
   const main = el.createDiv({ cls: "cardbox-tile-main" });
   const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
-  if (opts.hasVisibleChildren) {
-    const expandWrap = main.createDiv({ cls: "cardbox-expand-wrap" });
+  const buildExpand = (host) => {
+    if (!opts.hasVisibleChildren) return;
+    const expandWrap = host.createDiv({ cls: "cardbox-expand-wrap" });
     const expand = expandWrap.createEl("button", {
       cls: "cardbox-expand-btn",
       attr: { "aria-label": opts.expanded ? i18n.collapseChildren : i18n.expandChildren }
@@ -1588,7 +1591,8 @@ function buildCardTile(opts) {
       e.stopPropagation();
       opts.onToggleExpand(card);
     });
-  }
+  };
+  if (!opts.rich) buildExpand(main);
   const check = main.createDiv({ cls: "cardbox-check" });
   if (opts.selected) check.addClass("is-checked");
   const body = main.createDiv({ cls: "cardbox-tile-body" });
@@ -1621,6 +1625,10 @@ function buildCardTile(opts) {
     const ic = iconRow.createSpan({ cls: "cardbox-tile-icon" });
     (0, import_obsidian4.setIcon)(ic, "archive");
     ic.setAttribute("aria-label", i18n.archivedIndicator);
+  }
+  if (opts.rich) {
+    const relRow = body.createDiv({ cls: "cardbox-tile-related" });
+    buildExpand(relRow);
   }
   const meta = body.createDiv({ cls: "cardbox-tile-meta" });
   for (const tag of card.tags.slice(0, 4)) {
@@ -2040,14 +2048,19 @@ var MobileHeader = class {
   getSort() {
     return this.sort;
   }
-  build(container) {
-    const el = container.createDiv({ cls: "cardbox-mobile-header" });
-    this.filterBtn = el.createEl("button", {
-      cls: "cardbox-mobile-icon-btn",
-      attr: { "aria-label": i18n.mobileFilterBtn }
+  /**
+   * @param container 视图内容区，仅用于放极窄的盒信息行
+   * @param addAction ItemView.addAction，把图标放进 view header
+   */
+  build(container, addAction) {
+    this.modeBtn = addAction("layout-grid", i18n.mobileCycle, () => {
+      const i = MODE_CYCLE.indexOf(this.mode);
+      this.setMode(MODE_CYCLE[(i + 1) % MODE_CYCLE.length]);
     });
-    (0, import_obsidian7.setIcon)(this.filterBtn, "menu");
-    this.filterBtn.addEventListener("click", () => {
+    this.modeBtn.addClass("cardbox-mode-action");
+    this.updateModeIcon();
+    this.bindLongPress(this.modeBtn);
+    const filterBtn = addAction("menu", i18n.mobileFilterBtn, () => {
       new FilterMenuModal(this.app, this.filter, this.settings, this.index, {
         onFilterChange: () => this.cb.onFilterChange(),
         onAddTag: () => this.cb.onAddTag(),
@@ -2057,15 +2070,17 @@ var MobileHeader = class {
         }
       }).open();
     });
-    this.modeBtn = el.createEl("button", {
-      cls: "cardbox-mobile-icon-btn cardbox-mobile-mode-btn",
-      attr: { "aria-label": i18n.mobileCycle }
-    });
-    this.updateModeIcon();
-    this.modeBtn.addEventListener("click", () => {
-      const i = MODE_CYCLE.indexOf(this.mode);
-      this.setMode(MODE_CYCLE[(i + 1) % MODE_CYCLE.length]);
-    });
+    filterBtn.addClass("cardbox-filter-action");
+    const info = container.createDiv({ cls: "cardbox-mobile-info" });
+    this.infoEl = info.createDiv({ cls: "cardbox-mobile-boxname" });
+    this.infoEl.addEventListener("click", () => this.cb.onPickBox(this.infoEl));
+    return info;
+  }
+  /** 更新「盒名 · 数量」文案 */
+  setInfo(boxName, count) {
+    if (this.infoEl) this.infoEl.setText(`${boxName} \xB7 ${count}`);
+  }
+  bindLongPress(btn) {
     let pressTimer;
     const clearPress = () => {
       if (pressTimer !== void 0) {
@@ -2073,21 +2088,22 @@ var MobileHeader = class {
         pressTimer = void 0;
       }
     };
-    this.modeBtn.addEventListener("pointerdown", (e) => {
+    btn.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       clearPress();
-      pressTimer = window.setTimeout(() => this.showModeMenu(), 500);
+      pressTimer = window.setTimeout(() => {
+        pressTimer = void 0;
+        this.showModeMenu();
+      }, 500);
     });
-    this.modeBtn.addEventListener("pointerup", clearPress);
-    this.modeBtn.addEventListener("pointercancel", clearPress);
-    this.modeBtn.addEventListener("pointerleave", clearPress);
-    this.modeBtn.addEventListener("contextmenu", (e) => {
+    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) {
+      btn.addEventListener(ev, clearPress);
+    }
+    btn.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       clearPress();
       this.showModeMenu();
     });
-    this.updateModeUI();
-    return el;
   }
   /** 长按视图按钮：弹出三个展示方式选项 */
   showModeMenu() {
@@ -2106,7 +2122,6 @@ var MobileHeader = class {
     if (this.mode === mode) return;
     this.mode = mode;
     this.updateModeIcon();
-    this.updateModeUI();
     this.cb.onModeChange(mode);
   }
   modeName(mode) {
@@ -2119,14 +2134,12 @@ var MobileHeader = class {
         return i18n.timelineMode;
     }
   }
+  /** view header里空间有限，只换图标不放文字，靠 tooltip 说明当前模式 */
   updateModeIcon() {
     this.modeBtn.empty();
     const icon = this.mode === "card" ? "list" : this.mode === "masonry" ? "layout-grid" : "clock";
     (0, import_obsidian7.setIcon)(this.modeBtn, icon);
-    this.modeBtn.createSpan({ text: this.modeName(this.mode) });
-  }
-  updateModeUI() {
-    this.modeBtn.toggleClass("is-active", true);
+    this.modeBtn.setAttribute("aria-label", `${i18n.mobileCycle}\uFF08${this.modeName(this.mode)}\uFF09`);
   }
 };
 
@@ -2641,9 +2654,10 @@ var CardBoxView = class extends import_obsidian14.ItemView {
             this.filter.selectedTags.add(tag);
             this.scheduleRender();
           }).open();
-        }
+        },
+        onPickBox: (anchor) => this.showBoxMenu(anchor)
       });
-      this.mobileHeader.build(root);
+      this.mobileHeader.build(root, (icon, title, cb) => this.addAction(icon, title, cb));
       this.filterBar = this.mobileHeader;
     } else {
       this.boxBar = new BoxBar(
@@ -2663,7 +2677,7 @@ var CardBoxView = class extends import_obsidian14.ItemView {
         }
       );
       this.boxBar.build(root);
-      this.filterBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
+      const desktopBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
         onFilterChange: () => {
           this.boxBar.refresh();
           this.scheduleRender();
@@ -2685,18 +2699,33 @@ var CardBoxView = class extends import_obsidian14.ItemView {
           }).open();
         }
       });
-      this.filterBar.build(root);
+      desktopBar.build(root);
+      this.filterBar = desktopBar;
     }
-    const actionRow = root.createDiv({ cls: "cardbox-actionbar" });
-    const newBtn = actionRow.createEl("button", { cls: "cardbox-action-btn", attr: { "aria-label": i18n.newCard } });
-    (0, import_obsidian14.setIcon)(newBtn, "plus");
-    newBtn.addEventListener("click", () => this.ctx.openCapture());
-    const selectBtn = actionRow.createEl("button", {
-      cls: "cardbox-action-btn",
-      attr: { "aria-label": i18n.toggleSelect }
-    });
-    (0, import_obsidian14.setIcon)(selectBtn, "check-square");
-    selectBtn.addEventListener("click", () => this.toggleSelectionMode());
+    if (import_obsidian14.Platform.isMobile) {
+      const fab = root.createEl("button", {
+        cls: "cardbox-fab",
+        attr: { "aria-label": i18n.newCard }
+      });
+      (0, import_obsidian14.setIcon)(fab, "plus");
+      fab.addEventListener("click", () => this.ctx.openCapture());
+      const selectAction = this.addAction("check-square", i18n.toggleSelect, () => this.toggleSelectionMode());
+      selectAction.addClass("cardbox-select-action");
+    } else {
+      const actionRow = root.createDiv({ cls: "cardbox-actionbar" });
+      const newBtn = actionRow.createEl("button", {
+        cls: "cardbox-action-btn",
+        attr: { "aria-label": i18n.newCard }
+      });
+      (0, import_obsidian14.setIcon)(newBtn, "plus");
+      newBtn.addEventListener("click", () => this.ctx.openCapture());
+      const selectBtn = actionRow.createEl("button", {
+        cls: "cardbox-action-btn",
+        attr: { "aria-label": i18n.toggleSelect }
+      });
+      (0, import_obsidian14.setIcon)(selectBtn, "check-square");
+      selectBtn.addEventListener("click", () => this.toggleSelectionMode());
+    }
     this.selectionBarEl = root.createDiv({ cls: "cardbox-selectionbar" });
     this.placeholderEl = root.createDiv({ cls: "cardbox-placeholder" });
     this.listEl = root.createDiv({ cls: "cardbox-list" });
@@ -2756,9 +2785,10 @@ var CardBoxView = class extends import_obsidian14.ItemView {
     const def = defaultBoxDef(newBoxId(), "");
     new BoxEditModal(this.app, this.ctx.index, def, {
       onSave: async (saved) => {
+        var _a;
         await this.ctx.boxes.upsert(saved);
         await this.ctx.boxes.setActiveId(saved.id);
-        this.boxBar.refresh();
+        (_a = this.boxBar) == null ? void 0 : _a.refresh();
         this.renderKey = "";
         this.scheduleRender();
       }
@@ -2767,18 +2797,53 @@ var CardBoxView = class extends import_obsidian14.ItemView {
   editBox(def) {
     new BoxEditModal(this.app, this.ctx.index, def, {
       onSave: async (saved) => {
+        var _a;
         await this.ctx.boxes.upsert(saved);
-        this.boxBar.refresh();
+        (_a = this.boxBar) == null ? void 0 : _a.refresh();
         this.renderKey = "";
         this.scheduleRender();
       },
       onDelete: async () => {
+        var _a;
         await this.ctx.boxes.remove(def.id);
-        this.boxBar.refresh();
+        (_a = this.boxBar) == null ? void 0 : _a.refresh();
         this.renderKey = "";
         this.scheduleRender();
       }
     }).open();
+  }
+  /** 手机端：点击「盒名 · 数量」信息行，弹出卡片盒切换菜单 */
+  showBoxMenu(anchor) {
+    const menu = new import_obsidian14.Menu();
+    const activeId = this.ctx.boxes.activeId();
+    menu.addItem(
+      (item) => item.setTitle(i18n.boxAll).setChecked(!activeId).onClick(() => {
+        void this.ctx.boxes.setActiveId("");
+        this.renderKey = "";
+        this.scheduleRender();
+      })
+    );
+    const boxes = this.ctx.boxes.list();
+    if (boxes.length) menu.addSeparator();
+    for (const box of boxes) {
+      menu.addItem(
+        (item) => item.setTitle(box.name || i18n.boxUnnamed).setChecked(box.id === activeId).onClick(() => {
+          void this.ctx.boxes.setActiveId(box.id);
+          this.renderKey = "";
+          this.scheduleRender();
+        })
+      );
+    }
+    menu.addSeparator();
+    menu.addItem((item) => item.setTitle(i18n.boxNew).setIcon("plus").onClick(() => this.createBox()));
+    const current = this.activeBox();
+    if (current) {
+      menu.addItem(
+        (item) => item.setTitle(i18n.boxEdit).setIcon("pencil").onClick(() => this.editBox(current))
+      );
+    }
+    const rect = anchor.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom });
   }
   // ---------- 渲染 ----------
   scheduleRender() {
@@ -2789,7 +2854,7 @@ var CardBoxView = class extends import_obsidian14.ItemView {
     });
   }
   render() {
-    var _a;
+    var _a, _b;
     if (this.ctx.index.isIndexing && !this.ctx.index.ready) {
       this.showPlaceholder(i18n.indexing);
       return;
@@ -2798,6 +2863,7 @@ var CardBoxView = class extends import_obsidian14.ItemView {
     const sort = this.filterBar.getSort();
     const box = this.activeBox();
     const filtered = this.ctx.index.search(this.filter.query, this.filter, sort, box);
+    (_a = this.mobileHeader) == null ? void 0 : _a.setInfo(box ? box.name || i18n.boxUnnamed : i18n.boxAll, filtered.length);
     this.listEl.toggleClass("is-masonry", mode === "masonry");
     this.listEl.style.setProperty("--cardbox-col-min", `${this.ctx.settings.masonryMinColumnWidth}px`);
     if (filtered.length === 0) {
@@ -2808,7 +2874,7 @@ var CardBoxView = class extends import_obsidian14.ItemView {
     this.placeholderEl.empty();
     this.placeholderEl.addClass("is-hidden");
     this.listEl.removeClass("is-hidden");
-    const key = mode + "|" + sort + "|" + ((_a = box == null ? void 0 : box.id) != null ? _a : "") + "|" + this.filter.query + "|" + [...this.filter.selectedTags].sort().join(",") + "|" + [...this.filter.selectedColors].sort().join(",") + "|" + [
+    const key = mode + "|" + sort + "|" + ((_b = box == null ? void 0 : box.id) != null ? _b : "") + "|" + this.filter.query + "|" + [...this.filter.selectedTags].sort().join(",") + "|" + [...this.filter.selectedColors].sort().join(",") + "|" + [
       this.filter.hasTag,
       this.filter.noTag,
       this.filter.emptyContent,

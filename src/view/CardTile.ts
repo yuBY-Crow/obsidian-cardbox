@@ -49,9 +49,15 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	// 关联卡片数量（含正文双链引用）
 	const childCount = opts.childCount ?? card.children.length;
 
-	// 展开按钮：紧随其后显示关联卡片数量，一眼能看出有多少关联
-	if (opts.hasVisibleChildren) {
-		const expandWrap = main.createDiv({ cls: 'cardbox-expand-wrap' });
+	/**
+	 * 展开按钮 + 关联数量。
+	 * 列表模式放在卡片最左侧（紧凑、便于扫视层级）；
+	 * 平铺模式改放正文下方独立一行（带分隔线），与参考图一致，
+	 * 否则左侧图标会挤占本就不宽的双列卡片正文空间。
+	 */
+	const buildExpand = (host: HTMLElement) => {
+		if (!opts.hasVisibleChildren) return;
+		const expandWrap = host.createDiv({ cls: 'cardbox-expand-wrap' });
 		const expand = expandWrap.createEl('button', {
 			cls: 'cardbox-expand-btn',
 			attr: { 'aria-label': opts.expanded ? i18n.collapseChildren : i18n.expandChildren },
@@ -66,7 +72,9 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 			e.stopPropagation();
 			opts.onToggleExpand(card);
 		});
-	}
+	};
+
+	if (!opts.rich) buildExpand(main);
 
 	// 多选勾选框（默认隐藏，.cardbox-is-selecting 时显示）
 	const check = main.createDiv({ cls: 'cardbox-check' });
@@ -110,6 +118,12 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		const ic = iconRow.createSpan({ cls: 'cardbox-tile-icon' });
 		setIcon(ic, 'archive');
 		ic.setAttribute('aria-label', i18n.archivedIndicator);
+	}
+
+	// 平铺模式：关联卡片单独一行放在正文下方（分隔线在CSS 里）
+	if (opts.rich) {
+		const relRow = body.createDiv({ cls: 'cardbox-tile-related' });
+		buildExpand(relRow);
 	}
 
 	// meta 行：标签 + 时间

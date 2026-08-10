@@ -23,9 +23,12 @@ type RenderItem =
 	| { kind: 'card'; card: Card; depth: number; expanded: boolean; hasVisibleChildren: boolean }
 	| { kind: 'day'; day: number; cards: Card[] };
 
-/** 顶部栏统一接口：PC 用 FilterBar，手机用 MobileHeader */
+/**
+ * 顶部栏统一接口：PC 用 FilterBar，手机用 MobileHeader。
+ * 不含 build——两者构建签名不同（手机端还要拿 addAction 往 view header 注册图标），
+ * 各自在 onOpen 里单独构建后再赋给这个接口。
+ */
 interface ViewHeader {
-	build(container: HTMLElement): HTMLElement;
 	getMode(): ViewMode;
 	getSort(): SortMode;
 	refreshTags?(): void;
@@ -77,7 +80,8 @@ export class CardBoxView extends ItemView {
 		root.addClass('cardbox-root');
 		this.content = root;
 
-		// 手机端：精简顶部栏（汉堡筛选 + 视图循环按钮），不显示卡片盒切换栏与桌面筛选栏
+		// 手机端：两个图标注册进 view header（与「卡片盒」标题同一行），
+		// 内容区只留极窄的「盒名 · 数量」信息行，最大化卡片预览空间。
 		if (Platform.isMobile) {
 			this.mobileHeader = new MobileHeader(this.app, this.filter, this.ctx.settings, this.ctx.index, {
 				onFilterChange: () => {
@@ -96,8 +100,9 @@ export class CardBoxView extends ItemView {
 						})
 						.open();
 				},
+				onPickBox: (anchor) => this.showBoxMenu(anchor),
 			});
-			this.mobileHeader.build(root);
+			this.mobileHeader.build(root, (icon, title, cb) => this.addAction(icon, title, cb));
 			this.filterBar = this.mobileHeader;
 		} else {
 			// 卡片盒切换栏
@@ -119,7 +124,7 @@ export class CardBoxView extends ItemView {
 			);
 			this.boxBar.build(root);
 
-			this.filterBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
+			const desktopBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
 				onFilterChange: () => {
 					this.boxBar.refresh();
 					this.scheduleRender();
@@ -142,20 +147,38 @@ export class CardBoxView extends ItemView {
 						.open();
 				},
 			});
-			this.filterBar.build(root);
+			desktopBar.build(root);
+			this.filterBar = desktopBar;
 		}
 
-		const actionRow = root.createDiv({ cls: 'cardbox-actionbar' });
-		const newBtn = actionRow.createEl('button', { cls: 'cardbox-action-btn', attr: { 'aria-label': i18n.newCard } });
-		setIcon(newBtn, 'plus');
-		newBtn.addEventListener('click', () => this.ctx.openCapture());
+		// 手机端：新建改为右下角悬浮按钮、多选走view header 图标，
+		// 不再占一整行（参考图里新建就是悬浮的）。桌面端保留原操作行。
+		if (Platform.isMobile) {
+			const fab = root.createEl('button', {
+				cls: 'cardbox-fab',
+				attr: { 'aria-label': i18n.newCard },
+			});
+			setIcon(fab, 'plus');
+			fab.addEventListener('click', () => this.ctx.openCapture());
 
-		const selectBtn = actionRow.createEl('button', {
-			cls: 'cardbox-action-btn',
-			attr: { 'aria-label': i18n.toggleSelect },
-		});
-		setIcon(selectBtn, 'check-square');
-		selectBtn.addEventListener('click', () => this.toggleSelectionMode());
+			const selectAction = this.addAction('check-square', i18n.toggleSelect, () => this.toggleSelectionMode());
+			selectAction.addClass('cardbox-select-action');
+		} else {
+			const actionRow = root.createDiv({ cls: 'cardbox-actionbar' });
+			const newBtn = actionRow.createEl('button', {
+				cls: 'cardbox-action-btn',
+				attr: { 'aria-label': i18n.newCard },
+			});
+			setIcon(newBtn, 'plus');
+			newBtn.addEventListener('click', () => this.ctx.openCapture());
+
+			const selectBtn = actionRow.createEl('button', {
+				cls: 'cardbox-action-btn',
+				attr: { 'aria-label': i18n.toggleSelect },
+			});
+			setIcon(selectBtn, 'check-square');
+			selectBtn.addEventListener('click', () => this.toggleSelectionMode());
+		}
 
 		this.selectionBarEl = root.createDiv({ cls: 'cardbox-selectionbar' });
 
@@ -232,7 +255,8 @@ export class CardBoxView extends ItemView {
 			onSave: async (saved) => {
 				await this.ctx.boxes.upsert(saved);
 				await this.ctx.boxes.setActiveId(saved.id);
-				this.boxBar.refresh();
+				// 手机端没有 BoxBar，这里必须可选调用，否则会抛异常
+				this.boxBar?.refresh();
 				this.renderKey = '';
 				this.scheduleRender();
 			},
@@ -243,17 +267,57 @@ export class CardBoxView extends ItemView {
 		new BoxEditModal(this.app, this.ctx.index, def, {
 			onSave: async (saved) => {
 				await this.ctx.boxes.upsert(saved);
-				this.boxBar.refresh();
+				this.boxBar?.refresh();
 				this.renderKey = '';
 				this.scheduleRender();
 			},
 			onDelete: async () => {
 				await this.ctx.boxes.remove(def.id);
-				this.boxBar.refresh();
+				this.boxBar?.refresh();
 				this.renderKey = '';
 				this.scheduleRender();
 			},
 		}).open();
+	}
+
+	/** 手机端：点击「盒名 · 数量」信息行，弹出卡片盒切换菜单 */
+	private showBoxMenu(anchor: HTMLElement): void {
+		const menu = new Menu();
+		const activeId = this.ctx.boxes.activeId();
+		menu.addItem((item) =>
+			item
+				.setTitle(i18n.boxAll)
+				.setChecked(!activeId)
+				.onClick(() => {
+					void this.ctx.boxes.setActiveId('');
+					this.renderKey = '';
+					this.scheduleRender();
+				}),
+		);
+		const boxes = this.ctx.boxes.list();
+		if (boxes.length) menu.addSeparator();
+		for (const box of boxes) {
+			menu.addItem((item) =>
+				item
+					.setTitle(box.name || i18n.boxUnnamed)
+					.setChecked(box.id === activeId)
+					.onClick(() => {
+						void this.ctx.boxes.setActiveId(box.id);
+						this.renderKey = '';
+						this.scheduleRender();
+					}),
+			);
+		}
+		menu.addSeparator();
+		menu.addItem((item) => item.setTitle(i18n.boxNew).setIcon('plus').onClick(() => this.createBox()));
+		const current = this.activeBox();
+		if (current) {
+			menu.addItem((item) =>
+				item.setTitle(i18n.boxEdit).setIcon('pencil').onClick(() => this.editBox(current)),
+			);
+		}
+		const rect = anchor.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom });
 	}
 
 	// ---------- 渲染 ----------
@@ -275,6 +339,10 @@ export class CardBoxView extends ItemView {
 		const sort = this.filterBar.getSort();
 		const box = this.activeBox();
 		const filtered = this.ctx.index.search(this.filter.query, this.filter, sort, box);
+
+		// 手机端信息行：盒名 · 命中数量（必须在下方early return 之前更新，
+		// 否则筛选到0 条时数量会停留在上一次的值）
+		this.mobileHeader?.setInfo(box ? box.name || i18n.boxUnnamed : i18n.boxAll, filtered.length);
 
 		// 平铺模式用CSS 多列，列宽由设置决定
 		this.listEl.toggleClass('is-masonry', mode === 'masonry');

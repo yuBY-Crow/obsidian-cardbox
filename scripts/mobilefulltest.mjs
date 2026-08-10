@@ -26,7 +26,11 @@ await page.setContent(`<!DOCTYPE html><html><body>
 body{margin:0;padding:0;font-family:system-ui,"Microsoft YaHei",sans-serif}
 ${styles}
 </style>
-<div id="host" style="height:100vh"></div>
+<div class="view-header" style="display:flex;align-items:center;height:40px;padding:0 8px;gap:6px">
+  <div class="view-header-title">卡片盒</div>
+  <div class="view-header-nav-buttons" style="margin-left:auto;display:flex;gap:4px"></div>
+</div>
+<div id="host" style="height:calc(100vh - 40px)"></div>
 </body></html>`);
 
 const expMode = Number(process.env.EXP ?? 0);
@@ -144,7 +148,22 @@ const probe = window.__PROBE || (window.__PROBE = {});
 		};
 		const obsidian = {
 			Plugin: class { constructor(a, m) { this.app = a; this.manifest = m; this._views = {}; } addRibbonIcon() { return mk('div'); } addCommand() {} addSettingTab() {} registerView(t, f) { this._views[t] = f; } registerEvent() {} register() {} async loadData() { return {}; } async saveData() {} },
-			ItemView: class { constructor(l) { this.leaf = l; this.contentEl = mk('div'); } },
+			// ItemView 必须提供 addAction：真实 Obsidian 会把图标挂进 view header
+			// （与标题同一行）。mock 用独立的 .view-header-nav-buttons 容器模拟，
+			// 这样能验证「图标不在 contentEl 内」= 不占用卡片预览空间。
+			ItemView: class {
+				constructor(l) {
+					this.leaf = l;
+					this.contentEl = mk('div');
+				}
+				addAction(icon, title, cb) {
+					const btn = mk('button', { cls: 'clickable-icon view-action', attr: { 'aria-label': title } });
+					obsidian.setIcon(btn, icon);
+					btn.addEventListener('click', cb);
+					document.querySelector('.view-header-nav-buttons').appendChild(btn);
+					return btn;
+				}
+			},
 			Modal: class { constructor(a) { this.app = a; this.contentEl = mk('div'); } open() {} close() {} },
 			PluginSettingTab: class { constructor(a, p) { this.app = a; this.plugin = p; this.containerEl = mk('div'); } },
 			Events: class { constructor() { this._cbs = {}; } on(t, cb) { (this._cbs[t] = this._cbs[t] || []).push(cb); return { ref: 0 }; } offref() {} trigger(t, ...a) { for (const cb of this._cbs[t] || []) cb(...a); } },
@@ -189,10 +208,10 @@ const probe = window.__PROBE || (window.__PROBE = {});
 		}
 		await new Promise((r) => setTimeout(r, 800));
 
-		// 切到平铺
-		const mobileModeBtn = document.querySelector('.cardbox-mobile-mode-btn');
+		// 切到平铺：视图按钮现在注册在 view header 里（.cardbox-mode-action）
+		const mobileModeBtn = document.querySelector('.cardbox-mode-action');
 		if (mobileModeBtn) {
-			// 手机端视图按钮：点击循环，点两次到 masonry（card→masonry）
+			// 点击循环 card→masonry
 			mobileModeBtn.click();
 			await new Promise((r) => setTimeout(r, 300));
 		}
@@ -232,11 +251,24 @@ const probe = window.__PROBE || (window.__PROBE = {});
 		const isMobileHeader = !!document.querySelector('.cardbox-mobile-header');
 		const isBoxBar = !!document.querySelector('.cardbox-boxbar');
 		const modeText = mobileModeBtn ? mobileModeBtn.textContent : 'N/A';
+
+		// 关键断言：两个图标应在 view header 里（与标题同行），不在视图内容区内
+		const headerActions = [...document.querySelectorAll('.view-header-nav-buttons .view-action')].map(
+			(b) => b.getAttribute('aria-label'),
+		);
+		const actionsInContent = !!view.contentEl.querySelector('.cardbox-mode-action, .cardbox-filter-action');
+		const infoEl = document.querySelector('.cardbox-mobile-info');
+		const infoHeight = infoEl ? Math.round(infoEl.getBoundingClientRect().height) : -1;
+		const infoText = infoEl ? infoEl.textContent : null;
 		return {
 			indexReady: plugin.index ? plugin.index.ready : null,
 			indexCount: plugin.index ? plugin.index.all().length : null,
 			tileCount: tiles.length,
 			gridCols,
+			headerActions,
+			actionsInContent,
+			infoHeight,
+			infoText,
 			firstFew,
 			computed0: (() => { const t = document.querySelector(".cardbox-tile"); if (!t) return null; const cs = getComputedStyle(t); return { maxHeight: cs.maxHeight, overflow: cs.overflow, display: cs.display, flexDirection: cs.flexDirection, height: cs.height }; })(),
 			sentinelRect,
