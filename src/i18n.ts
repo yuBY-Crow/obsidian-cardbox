@@ -111,6 +111,16 @@ export const i18n = {
 	extendReordered: '顺序已保存',
 	extendToggleFull: '展开/收起全文',
 	extendParentArrow: (title: string) => `↑ ${title}`,
+	extendSourceExplicit: '已关联',
+	extendSourceBody: '正文双链',
+	extendBacklinks: '引用此卡片',
+	extendBacklinkEmpty: '还没有其他卡片引用这张卡片。',
+	extendPromoteBody: '固定为扩展卡片',
+	extendPromoted: '已固定为扩展卡片（可拖拽排序）',
+	extendUnlinkBodyHint: '此关联来自正文 [[双链]]，请在正文中删除链接',
+	extendInsertLink: '在正文插入双链',
+	extendLinkInserted: '已在正文插入双链',
+	extendLinkAsChild: '设为当前主卡的扩展卡片',
 
 	// Canvas
 	canvasCreated: (name: string) => `已生成白板：${name}`,

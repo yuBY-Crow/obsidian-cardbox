@@ -310,10 +310,14 @@ export class CardBoxView extends ItemView {
 		const expanded = this.expandedIds;
 		const result: RenderItem[] = [];
 		const visited = new Set<string>();
+		// 扩展卡片 = frontmatter 显式关联 + 正文双链，与扩展视图口径一致
+		const extIds = (card: Card) => this.ctx.index.extensionsOf(card).map((e) => e.card.id);
 		const visit = (card: Card, depth: number) => {
 			if (visited.has(card.id)) return;
 			visited.add(card.id);
-			const children = card.children.map((id) => byId.get(id)).filter((c): c is Card => !!c);
+			const children = extIds(card)
+				.map((id) => byId.get(id))
+				.filter((c): c is Card => !!c);
 			const isExpanded = children.length > 0 && expanded.has(card.id);
 			result.push({ kind: 'card', card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
 			if (isExpanded) for (const child of children) visit(child, depth + 1);
@@ -353,6 +357,8 @@ export class CardBoxView extends ItemView {
 		return buildCardTile({
 			card,
 			depth,
+			// 角标含正文双链，与扩展视图口径一致
+			childCount: this.ctx.index.extensionCount(card),
 			selected: this.selectedIds.has(card.id),
 			expanded,
 			hasVisibleChildren,
@@ -464,21 +470,9 @@ export class CardBoxView extends ItemView {
 		);
 		menu.addItem((item) => item.setTitle(i18n.tag).setIcon('tag').onClick(() => new TagModal(this.app, this.ctx, [card]).open()));
 
-		// 调色盘子菜单
-		menu.addItem((item) => {
-			item.setTitle(i18n.colorLabel).setIcon('palette');
-			const sub = (item as unknown as { setSubmenu(): Menu }).setSubmenu();
-			for (const color of CARD_COLORS) {
-				sub.addItem((si) =>
-					si
-						.setTitle(i18n.colorNames[color] ?? color)
-						.setChecked(card.color === color)
-						.onClick(() => void this.ctx.service.setColor([card], color as CardColor)),
-				);
-			}
-			sub.addSeparator();
-			sub.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => void this.ctx.service.setColor([card], null)));
-		});
+		// 调色盘：setSubmenu 属未公开 API，旧版Obsidian 上不存在。
+		// 支持则用子菜单（紧凑），否则平铺成「眉头颜色：红」等条目，保证任何版本都能用。
+		this.addColorMenuItems(menu, card);
 
 		menu.addItem((item) =>
 			item
@@ -517,6 +511,53 @@ export class CardBoxView extends ItemView {
 		menu.addItem((item) => item.setTitle(i18n.delete).setIcon('trash').onClick(() => this.deleteCards([card])));
 		const rect = anchor.getBoundingClientRect();
 		menu.showAtPosition({ x: rect.left, y: rect.bottom });
+	}
+
+	/**
+	 * 向菜单添加调色盘。
+	 * Menu.addItem 的 item 上setSubmenu 是未公开 API（官方 obsidian.d.ts 无此声明），
+	 * 旧版本客户端调用会抛异常导致整个菜单打不开，因此必须做能力探测并提供降级路径。
+	 */
+	private addColorMenuItems(menu: Menu, card: Card): void {
+		const apply = (color: CardColor | null) => void this.ctx.service.setColor([card], color);
+
+		let sub: Menu | undefined;
+		menu.addItem((item) => {
+			item.setTitle(i18n.colorLabel).setIcon('palette');
+			const withSub = item as unknown as { setSubmenu?: () => Menu };
+			if (typeof withSub.setSubmenu !== 'function') return;
+			try {
+				sub = withSub.setSubmenu();
+			} catch {
+				sub = undefined;
+			}
+		});
+
+		if (sub) {
+			for (const color of CARD_COLORS) {
+				sub.addItem((si) =>
+					si
+						.setTitle(i18n.colorNames[color] ?? color)
+						.setChecked(card.color === color)
+						.onClick(() => apply(color as CardColor)),
+				);
+			}
+			sub.addSeparator();
+			sub.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
+			return;
+		}
+
+		// 降级：平铺进主菜单，标题带前缀以便区分
+		for (const color of CARD_COLORS) {
+			const name = i18n.colorNames[color] ?? color;
+			menu.addItem((si) =>
+				si
+					.setTitle(`${i18n.colorLabel}：${name}`)
+					.setChecked(card.color === color)
+					.onClick(() => apply(color as CardColor)),
+			);
+		}
+		menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
 	}
 
 	private linkExistingChild(parent: Card): void {

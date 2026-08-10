@@ -1102,3 +1102,104 @@ body.is-mobile .cardbox-extend-toggle {
 	min-height: 40px;
 }
 
+
+/* ===== 双链整合：来源标识与反向链接 ===== */
+
+.cardbox-source-badge {
+	font-size: 10px;
+	padding: 1px 6px;
+	border-radius: 999px;
+	white-space: nowrap;
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
+	background: var(--background-secondary);
+}
+
+.cardbox-source-badge.is-body {
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+	background: transparent;
+}
+
+/* 正文双链来源的面板用虚线左边框区分，暗示顺序不可拖拽 */
+.cardbox-extend-panel.is-from-body {
+	border-left: 2px dashed var(--interactive-accent);
+}
+
+.cardbox-extend-panel.is-from-body .cardbox-extend-head {
+	cursor: default;
+}
+
+/* 反向链接区 */
+.cardbox-extend-backlinks {
+	margin-top: 18px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.cardbox-backlink-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	margin-bottom: 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	cursor: pointer;
+}
+
+.cardbox-backlink-row.has-color {
+	border-left: 3px solid var(--cardbox-color);
+}
+
+@media (hover: hover) {
+	.cardbox-backlink-row:hover {
+		background: var(--background-modifier-hover);
+	}
+}
+
+.cardbox-backlink-title {
+	flex: 1;
+	min-width: 0;
+	font-size: 13px;
+	color: var(--text-normal);
+	line-height: 1.4;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cardbox-backlink-meta {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.cardbox-backlink-btn {
+	flex: none;
+	min-height: 26px;
+	padding: 2px 8px;
+	font-size: 11px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.cardbox-backlink-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+body.is-mobile .cardbox-backlink-row {
+	padding: 12px 10px;
+}
+
+body.is-mobile .cardbox-backlink-btn {
+	min-height: 36px;
+}

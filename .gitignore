@@ -8,3 +8,4 @@ test-vault/
 preview.html
 shot-*.png
 scripts/shot.mjs
+shot-render-*.png

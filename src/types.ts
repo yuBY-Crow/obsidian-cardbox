@@ -19,8 +19,13 @@ export interface Card {
 	updated: number;
 	/** 父卡片 id（可选） */
 	parent?: string;
-	/** 子卡片 / 扩展卡片 id 数组（顺序即展示顺序，可拖拽调整） */
+	/** 显式登记的扩展卡片 id 数组（顺序即展示顺序，可拖拽调整） */
 	children: string[];
+	/**
+	 * 正文中通过 [[双链]] 指向的卡片 id（按出现顺序）。
+	 * 由索引层从 metadataCache 填充，与 children 合并后共同构成扩展卡片。
+	 */
+	bodyLinks: string[];
 	/** 是否已归档（frontmatter archived: true） */
 	archived: boolean;
 	/** 眉头颜色标记 */

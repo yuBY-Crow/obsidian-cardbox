@@ -124,51 +124,91 @@ export class CardExtendView extends ItemView {
 
 		// 扩展卡片列
 		const childCol = wrap.createDiv({ cls: 'cardbox-extend-children' });
+		const exts = this.ctx.index.extensionsOf(root);
 		const header = childCol.createDiv({ cls: 'cardbox-extend-label' });
-		header.setText(`${i18n.extendChildren}（${root.children.length}）`);
+		header.setText(`${i18n.extendChildren}（${exts.length}）`);
 		childCol.createDiv({ cls: 'cardbox-extend-hint', text: i18n.extendDragHint });
 
-		const children = this.childrenOf(root);
-		if (!children.length) {
+		if (!exts.length) {
 			childCol.createDiv({ cls: 'cardbox-placeholder', text: i18n.extendEmpty });
-			return;
+		} else {
+			const listEl = childCol.createDiv({ cls: 'cardbox-extend-list' });
+			for (const ext of exts) {
+				listEl.appendChild(this.buildBranch(root, ext.card, 0, ext.source));
+			}
+			this.enableDragSort(listEl, root);
 		}
-		const listEl = childCol.createDiv({ cls: 'cardbox-extend-list' });
-		for (const child of children) {
-			listEl.appendChild(this.buildBranch(root, child, 0));
+
+		// 反向链接区：哪些卡片引用了当前主卡
+		const backlinks = this.ctx.index.backlinksOf(root);
+		const blSection = childCol.createDiv({ cls: 'cardbox-extend-backlinks' });
+		blSection.createDiv({ cls: 'cardbox-extend-label', text: `${i18n.extendBacklinks}（${backlinks.length}）` });
+		if (!backlinks.length) {
+			blSection.createDiv({ cls: 'cardbox-extend-hint', text: i18n.extendBacklinkEmpty });
+		} else {
+			for (const bl of backlinks) {
+				blSection.appendChild(this.buildBacklinkRow(root, bl));
+			}
 		}
-		this.enableDragSort(listEl, root);
+	}
+
+	/** 反向链接行：点击打开，可一键设为当前主卡的扩展卡片 */
+	private buildBacklinkRow(root: Card, card: Card): HTMLElement {
+		const row = createDiv({ cls: 'cardbox-backlink-row' });
+		if (card.color) row.addClass('has-color', `cardbox-color-${card.color}`);
+		const title = card.title || card.snippet.split('\n')[0].trim() || i18n.emptyContent;
+		row.createDiv({ cls: 'cardbox-backlink-title', text: title });
+		const meta = row.createDiv({ cls: 'cardbox-backlink-meta' });
+		meta.createSpan({ cls: 'cardbox-tile-time', text: formatRelativeTime(card.created) });
+		const promote = row.createEl('button', { cls: 'cardbox-backlink-btn', text: i18n.extendLinkAsChild });
+		promote.addEventListener('click', (e) => {
+			e.stopPropagation();
+			void (async () => {
+				await this.ctx.service.linkChild(root, card);
+				new Notice(i18n.extendPromoted, 1500);
+				this.scheduleRender();
+			})();
+		});
+		row.addEventListener('click', () => void this.openCard(card));
+		return row;
 	}
 
 	private childrenOf(card: Card): Card[] {
-		return card.children.map((id) => this.ctx.index.getById(id)).filter((c): c is Card => !!c);
+		return this.ctx.index.extensionsOf(card).map((e) => e.card);
 	}
 
 	/** 递归构建分支（扩展卡片也可以有自己的扩展卡片） */
-	private buildBranch(parent: Card, card: Card, depth: number): HTMLElement {
+	private buildBranch(parent: Card, card: Card, depth: number, source: 'explicit' | 'body' = 'explicit'): HTMLElement {
 		const branch = createDiv({ cls: 'cardbox-extend-branch' });
 		branch.setAttribute('data-card-id', card.id);
 		branch.style.setProperty('--depth', String(depth));
-		branch.appendChild(this.buildPanel(card, false, parent));
+		branch.appendChild(this.buildPanel(card, false, parent, source));
 
-		const subs = this.childrenOf(card);
+		const subs = this.ctx.index.extensionsOf(card);
 		if (subs.length && this.expandedIds.has(card.id)) {
 			const subList = branch.createDiv({ cls: 'cardbox-extend-sublist' });
-			for (const sub of subs) subList.appendChild(this.buildBranch(card, sub, depth + 1));
+			for (const sub of subs) subList.appendChild(this.buildBranch(card, sub.card, depth + 1, sub.source));
 			this.enableDragSort(subList, card);
 		}
 		return branch;
 	}
 
 	/** 单张卡片面板：标题行（可拖拽） + 可展开全文 */
-	private buildPanel(card: Card, isRoot: boolean, parent?: Card): HTMLElement {
+	private buildPanel(
+		card: Card,
+		isRoot: boolean,
+		parent?: Card,
+		source: 'explicit' | 'body' = 'explicit',
+	): HTMLElement {
 		const panel = createDiv({ cls: 'cardbox-extend-panel' });
 		if (isRoot) panel.addClass('is-root');
 		if (card.color) panel.addClass('has-color', `cardbox-color-${card.color}`);
+		if (!isRoot && source === 'body') panel.addClass('is-from-body');
 		panel.setAttribute('data-card-id', card.id);
 
 		const head = panel.createDiv({ cls: 'cardbox-extend-head' });
-		if (!isRoot) head.addClass('is-draggable');
+		// 正文双链来源的顺序由正文决定，不能拖拽排序
+		if (!isRoot && source === 'explicit') head.addClass('is-draggable');
 
 		// 展开/收起全文
 		const toggle = head.createEl('button', {
@@ -192,15 +232,22 @@ export class CardExtendView extends ItemView {
 			meta.createSpan({ cls: 'cardbox-chip cardbox-chip-sm', text: `#${tag}` });
 		}
 		meta.createSpan({ cls: 'cardbox-tile-time', text: formatRelativeTime(card.created) });
-		const subCount = card.children.length;
+		const subCount = this.ctx.index.extensionCount(card);
 		if (subCount) meta.createSpan({ cls: 'cardbox-child-badge', text: String(subCount) });
+		// 来源标识：区分显式关联与正文双链
+		if (!isRoot) {
+			meta.createSpan({
+				cls: `cardbox-source-badge is-${source}`,
+				text: source === 'body' ? i18n.extendSourceBody : i18n.extendSourceExplicit,
+			});
+		}
 
 		// kebab
 		const more = head.createEl('button', { cls: 'cardbox-more-btn', attr: { 'aria-label': i18n.more } });
 		setIcon(more, 'more-horizontal');
 		more.addEventListener('click', (e) => {
 			e.stopPropagation();
-			this.showPanelMenu(card, more, parent);
+			this.showPanelMenu(card, more, parent, source);
 		});
 
 		// 展开区：全文（点击进入编辑）
@@ -219,27 +266,65 @@ export class CardExtendView extends ItemView {
 		return panel;
 	}
 
-	private showPanelMenu(card: Card, anchor: HTMLElement, parent?: Card): void {
+	private showPanelMenu(
+		card: Card,
+		anchor: HTMLElement,
+		parent?: Card,
+		source: 'explicit' | 'body' = 'explicit',
+	): void {
 		const menu = new Menu();
 		menu.addItem((i) => i.setTitle(i18n.edit).setIcon('pencil').onClick(() => void this.openCard(card)));
 		menu.addItem((i) =>
 			i.setTitle(i18n.extendAddChild).setIcon('file-plus').onClick(() => this.ctx.openCapture('', card)),
 		);
 		menu.addItem((i) => i.setTitle(i18n.extendLink).setIcon('link').onClick(() => this.linkExisting(card)));
+
 		if (parent) {
-			menu.addItem((i) =>
-				i
-					.setTitle(i18n.extendUnlink)
-					.setIcon('unlink')
-					.onClick(() => {
-						void (async () => {
-							await this.ctx.service.unlinkChild(parent, card);
-							new Notice(i18n.extendUnlinked, 1500);
-							this.scheduleRender();
-						})();
-					}),
-			);
+			if (source === 'body') {
+				// 正文双链无法从 frontmatter 解除，只能提示或「固定」为显式关联
+				menu.addItem((i) =>
+					i
+						.setTitle(i18n.extendPromoteBody)
+						.setIcon('pin')
+						.onClick(() => {
+							void (async () => {
+								await this.ctx.service.linkChild(parent, card);
+								new Notice(i18n.extendPromoted, 1500);
+								this.scheduleRender();
+							})();
+						}),
+				);
+				menu.addItem((i) => i.setTitle(i18n.extendUnlinkBodyHint).setIcon('info').setDisabled(true));
+			} else {
+				menu.addItem((i) =>
+					i
+						.setTitle(i18n.extendUnlink)
+						.setIcon('unlink')
+						.onClick(() => {
+							void (async () => {
+								await this.ctx.service.unlinkChild(parent, card);
+								new Notice(i18n.extendUnlinked, 1500);
+								this.scheduleRender();
+							})();
+						}),
+				);
+				// 把关联同时写进正文，便于在阅读视图直接点击跳转
+				menu.addItem((i) =>
+					i
+						.setTitle(i18n.extendInsertLink)
+						.setIcon('square-pen')
+						.onClick(() => {
+							void (async () => {
+								const ok = await this.ctx.service.appendBodyLink(parent, card.id);
+								if (ok) new Notice(i18n.extendLinkInserted, 1500);
+								this.bodyCache.delete(parent.id);
+								this.scheduleRender();
+							})();
+						}),
+				);
+			}
 		}
+
 		menu.addItem((i) =>
 			i
 				.setTitle(i18n.openExtendView)
@@ -256,8 +341,9 @@ export class CardExtendView extends ItemView {
 	}
 
 	private linkExisting(parent: Card): void {
+		const existing = this.ctx.index.extensionsOf(parent).map((e) => e.card.id);
 		new CardPickerModal(this.app, this.ctx.index, {
-			excludeIds: new Set([parent.id, ...parent.children]),
+			excludeIds: new Set([parent.id, ...existing]),
 			onPick: async (child) => {
 				await this.ctx.service.linkChild(parent, child);
 				this.scheduleRender();
@@ -312,9 +398,13 @@ export class CardExtendView extends ItemView {
 				dragging = false;
 				item.removeClass('is-dragging');
 				listEl.removeClass('is-sorting');
-				const order = (Array.from(listEl.children) as HTMLElement[])
+				const domOrder = (Array.from(listEl.children) as HTMLElement[])
 					.map((c) => c.getAttribute('data-card-id'))
 					.filter((id): id is string => !!id);
+				// 只把「显式关联」的 id 写回 children：
+				// 正文双链的顺序由正文决定，写进 children 会把它变成显式关联。
+				const explicit = new Set(parent.children);
+				const order = domOrder.filter((id) => explicit.has(id));
 				void (async () => {
 					await this.ctx.service.reorderChildren(parent, order);
 					new Notice(i18n.extendReordered, 1200);

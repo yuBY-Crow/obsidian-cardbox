@@ -2,6 +2,7 @@ import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
 import type { Card, CardColor } from './types';
 import { CARD_COLORS } from './types';
 import { generateId, normalizeTags } from './utils/format';
+import { parseLinkList, parseLinkTarget, toLinkList, toWikilink } from './utils/link';
 
 const SNIPPET_LENGTH = 200;
 const SEARCH_TEXT_LENGTH = 4000;
@@ -47,6 +48,11 @@ function parseColor(v: unknown): CardColor | undefined {
 	if (typeof v !== 'string') return undefined;
 	const c = v.trim().toLowerCase();
 	return (CARD_COLORS as string[]).includes(c) ? (c as CardColor) : undefined;
+}
+
+/** 转义正则元字符（卡片 id 含连字符，用于安全构造检测用正则） */
+function escapeRegExp(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -105,8 +111,9 @@ export class CardService {
 			tags,
 			created: numOr(data?.created, file.stat.ctime, Date.now()),
 			updated: numOr(data?.updated, file.stat.mtime, Date.now()),
-			parent: data && typeof data.parent === 'string' && data.parent.trim() ? data.parent.trim() : undefined,
-			children: Array.isArray(data?.children) ? data.children.filter((c): c is string => typeof c === 'string') : [],
+			parent: parseLinkTarget(data?.parent) || undefined,
+			children: parseLinkList(data?.children),
+			bodyLinks: [],
 			archived: data?.archived === true,
 			color: parseColor(data?.color),
 			pinned: data?.pinned === true,
@@ -128,7 +135,7 @@ export class CardService {
 		const fm: Record<string, unknown> = { id, created: now, updated: now };
 		if (opts.title) fm.title = opts.title;
 		if (opts.tags && opts.tags.length) fm.tags = opts.tags;
-		if (opts.parent) fm.parent = opts.parent;
+		if (opts.parent) fm.parent = toWikilink(opts.parent);
 		await this.app.vault.create(path, buildCardContent(fm, body));
 		return this.getFile(path);
 	}
@@ -193,16 +200,17 @@ export class CardService {
 		}
 	}
 
-	/** 在父卡片frontmatter 中登记子卡片 */
+	/**
+	 * 在父卡片 frontmatter 中登记扩展卡片。
+	 * 写入 [[id]] 格式，使 Obsidian 图谱 / 反向链接 / 重命名跟随都能识别。
+	 */
 	async addChild(parent: Card, child: Card): Promise<void> {
 		const file = this.getFile(parent.path);
 		if (!file) return;
 		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const children = Array.isArray(fm.children)
-				? (fm.children as Array<unknown>).filter((c): c is string => typeof c === 'string')
-				: [];
-			if (!children.includes(child.id)) children.push(child.id);
-			fm.children = children;
+			const ids = parseLinkList(fm.children);
+			if (!ids.includes(child.id)) ids.push(child.id);
+			fm.children = toLinkList(ids);
 			fm.updated = Date.now();
 		});
 	}
@@ -217,7 +225,7 @@ export class CardService {
 		const childFile = this.getFile(child.path);
 		if (!childFile) return;
 		await this.app.fileManager.processFrontMatter(childFile, (fm) => {
-			fm.parent = parent.id;
+			fm.parent = toWikilink(parent.id);
 			fm.updated = Date.now();
 		});
 	}
@@ -227,10 +235,9 @@ export class CardService {
 		const parentFile = this.getFile(parent.path);
 		if (parentFile) {
 			await this.app.fileManager.processFrontMatter(parentFile, (fm) => {
-				const children = Array.isArray(fm.children)
-					? (fm.children as Array<unknown>).filter((c): c is string => typeof c === 'string')
-					: [];
-				fm.children = children.filter((id) => id !== child.id);
+				const ids = parseLinkList(fm.children).filter((id) => id !== child.id);
+				if (ids.length) fm.children = toLinkList(ids);
+				else delete fm.children;
 				fm.updated = Date.now();
 			});
 		}
@@ -248,9 +255,30 @@ export class CardService {
 		const file = this.getFile(parent.path);
 		if (!file) return;
 		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.children = orderedIds;
+			fm.children = toLinkList(orderedIds);
 			fm.updated = Date.now();
 		});
+	}
+
+	/**
+	 * 在卡片正文末尾追加一条[[双链]]。
+	 * 用于「在正文插入双链」：让关联同时体现在正文里，
+	 * 在阅读/预览视图中可直接点击跳转。已存在同名链接则不重复插入。
+	 */
+	async appendBodyLink(card: Card, targetId: string): Promise<boolean> {
+		const file = this.getFile(card.path);
+		if (!file) return false;
+		const content = await this.app.vault.read(file);
+		const { data, body } = splitFrontmatter(content);
+		const link = toWikilink(targetId);
+		// 已有相同链接（含别名/路径写法）则跳过
+		const existing = new RegExp(`\\[\\[[^\\]]*${escapeRegExp(targetId)}[^\\]]*\\]\\]`);
+		if (existing.test(body)) return false;
+		const trimmed = body.replace(/\s+$/, '');
+		const nextBody = trimmed ? `${trimmed}\n\n${link}\n` : `${link}\n`;
+		const nextContent = data ? buildCardContent({ ...data, updated: Date.now() }, nextBody) : nextBody;
+		await this.app.vault.modify(file, nextContent);
+		return true;
 	}
 
 	/** 读取卡片完整正文（合并成文用；索引里的 Card 只有 snippet） */

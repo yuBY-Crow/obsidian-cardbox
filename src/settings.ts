@@ -27,9 +27,17 @@ export interface SettingAccess {
 
 export class CardBoxSettingTab extends PluginSettingTab {
 	private tagsEl: HTMLDivElement;
+	private access: SettingAccess;
 
-	constructor(app: App, private access: SettingAccess) {
-		super(app, access as unknown as Plugin);
+	/**
+	 * 必须把**真实的 Plugin 实例**传给 super：
+	 * Obsidian 1.13 起PluginSettingTab 会访问 this.plugin 的真实属性
+	 * （manifest 等，见 getSettingDefinitions），传伪造对象会在构造期抛异常，
+	 * 表现为插件启用失败。access 只用于读写设置，与 plugin 分开传。
+	 */
+	constructor(app: App, plugin: Plugin, access: SettingAccess) {
+		super(app, plugin);
+		this.access = access;
 	}
 
 	display(): void {

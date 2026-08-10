@@ -4,6 +4,7 @@ type EventEmitter = { offref(ref: EventRef): void };
 import type { Card, CardBoxDef, FilterState, SortMode } from './types';
 import { CardService } from './frontmatter';
 import { cardMatchesBox } from './boxes';
+import { parseLinkTarget } from './utils/link';
 
 const SCAN_CONCURRENCY = 10;
 const UPDATE_BUMP_THRESHOLD_MS = 1000; // mtime 比 updated 新超过此值才回写 updated
@@ -107,6 +108,7 @@ export class CardIndex {
 		this.pathToId.clear();
 		this.tagCounts.clear();
 		for (const card of results) {
+			this.fillBodyLinks(card);
 			this.cardsById.set(card.id, card);
 			this.pathToId.set(card.path, card.id);
 			this.addTagCounts(card, +1);
@@ -115,6 +117,32 @@ export class CardIndex {
 		this.isIndexing = false;
 		this.ready = true;
 		this.notify();
+	}
+
+	/**
+	 * 从 metadataCache 读取正文中的 [[双链]]，凡指向卡片文件夹内卡片的即记为 bodyLinks。
+	 * 这样用户在正文里手写的双链会自动成为扩展卡片，双链与卡片扩展是同一套关系。
+	 * 用 metadataCache 而非自己正则解析正文，可正确处理别名、代码块内链接等边界情况。
+	 */
+	private fillBodyLinks(card: Card): void {
+		const file = this.app.vault.getAbstractFileByPath(card.path);
+		if (!(file instanceof TFile)) {
+			card.bodyLinks = [];
+			return;
+		}
+		const cache = this.app.metadataCache.getFileCache(file);
+		const links = cache?.links ?? [];
+		const out: string[] = [];
+		for (const l of links) {
+			// link 形如 "id"、"Cards/id"、"id|别名"
+			const id = parseLinkTarget(l.link);
+			if (!id || id === card.id) continue;
+			if (out.includes(id)) continue;
+			// 只认指向卡片的链接：目标必须能解析到卡片文件夹内的文件
+			const target = this.app.metadataCache.getFirstLinkpathDest(id, card.path);
+			if (target && this.service.isCardPath(target.path)) out.push(id);
+		}
+		card.bodyLinks = out;
 	}
 
 	// ---------- 增量更新 ----------
@@ -147,6 +175,7 @@ export class CardIndex {
 					return;
 				}
 				this.maybeBumpUpdated(card);
+				this.fillBodyLinks(card);
 				this.upsertCard(card);
 			});
 		this.refreshQueues.set(path, next);
@@ -219,6 +248,53 @@ export class CardIndex {
 		const out: { tag: string; count: number }[] = [];
 		for (const [tag, count] of this.tagCounts) out.push({ tag, count });
 		out.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'zh'));
+		return out;
+	}
+
+	// ---------- 扩展关系（frontmatter 显式关联 + 正文双链） ----------
+
+	/**
+	 * 取一张卡片的全部扩展卡片。
+	 * 顺序：frontmatter children 在前（可拖拽排序），正文双链按出现顺序追加。
+	 * source 标明来源，供视图区分「显式关联」与「正文链接」。
+	 */
+	extensionsOf(card: Card): { card: Card; source: 'explicit' | 'body' }[] {
+		const out: { card: Card; source: 'explicit' | 'body' }[] = [];
+		const seen = new Set<string>([card.id]);
+		for (const id of card.children) {
+			if (seen.has(id)) continue;
+			const c = this.cardsById.get(id);
+			if (!c) continue;
+			seen.add(id);
+			out.push({ card: c, source: 'explicit' });
+		}
+		for (const id of card.bodyLinks) {
+			if (seen.has(id)) continue;
+			const c = this.cardsById.get(id);
+			if (!c) continue;
+			seen.add(id);
+			out.push({ card: c, source: 'body' });
+		}
+		return out;
+	}
+
+	/** 扩展卡片数量（列表红点角标用） */
+	extensionCount(card: Card): number {
+		return this.extensionsOf(card).length;
+	}
+
+	/**
+	 * 反向链接：哪些卡片把当前卡片当作扩展卡片，或在正文中引用了它。
+	 * 排除已经是它扩展卡片的，避免同一关系在扩展视图里重复出现。
+	 */
+	backlinksOf(card: Card): Card[] {
+		const forward = new Set(this.extensionsOf(card).map((e) => e.card.id));
+		const out: Card[] = [];
+		for (const other of this.cardsById.values()) {
+			if (other.id === card.id || forward.has(other.id)) continue;
+			if (other.children.includes(card.id) || other.bodyLinks.includes(card.id)) out.push(other);
+		}
+		out.sort((a, b) => b.created - a.created);
 		return out;
 	}
 

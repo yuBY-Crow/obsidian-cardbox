@@ -17,7 +17,21 @@ export default class CardBoxPlugin extends Plugin {
 	index!: CardIndex;
 	private ctx!: CardBoxContext;
 
+	/**
+	 * onload 只要抛出异常，Obsidian 就会静默回滚启用开关
+	 * （表现为「插件列表里有，但开关点不开」，且 Console 可能没有红字）。
+	 * 因此这里整体兜底：真出问题时用 Notice + console 明确告知，而不是静默失败。
+	 */
 	async onload(): Promise<void> {
+		try {
+			await this.setup();
+		} catch (e) {
+			console.error('[CardBox] 插件初始化失败', e);
+			new Notice('CardBox 初始化失败，请查看控制台（Ctrl+Shift+I）获取详情', 8000);
+		}
+	}
+
+	private async setup(): Promise<void> {
 		await this.loadSettings();
 
 		this.service = new CardService(this.app, () => this.settings.cardsFolder);
@@ -58,8 +72,7 @@ export default class CardBoxPlugin extends Plugin {
 			},
 		};
 
-		await this.ensureCardsFolder();
-
+		// 视图与入口先注册：即使后续任何一步出错，插件本体也已可用
 		this.registerView(CARD_BOX_VIEW_TYPE, (leaf) => new CardBoxView(leaf, this.ctx));
 		this.registerView(CARD_EXTEND_VIEW_TYPE, (leaf) => new CardExtendView(leaf, this.ctx));
 
@@ -68,7 +81,7 @@ export default class CardBoxPlugin extends Plugin {
 		this.registerCaptureCommands();
 
 		this.addSettingTab(
-			new CardBoxSettingTab(this.app, {
+			new CardBoxSettingTab(this.app, this, {
 				settings: this.settings,
 				saveSettings: () => this.saveSettings(),
 				onFolderChanged: () => {
@@ -77,25 +90,38 @@ export default class CardBoxPlugin extends Plugin {
 			}),
 		);
 
-		// 初始索引（metadataCache 'ready' 事件也会触发一次重建）
-		if (!this.index.ready) void this.index.build();
+		// 建文件夹与首次索引都推迟到布局就绪：
+		// onload 阶段 vault 可能尚未完全可写，在此写文件会导致插件加载失败。
+		// onLayoutReady 在个别版本/环境下不可用，因此做能力探测并回退到直接执行。
+		const deferred = () => {
+			void this.ensureCardsFolder().catch((e) => console.error('[CardBox] 创建卡片文件夹失败', e));
+			if (!this.index.ready) void this.index.build().catch((e) => console.error('[CardBox] 索引构建失败', e));
+		};
+		const ws = this.app.workspace as unknown as { onLayoutReady?: (cb: () => void) => void };
+		if (typeof ws.onLayoutReady === 'function') ws.onLayoutReady(deferred);
+		else window.setTimeout(deferred, 0);
 	}
 
 	onunload(): void {
-		this.index.detach();
+		// 卸载期异常会导致 Obsidian 报错且残留监听，这里兜底
+		try {
+			this.index?.detach();
+		} catch (e) {
+			console.error('[CardBox] 卸载时清理索引失败', e);
+		}
 	}
 
 	// ---------- 命令 ----------
 
 	private registerCaptureCommands(): void {
-		this.addCommand({ id: 'cardbox:capture', name: i18n.capture, callback: () => this.openCapture() });
+		this.addCommand({ id: 'capture', name: i18n.capture, callback: () => this.openCapture() });
 		this.addCommand({
-			id: 'cardbox:open-main',
+			id: 'open-main',
 			name: i18n.openMain,
 			callback: () => void this.openCardBoxView(),
 		});
 		this.addCommand({
-			id: 'cardbox:toggle-select',
+			id: 'toggle-select',
 			name: i18n.toggleSelect,
 			checkCallback: (checking) => {
 				const view = this.activeView();
@@ -105,15 +131,15 @@ export default class CardBoxPlugin extends Plugin {
 				return true;
 			},
 		});
-		this.addSelectionCommand('cardbox:merge', i18n.mergeSelected, (view) => view.mergeSelected());
-		this.addSelectionCommand('cardbox:batch-tag', i18n.batchTag, (view) => view.batchTagSelected());
-		this.addSelectionCommand('cardbox:archive-selected', i18n.archiveSelected, (view) => view.archiveSelected());
-		this.addSelectionCommand('cardbox:delete-selected', i18n.deleteSelected, (view) => view.deleteSelected());
-		this.addSelectionCommand('cardbox:send-canvas', i18n.sendToCanvas, (view) => view.sendSelectedToCanvas());
+		this.addSelectionCommand('merge', i18n.mergeSelected, (view) => view.mergeSelected());
+		this.addSelectionCommand('batch-tag', i18n.batchTag, (view) => view.batchTagSelected());
+		this.addSelectionCommand('archive-selected', i18n.archiveSelected, (view) => view.archiveSelected());
+		this.addSelectionCommand('delete-selected', i18n.deleteSelected, (view) => view.deleteSelected());
+		this.addSelectionCommand('send-canvas', i18n.sendToCanvas, (view) => view.sendSelectedToCanvas());
 
 		// 从当前 Canvas 白板反向合并成文
 		this.addCommand({
-			id: 'cardbox:merge-from-canvas',
+			id: 'merge-from-canvas',
 			name: i18n.canvasMergeFromCanvas,
 			checkCallback: (checking) => {
 				const file = this.app.workspace.getActiveFile();
@@ -231,7 +257,13 @@ export default class CardBoxPlugin extends Plugin {
 	// ---------- 设置 ----------
 
 	async loadSettings(): Promise<void> {
-		const loaded = (await this.loadData()) as Partial<CardBoxSettings> | null;
+		let loaded: Partial<CardBoxSettings> | null = null;
+		try {
+			loaded = (await this.loadData()) as Partial<CardBoxSettings> | null;
+		} catch (e) {
+			// data.json 损坏时不能让插件整体加载失败，退回默认设置
+			console.error('[CardBox] 读取设置失败，已使用默认设置', e);
+		}
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded ?? {});
 		// 兼容旧版本数据：boxes 缺失或类型异常时归位
 		if (!Array.isArray(this.settings.boxes)) this.settings.boxes = [];
@@ -240,6 +272,9 @@ export default class CardBoxPlugin extends Plugin {
 		// 旧版默认视图值 'card' 仍有效；非法值回落
 		if (!['card', 'masonry', 'timeline'].includes(this.settings.defaultViewMode)) {
 			this.settings.defaultViewMode = 'card';
+		}
+		if (!Number.isFinite(this.settings.masonryMinColumnWidth) || this.settings.masonryMinColumnWidth < 160) {
+			this.settings.masonryMinColumnWidth = DEFAULT_SETTINGS.masonryMinColumnWidth;
 		}
 	}
 

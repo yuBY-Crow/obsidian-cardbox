@@ -38,7 +38,8 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	if (opts.selected) el.addClass('is-selected');
 	if (opts.rich) el.addClass('is-rich');
 	if (card.pinned) el.addClass('is-pinned');
-	if (card.color) el.addClass(`has-color cardbox-color-${card.color}`);
+	// 注意：addClass 底层是 classList.add，不接受含空格的字符串，多个类名必须分开传参
+	if (card.color) el.addClass('has-color', `cardbox-color-${card.color}`);
 
 	// 眉头颜色条
 	if (card.color) el.createDiv({ cls: 'cardbox-tile-colorbar' });
