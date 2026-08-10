@@ -1611,7 +1611,7 @@ function buildCardTile(opts) {
     body.createSpan({ cls: "cardbox-tile-snippet" }).setText(card.snippet.trim());
   }
   const iconRow = textRow.createSpan({ cls: "cardbox-tile-icons" });
-  if (card.pinned) {
+  if (card.pinned && !opts.rich) {
     const ic = iconRow.createSpan({ cls: "cardbox-tile-icon is-pin" });
     (0, import_obsidian4.setIcon)(ic, "pin");
     ic.setAttribute("aria-label", i18n.pin);
@@ -1643,7 +1643,7 @@ function buildCardTile(opts) {
     cls: "cardbox-more-btn",
     attr: { "aria-label": i18n.more }
   });
-  (0, import_obsidian4.setIcon)(more, "more-horizontal");
+  (0, import_obsidian4.setIcon)(more, opts.rich ? "more-vertical" : "more-horizontal");
   more.addEventListener("click", (e) => {
     e.stopPropagation();
     opts.onKebab(card, more);

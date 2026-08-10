@@ -104,7 +104,8 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 
 	// 状态图标
 	const iconRow = textRow.createSpan({ cls: 'cardbox-tile-icons' });
-	if (card.pinned) {
+	// 平铺模式不显示图钉：卡片本身已有置顶高亮边框，图标只会挤占窄卡片的标题宽度
+	if (card.pinned && !opts.rich) {
 		const ic = iconRow.createSpan({ cls: 'cardbox-tile-icon is-pin' });
 		setIcon(ic, 'pin');
 		ic.setAttribute('aria-label', i18n.pin);
@@ -140,12 +141,12 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		badge.setAttribute('aria-label', i18n.relatedCount(childCount));
 	}
 
-	// kebab 菜单按钮
+	// kebab 菜单按钮：平铺模式用竖三点（右上角，与参考设计一致），列表模式用横三点
 	const more = main.createEl('button', {
 		cls: 'cardbox-more-btn',
 		attr: { 'aria-label': i18n.more },
 	});
-	setIcon(more, 'more-horizontal');
+	setIcon(more, opts.rich ? 'more-vertical' : 'more-horizontal');
 	more.addEventListener('click', (e) => {
 		e.stopPropagation();
 		opts.onKebab(card, more);

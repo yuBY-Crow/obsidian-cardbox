@@ -92,7 +92,9 @@ await page.evaluate((code) => {
 
 	const mkCard = (id, title, opts = {}) => ({
 		id, path: `Cards/${id}.md`, title, tags: [], created: Date.now(), updated: Date.now(),
-		children: opts.children ?? [], bodyLinks: [], archived: false, pinned: false,
+		children: opts.children ?? [], bodyLinks: [], archived: false,
+		// 需要有置顶卡片，否则「平铺不显示图钉」的断言会假通过
+		pinned: opts.pinned ?? false,
 		color: opts.color, snippet: opts.snippet ?? '这是正文内容',
 		searchText: '', hasTaskList: false, mtime: Date.now(),
 	});
@@ -103,7 +105,7 @@ await page.evaluate((code) => {
 	list.className = 'cardbox-list is-masonry';
 	document.getElementById('host').appendChild(list);
 
-	const cardA = mkCard('a', '主卡A', { color: 'blue' });
+	const cardA = mkCard('a', '主卡A', { color: 'blue', pinned: true });
 	const cardB = mkCard('b', '主卡B');
 	const cardC = mkCard('c', '主卡C', { color: 'green' });
 	const ext1 = mkCard('ext1', '扩展卡片一', { children: ['ext2'] });
@@ -172,6 +174,21 @@ const metrics = await page.evaluate(() => {
 		expandInRelated: !!(relatedRow && relatedRow.querySelector('.cardbox-expand-wrap')),
 		expandAtTileLeft: !!document.querySelector('.cardbox-tile.is-rich > .cardbox-tile-main > .cardbox-expand-wrap'),
 		kebabPosition: kebab ? getComputedStyle(kebab).position : null,
+		// 无缝排布：grid gap 必须为 0
+		gridGap: getComputedStyle(list).gap,
+		// 平铺标题用黑体
+		titleWeight: (() => {
+			const t = document.querySelector('.cardbox-tile.is-rich .cardbox-tile-title');
+			return t ? getComputedStyle(t).fontWeight : null;
+		})(),
+		// 平铺不显示图钉图标（置顶靠边框高亮表达）
+		pinIconInRich: !!document.querySelector('.cardbox-tile.is-rich .cardbox-tile-icon.is-pin'),
+		// kebab 图标名：平铺用竖三点。mock 的 setIcon 把名字记在 svg[data-icon] 上，
+		// 真机由 Obsidian 渲染真实图形
+		kebabIcon: (() => {
+			const svg = kebab ? kebab.querySelector('svg') : null;
+			return svg ? svg.getAttribute('data-icon') : null;
+		})(),
 	};
 
 	return { rects, gridCols, listWidth: Math.round(list.getBoundingClientRect().width), overlapPairs: overlapPairs.length, structure };
@@ -212,6 +229,11 @@ check('平铺存在独立关联行', metrics.structure.hasRelatedRow, metrics.st
 check('展开按钮在关联行内', metrics.structure.expandInRelated, metrics.structure);
 check('展开按钮不再占卡片左侧', !metrics.structure.expandAtTileLeft, metrics.structure);
 check('kebab 绝对定位（右上角）', metrics.structure.kebabPosition === 'absolute', metrics.structure.kebabPosition);
+// 用户明确要求：卡片之间无缝隙、标题黑体、平铺不显示图钉
+check('平铺卡片之间无缝隙', metrics.structure.gridGap === '0px', metrics.structure.gridGap);
+check('平铺标题为黑体（font-weight 700）', metrics.structure.titleWeight === '700', metrics.structure.titleWeight);
+check('平铺不显示图钉图标', !metrics.structure.pinIconInRich, metrics.structure.pinIconInRich);
+check('平铺 kebab 用竖三点图标', metrics.structure.kebabIcon === 'more-vertical', metrics.structure.kebabIcon);
 
 let pass = 0;
 let fail = 0;
