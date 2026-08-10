@@ -1,5 +1,6 @@
 import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import type { CardBoxSettings, SortMode, ViewMode } from './types';
+import { PROPERTY_PRESETS } from './types';
 import { i18n } from './i18n';
 
 export const DEFAULT_SETTINGS: CardBoxSettings = {
@@ -20,6 +21,8 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	canvasLinkDirection: 'both',
 	canvasDrawEdges: true,
 	canvasBidirectionalColor: '5',
+	defaultProperties: {},
+	writeTimestampFields: false,
 };
 
 /** main.ts 的 CardBoxPlugin 需实现此接口，避免设置页与主模块循环依赖 */
@@ -31,6 +34,7 @@ export interface SettingAccess {
 
 export class CardBoxSettingTab extends PluginSettingTab {
 	private tagsEl: HTMLDivElement;
+	private propsEl!: HTMLDivElement;
 	private access: SettingAccess;
 
 	/**
@@ -80,6 +84,40 @@ export class CardBoxSettingTab extends PluginSettingTab {
 					await this.access.saveSettings();
 				});
 			});
+
+		// ---------- 新建卡片属性预设 ----------
+		new Setting(containerEl)
+			.setName(i18n.defaultPropertiesName)
+			.setDesc(i18n.defaultPropertiesDesc)
+			.addButton((btn) =>
+				btn.setButtonText(i18n.addPropertyPreset).onClick(() => {
+					const keys = Object.keys(s.defaultProperties);
+					const unused = PROPERTY_PRESETS.filter((p) => !keys.includes(p.key));
+					if (!unused.length) {
+						// 全用过了就再加一个自由输入项
+						s.defaultProperties[`prop_${Date.now()}`] = '';
+						void this.access.saveSettings();
+						this.renderProperties();
+						return;
+					}
+					// 简化：逐个把未使用的预设项加入
+					for (const p of unused.slice(0, 1)) s.defaultProperties[p.key] = p.value;
+					void this.access.saveSettings();
+					this.renderProperties();
+				}),
+			);
+		this.propsEl = containerEl.createDiv({ cls: 'cardbox-props-list' });
+		this.renderProperties();
+
+		new Setting(containerEl)
+			.setName(i18n.writeTimestampsName)
+			.setDesc(i18n.writeTimestampsDesc)
+			.addToggle((tg) =>
+				tg.setValue(s.writeTimestampFields).onChange(async (v) => {
+					s.writeTimestampFields = v;
+					await this.access.saveSettings();
+				}),
+			);
 
 		new Setting(containerEl)
 			.setName(i18n.filenameFormatName)
@@ -240,6 +278,44 @@ export class CardBoxSettingTab extends PluginSettingTab {
 				this.renderTags();
 				await this.access.saveSettings();
 			};
+		}
+	}
+
+	/** 渲染新建卡片属性预设列表（每行 key + value + 删除） */
+	private renderProperties(): void {
+		const s = this.access.settings;
+		this.propsEl.empty();
+		for (const [key, value] of Object.entries(s.defaultProperties)) {
+			const row = this.propsEl.createDiv({ cls: 'cardbox-prop-row' });
+			const keyInput = row.createEl('input', {
+				cls: 'cardbox-prop-key',
+				attr: { placeholder: i18n.propertyKeyPlaceholder, value: key },
+			});
+			const valueInput = row.createEl('input', {
+				cls: 'cardbox-prop-value',
+				attr: { placeholder: i18n.propertyValuePlaceholder, value },
+			});
+			keyInput.addEventListener('change', async () => {
+				const newKey = keyInput.value.trim();
+				if (!newKey || newKey === key) {
+					keyInput.value = key;
+					return;
+				}
+				delete s.defaultProperties[key];
+				s.defaultProperties[newKey] = valueInput.value;
+				await this.access.saveSettings();
+				this.renderProperties();
+			});
+			valueInput.addEventListener('change', async () => {
+				s.defaultProperties[key] = valueInput.value;
+				await this.access.saveSettings();
+			});
+			const remove = row.createEl('button', { cls: 'cardbox-prop-remove', text: '×' });
+			remove.addEventListener('click', async () => {
+				delete s.defaultProperties[key];
+				await this.access.saveSettings();
+				this.renderProperties();
+			});
 		}
 	}
 }

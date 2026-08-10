@@ -147,7 +147,29 @@ export interface CardBoxSettings {
 	canvasDrawEdges: boolean;
 	/** 双链连线的颜色（Canvas 预设色号 1-6），默认 '5' 蓝 */
 	canvasBidirectionalColor: string;
+	/** 新建卡片时自动写入的笔记属性预设（key → value） */
+	defaultProperties: Record<string, string>;
+	/**
+	 * 是否在 frontmatter 写入 created / updated 时间戳字段。
+	 * 关闭时靠文件系统时间回退（排序/相对时间仍正常），
+	 * 属性面板不会显示这两个对用户无意义的时间戳。
+	 */
+	writeTimestampFields: boolean;
 }
+
+/** 新建卡片属性预设的推荐项（供设置页一键添加） */
+export const PROPERTY_PRESETS: { key: string; value: string }[] = [
+	{ key: 'type', value: 'card' },
+	{ key: 'status', value: 'idea' },
+	{ key: 'source', value: '' },
+	{ key: 'project', value: '' },
+	{ key: 'author', value: '' },
+	{ key: 'priority', value: '' },
+	{ key: 'tags', value: '' },
+	{ key: 'mood', value: '' },
+	{ key: 'date', value: '' },
+	{ key: 'location', value: '' },
+];
 
 export interface FilterState {
 	query: string;

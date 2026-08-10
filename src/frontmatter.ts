@@ -76,6 +76,10 @@ export class CardService {
 		private getCardsFolder: () => string,
 		/** 文件名方案；默认 title（标题作文件名，双链可读） */
 		private getFilenameFormat: () => 'datetime' | 'title' = () => 'title',
+		/** 新建卡片是否写入 created/updated 时间戳字段 */
+		private getWriteTimestamps: () => boolean = () => false,
+		/** 新建卡片的默认属性预设 */
+		private getDefaultProperties: () => Record<string, string> = () => ({}),
 	) {}
 
 	private folder(): string {
@@ -185,7 +189,18 @@ export class CardService {
 			path = this.uniquePath(this.folder(), generateId(now));
 		}
 
-		const fm: Record<string, unknown> = { created: now, updated: now };
+		const fm: Record<string, unknown> = {};
+		// 时间戳字段开关：关闭时靠文件系统时间回退（排序/相对时间仍正常），
+		// 属性面板不显示这两个对用户无意义的字段
+		if (this.getWriteTimestamps()) {
+			fm.created = now;
+			fm.updated = now;
+		}
+		// 默认属性预设：用户配置的键值对，创建时自动写入
+		for (const [key, value] of Object.entries(this.getDefaultProperties())) {
+			if (!key.trim()) continue;
+			fm[key.trim()] = value;
+		}
 		if (opts.title) fm.title = opts.title;
 		if (opts.tags && opts.tags.length) fm.tags = opts.tags;
 		if (opts.parent) fm.parent = toWikilink(opts.parent);

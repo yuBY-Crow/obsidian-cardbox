@@ -33,6 +33,14 @@ export const i18n = {
 	cancelSelect: '取消选择',
 	newCard: '新建卡片',
 	more: '更多操作',
+	// 手机端顶部
+	mobileFilterTitle: '筛选与排序',
+	mobileModeTitle: '展示方式',
+	mobileFilter: '筛选',
+	mobileMode: '视图',
+	mobileCycle: '切换视图',
+	mobileFilterBtn: '打开筛选面板',
+	mobileSort: '排序',
 
 	// 卡片操作菜单
 	edit: '编辑',
@@ -210,6 +218,13 @@ export const i18n = {
 	mergeFolderDesc: '「合并为文章」生成的新笔记存放位置。',
 	canvasFolderName: '白板输出文件夹',
 	canvasFolderDesc: '「投放到白板」生成的 .canvas 文件存放位置。',
+	defaultPropertiesName: '新建卡片属性预设',
+	defaultPropertiesDesc: '新建卡片时自动写入这些笔记属性（key = 值）。点击「添加预设」可从常用项中选择。',
+	writeTimestampsName: '写入时间戳字段',
+	writeTimestampsDesc: '在 frontmatter 写入 created / updated 时间戳。关闭时靠文件系统时间回退，属性面板不显示这两个字段。',
+	addPropertyPreset: '添加预设',
+	propertyKeyPlaceholder: '属性名',
+	propertyValuePlaceholder: '值',
 	filenameFormatName: '卡片文件名',
 	filenameFormatDesc:
 		'「标题」把标题（或正文首行）作为文件名，双链写成 [[卡片标题]]，易读易记；' +

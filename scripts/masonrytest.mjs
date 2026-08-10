@@ -95,31 +95,42 @@ await page.evaluate((code) => {
 	});
 	const noop = () => {};
 
-	// 平铺容器：主卡(展开) + 扩展卡 + 孙卡，模拟 buildCardItems 的输出顺序
+	// 平铺容器：两张顶层主卡 + 主卡A 的扩展树（展开后子卡跨整行）
 	const list = document.createElement('div');
 	list.className = 'cardbox-list is-masonry';
 	document.getElementById('host').appendChild(list);
 
-	const root = mkCard('root', '主卡片', { children: ['ext1'], color: 'blue' });
+	const cardA = mkCard('a', '主卡A', { color: 'blue' });
+	const cardB = mkCard('b', '主卡B');
+	const cardC = mkCard('c', '主卡C', { color: 'green' });
 	const ext1 = mkCard('ext1', '扩展卡片一', { children: ['ext2'] });
 	const ext2 = mkCard('ext2', '扩展卡片的扩展卡片', {});
 
-	const tileRoot = buildCardTile({
-		card: root, depth: 0, selected: false, expanded: true, hasVisibleChildren: true,
+	// 用 buildItem 模拟 buildCardItems 的输出顺序（深度优先展平）
+	const tileA = buildCardTile({
+		card: cardA, depth: 0, selected: false, expanded: true, hasVisibleChildren: true,
 		childCount: 1, rich: true, onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
+	});
+	const tileB = buildCardTile({
+		card: cardB, depth: 0, selected: false, expanded: false, hasVisibleChildren: false,
+		childCount: 0, rich: true, onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
+	});
+	const tileC = buildCardTile({
+		card: cardC, depth: 0, selected: false, expanded: false, hasVisibleChildren: false,
+		childCount: 0, rich: true, onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
 	});
 	const tileExt1 = buildCardTile({
 		card: ext1, depth: 1, selected: false, expanded: true, hasVisibleChildren: true,
-		childCount: 1, rich: true, parentTitle: '主卡片', onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
+		childCount: 1, rich: true, parentTitle: '主卡A', onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
 	});
 	const tileExt2 = buildCardTile({
 		card: ext2, depth: 2, selected: false, expanded: false, hasVisibleChildren: false,
 		childCount: 0, rich: true, parentTitle: '扩展卡片一', onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
 	});
-	list.append(tileRoot, tileExt1, tileExt2);
+	list.append(tileA, tileB, tileC, tileExt1, tileExt2);
 }, tileCode);
 
-// 几何断言（手机视口 390px → 单列）
+// 几何断言（手机视口 390px → 双列平铺；子卡片占整行）
 const metrics = await page.evaluate(() => {
 	const list = document.querySelector('.cardbox-list.is-masonry');
 	const tiles = [...list.querySelectorAll('.cardbox-tile')];
@@ -129,9 +140,12 @@ const metrics = await page.evaluate(() => {
 			depth: t.style.getPropertyValue('--depth'),
 			left: r.left,
 			top: r.top,
+			width: r.width,
 			isChild: t.classList.contains('is-child'),
 			borderLeft: getComputedStyle(t).borderLeftWidth,
 			borderStyle: getComputedStyle(t).borderLeftStyle,
+			maxHeight: getComputedStyle(t).maxHeight,
+			overflow: getComputedStyle(t).overflow,
 		};
 	});
 	// 用计算样式判断实际列数（缩进会干扰 left 统计）
@@ -141,17 +155,33 @@ const metrics = await page.evaluate(() => {
 
 const results = [];
 const check = (name, cond, got) => results.push({ name, ok: !!cond, got });
-const [root, ext1, ext2] = metrics.rects;
+// tileA 是展开的主卡（带子卡），tileB/tileC 是独立的顶层卡
+const tileA = metrics.rects[0];
+const tileB = metrics.rects[1];
+const tileC = metrics.rects[2];
+const tileExt1 = metrics.rects[3];
+const tileExt2 = metrics.rects[4];
 
-check('手机视口平铺为单列', metrics.gridCols === 1, metrics.gridCols);
-check('主卡片 depth=0', root.depth === '0', root.depth);
-check('扩展卡片 depth=1', ext1.depth === '1', ext1.depth);
-check('孙卡片 depth=2', ext2.depth === '2', ext2.depth);
-check('扩展卡片相对主卡缩进', ext1.left > root.left + 10, { root: root.left, ext1: ext1.left });
-check('孙卡片相对扩展卡片再缩进', ext2.left > ext1.left + 10, { ext1: ext1.left, ext2: ext2.left });
-check('扩展卡片有左侧竖线', ext1.isChild && ext1.borderLeft === '3px' && ext1.borderStyle !== 'none', ext1);
-check('主卡片无竖线', !root.isChild, root.isChild);
-check('层级顺序自上而下', root.top < ext1.top && ext1.top < ext2.top, { root: root.top, ext1: ext1.top, ext2: ext2.top });
+check('手机视口平铺为双列', metrics.gridCols === 2, metrics.gridCols);
+// 双列布局：顶层 3 张主卡应排成 2 行 2 列（即至少有一行含 2 张）
+const topRow = metrics.rects.slice(0, 3).filter((t) => t.top === tileA.top);
+check('顶层主卡至少 2 张排在同一行（双列）', topRow.length >= 2, topRow.map((t) => t.top));
+check('顶层主卡按行排列，子卡在主卡下方（不混在顶层行）', (() => {
+	const topTop = Math.min(...metrics.rects.slice(0, 3).map((t) => t.top));
+	return tileExt1.top > topTop;
+})());
+check('主卡 A 的子卡（扩展一）占满整行', tileExt1.width > metrics.listWidth * 0.8,
+	{ ext1w: Math.round(tileExt1.width), listW: metrics.listWidth });
+check('子卡相对主卡缩进', tileExt1.left > tileA.left + 10,
+	{ mainLeft: tileA.left, extLeft: tileExt1.left });
+check('孙卡相对子卡再缩进', tileExt2.left > tileExt1.left + 10,
+	{ ext1: tileExt1.left, ext2: tileExt2.left });
+check('子卡有左侧竖线', tileExt1.isChild && tileExt1.borderLeft === '3px' && tileExt1.borderStyle !== 'none', tileExt1);
+check('顶层主卡无竖线', !tileA.isChild && !tileB.isChild && !tileC.isChild, { a: tileA.isChild, b: tileB.isChild, c: tileC.isChild });
+check('子卡在主卡下方', tileA.top < tileExt1.top && tileExt1.top < tileExt2.top,
+	{ main: tileA.top, ext1: tileExt1.top, ext2: tileExt2.top });
+check('卡片有 400px 高度上限', tileA.maxHeight === '400px', tileA.maxHeight);
+check('卡片超出隐藏', tileA.overflow === 'hidden', tileA.overflow);
 
 let pass = 0;
 let fail = 0;

@@ -40,6 +40,8 @@ export default class CardBoxPlugin extends Plugin {
 			this.app,
 			() => this.settings.cardsFolder,
 			() => this.settings.filenameFormat,
+			() => this.settings.writeTimestampFields,
+			() => this.settings.defaultProperties,
 		);
 		this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
 		this.index.attach();
@@ -97,6 +99,20 @@ export default class CardBoxPlugin extends Plugin {
 			}),
 		);
 
+		// 打开卡片笔记时，属性（frontmatter）默认折叠：
+		// 用 Obsidian 内置命令 editor:toggle-fold-properties（社区插件同款做法）。
+		// 只对卡片文件生效，普通笔记不打扰。
+		// 检测折叠状态：.workspace-leaf.mod-active 下的 .metadata-container.is-collapsed。
+		this.registerEvent(
+			this.app.workspace.on('file-open', (file) => {
+				try {
+					this.foldCardProperties(file);
+				} catch (e) {
+					console.error('[CardBox] 折叠属性失败', e);
+				}
+			}),
+		);
+
 		// 建文件夹与首次索引都推迟到布局就绪：
 		// onload 阶段 vault 可能尚未完全可写，在此写文件会导致插件加载失败。
 		// onLayoutReady 在个别版本/环境下不可用，因此做能力探测并回退到直接执行。
@@ -107,6 +123,22 @@ export default class CardBoxPlugin extends Plugin {
 		const ws = this.app.workspace as unknown as { onLayoutReady?: (cb: () => void) => void };
 		if (typeof ws.onLayoutReady === 'function') ws.onLayoutReady(deferred);
 		else window.setTimeout(deferred, 0);
+	}
+
+	/** 打开卡片文件时折叠其属性面板（避免新属性/时间戳字段占满屏幕） */
+	private foldCardProperties(file: TFile | null): void {
+		if (!file || file.extension !== 'md' || !this.service.isCardPath(file.path)) return;
+		// 等属性面板渲染出来再操作
+		window.setTimeout(() => {
+			const leaf = document.querySelector('.workspace-leaf.mod-active');
+			if (!leaf) return;
+			const collapsed = leaf.querySelector('.metadata-container.is-collapsed');
+			if (!collapsed) {
+				const withCommands = this.app as unknown as { commands?: { executeCommandById(id: string): unknown } };
+				// editor:toggle-fold-properties 是 Obsidian 内置命令（未公开类型）
+				withCommands.commands?.executeCommandById('editor:toggle-fold-properties');
+			}
+		}, 120);
 	}
 
 	onunload(): void {
@@ -396,6 +428,12 @@ export default class CardBoxPlugin extends Plugin {
 		}
 		if (!/^[1-6]$/.test(String(this.settings.canvasBidirectionalColor))) {
 			this.settings.canvasBidirectionalColor = DEFAULT_SETTINGS.canvasBidirectionalColor;
+		}
+		if (typeof this.settings.defaultProperties !== 'object' || this.settings.defaultProperties === null) {
+			this.settings.defaultProperties = {};
+		}
+		if (typeof this.settings.writeTimestampFields !== 'boolean') {
+			this.settings.writeTimestampFields = DEFAULT_SETTINGS.writeTimestampFields;
 		}
 	}
 

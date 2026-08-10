@@ -796,32 +796,47 @@ body.is-mobile .cardbox-color-dot {
 	font-size: 12px;
 }
 
-/* 窄屏（含手机）强制单列 */
+/* 窄屏（含手机）双列平铺：
+   顶层卡片双列；展开的子卡片占满整行并保留缩进，层级依然清晰。
+   每张卡片随内容自适应高度，最长 400px，超出部分渐隐截断 */
 @media (max-width: 520px) {
 	.cardbox-list.is-masonry {
-		grid-template-columns: 1fr;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
-	/* 单列平铺下恢复层级缩进：
-	   主卡片首层 → 扩展卡片下一层（缩进 + 左侧竖线）→ 扩展的扩展再下一层 */
 	.cardbox-list.is-masonry .cardbox-tile {
-		margin-left: calc(var(--depth, 0) * 18px);
+		margin-left: 0;
+		max-height: 400px;
+		overflow: hidden;
 	}
+	/* 子卡片占满整行 + 层级缩进 + 左侧竖线 */
 	.cardbox-list.is-masonry .cardbox-tile.is-child {
+		grid-column: 1 / -1;
+		margin-left: calc(var(--depth, 0) * 18px);
 		border-left: 3px solid var(--background-modifier-border-hover);
 	}
 }
 
 body.is-mobile .cardbox-list.is-masonry {
-	grid-template-columns: 1fr;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* 手机端平铺：与窄屏一致，子卡片保留层级缩进与左侧竖线 */
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile {
-	margin-left: calc(var(--depth, 0) * 18px);
+	margin-left: 0;
+	max-height: 400px;
+	overflow: hidden;
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-child {
+	grid-column: 1 / -1;
+	margin-left: calc(var(--depth, 0) * 18px);
 	border-left: 3px solid var(--background-modifier-border-hover);
+}
+
+/* 双列下内容超出卡片高度的渐隐遮罩，而不是硬切 */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-rich .cardbox-tile-snippet {
+	position: relative;
+	mask-image: linear-gradient(to bottom, black 0, black calc(100% - 28px), transparent 100%);
+	-webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 28px), transparent 100%);
 }
 
 /* ===== 卡片盒设置弹窗 ===== */
@@ -1348,4 +1363,118 @@ body.is-mobile .cardbox-section-header {
 	margin-top: 4px;
 	font-size: 12px;
 	color: var(--text-muted);
+}
+
+/* ===== 手机端顶部栏（汉堡筛选 + 视图循环按钮） ===== */
+
+.cardbox-mobile-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex: none;
+}
+
+.cardbox-mobile-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.cardbox-mobile-icon-btn svg {
+	width: 18px;
+	height: 18px;
+}
+
+.cardbox-mobile-mode-btn {
+	min-width: 72px;
+}
+
+@media (hover: hover) {
+	.cardbox-mobile-icon-btn:hover {
+		background: var(--background-modifier-hover);
+	}
+}
+
+.cardbox-mobile-icon-btn:active {
+	background: var(--background-modifier-active-hover);
+}
+
+/* 筛选弹窗 */
+.cardbox-filter-modal h3 {
+	margin: 0 0 10px;
+	font-size: 16px;
+}
+
+.cardbox-chips-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 4px 0;
+}
+
+.cardbox-filter-modal .setting-item {
+	padding: 12px 0;
+}
+
+/* ===== 属性预设设置 ===== */
+
+.cardbox-props-list {
+	margin: 0 0 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.cardbox-prop-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.cardbox-prop-row input {
+	flex: 1;
+	min-width: 0;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+.cardbox-prop-key {
+	flex: 0 0 40% !important;
+	font-family: var(--font-monospace);
+}
+
+.cardbox-prop-remove {
+	flex: none;
+	width: 26px;
+	height: 26px;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+	font-size: 14px;
+	border-radius: var(--radius-s);
+}
+
+@media (hover: hover) {
+	.cardbox-prop-remove:hover {
+		background: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
 }

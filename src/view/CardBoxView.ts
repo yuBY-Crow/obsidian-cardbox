@@ -1,11 +1,12 @@
-import { ButtonComponent, ItemView, Menu, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { ButtonComponent, ItemView, Menu, Platform, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
 import { i18n } from '../i18n';
-import type { Card, CardBoxDef, CardColor, FilterState, ViewMode } from '../types';
+import type { Card, CardBoxDef, CardColor, FilterState, SortMode, ViewMode } from '../types';
 import { CARD_COLORS, defaultBoxDef, defaultFilterState } from '../types';
 import type { CardBoxContext } from '../context';
 import { buildCardTile, updateTileSelection } from './CardTile';
 import { FilterBar } from './FilterBar';
 import { BoxBar } from './BoxBar';
+import { MobileHeader } from './MobileHeader';
 import { IncrementalList } from './IncrementalList';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { MergeModal } from '../modals/MergeModal';
@@ -22,13 +23,22 @@ type RenderItem =
 	| { kind: 'card'; card: Card; depth: number; expanded: boolean; hasVisibleChildren: boolean }
 	| { kind: 'day'; day: number; cards: Card[] };
 
+/** 顶部栏统一接口：PC 用 FilterBar，手机用 MobileHeader */
+interface ViewHeader {
+	build(container: HTMLElement): HTMLElement;
+	getMode(): ViewMode;
+	getSort(): SortMode;
+	refreshTags?(): void;
+}
+
 export class CardBoxView extends ItemView {
 	static VIEW_TYPE = CARD_BOX_VIEW_TYPE;
 
 	private ctx: CardBoxContext;
 	private filter: FilterState;
-	private filterBar!: FilterBar;
+	private filterBar!: ViewHeader;
 	private boxBar!: BoxBar;
+	private mobileHeader!: MobileHeader;
 	private selectionMode = false;
 	private selectedIds = new Set<string>();
 	private expandedIds = new Set<string>();
@@ -43,7 +53,6 @@ export class CardBoxView extends ItemView {
 		this.boxBar?.refresh();
 		this.scheduleRender();
 	};
-
 	constructor(leaf: WorkspaceLeaf, ctx: CardBoxContext) {
 		super(leaf);
 		this.ctx = ctx;
@@ -68,49 +77,73 @@ export class CardBoxView extends ItemView {
 		root.addClass('cardbox-root');
 		this.content = root;
 
-		// 卡片盒切换栏
-		this.boxBar = new BoxBar(
-			this.ctx.index,
-			() => this.ctx.boxes.list(),
-			() => this.ctx.boxes.activeId(),
-			() => this.filter.showArchived,
-			{
-				onSelect: (id) => {
-					void this.ctx.boxes.setActiveId(id);
-					this.boxBar.refresh();
+		// 手机端：精简顶部栏（汉堡筛选 + 视图循环按钮），不显示卡片盒切换栏与桌面筛选栏
+		if (Platform.isMobile) {
+			this.mobileHeader = new MobileHeader(this.app, this.filter, this.ctx.settings, this.ctx.index, {
+				onFilterChange: () => {
 					this.renderKey = '';
 					this.scheduleRender();
 				},
-				onCreate: () => this.createBox(),
-				onEdit: (def) => this.editBox(def),
-			},
-		);
-		this.boxBar.build(root);
-
-		this.filterBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
-			onFilterChange: () => {
-				this.boxBar.refresh();
-				this.scheduleRender();
-			},
-			onModeChange: () => {
-				this.renderKey = '';
-				this.scheduleRender();
-			},
-			onSortChange: () => {
-				this.renderKey = '';
-				this.scheduleRender();
-			},
-			onAddTag: () => {
-				new TagPickerModal(this.app, this.ctx.index)
-					.setOnPick((tag) => {
-						this.filter.selectedTags.add(tag);
-						this.filterBar.refreshTags();
+				onModeChange: () => {
+					this.renderKey = '';
+					this.scheduleRender();
+				},
+				onAddTag: () => {
+					new TagPickerModal(this.app, this.ctx.index)
+						.setOnPick((tag) => {
+							this.filter.selectedTags.add(tag);
+							this.scheduleRender();
+						})
+						.open();
+				},
+			});
+			this.mobileHeader.build(root);
+			this.filterBar = this.mobileHeader;
+		} else {
+			// 卡片盒切换栏
+			this.boxBar = new BoxBar(
+				this.ctx.index,
+				() => this.ctx.boxes.list(),
+				() => this.ctx.boxes.activeId(),
+				() => this.filter.showArchived,
+				{
+					onSelect: (id) => {
+						void this.ctx.boxes.setActiveId(id);
+						this.boxBar.refresh();
+						this.renderKey = '';
 						this.scheduleRender();
-					})
-					.open();
-			},
-		});
-		this.filterBar.build(root);
+					},
+					onCreate: () => this.createBox(),
+					onEdit: (def) => this.editBox(def),
+				},
+			);
+			this.boxBar.build(root);
+
+			this.filterBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
+				onFilterChange: () => {
+					this.boxBar.refresh();
+					this.scheduleRender();
+				},
+				onModeChange: () => {
+					this.renderKey = '';
+					this.scheduleRender();
+				},
+				onSortChange: () => {
+					this.renderKey = '';
+					this.scheduleRender();
+				},
+				onAddTag: () => {
+					new TagPickerModal(this.app, this.ctx.index)
+						.setOnPick((tag) => {
+							this.filter.selectedTags.add(tag);
+							this.filterBar.refreshTags?.();
+							this.scheduleRender();
+						})
+						.open();
+				},
+			});
+			this.filterBar.build(root);
+		}
 
 		const actionRow = root.createDiv({ cls: 'cardbox-actionbar' });
 		const newBtn = actionRow.createEl('button', { cls: 'cardbox-action-btn', attr: { 'aria-label': i18n.newCard } });
@@ -131,7 +164,7 @@ export class CardBoxView extends ItemView {
 		this.list = new IncrementalList<RenderItem>(this.listEl, (item) => this.renderItem(item));
 
 		this.ctx.index.onChanged(this.indexChangedCb);
-		this.filterBar.refreshTags();
+		this.filterBar.refreshTags?.();
 		this.scheduleRender();
 	}
 
