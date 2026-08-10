@@ -29,8 +29,15 @@ export interface GraphNode {
 	card: Card;
 	/** 到种子卡片的最短引用距离；种子为 0 */
 	depth: number;
-	/** 该卡片是通过哪个方向被纳入的；种子为 'seed' */
-	via: 'seed' | 'outgoing' | 'incoming';
+	/**
+	 * 该卡片是通过哪个方向被纳入的：
+	 * - seed：种子本身
+	 * - outgoing：从种子（或出链侧卡片）向外发现的
+	 * - incoming：从入链侧发现的
+	 * - both：与种子**互为引用**（既被种子引用、又引用种子）——
+	 *   白板布局时这类卡片放在种子的上下方向，连线用双向箭头
+	 */
+	via: 'seed' | 'outgoing' | 'incoming' | 'both';
 }
 
 export interface GraphEdge {
@@ -138,6 +145,19 @@ export function collectLinkedCards(
 		for (const id of source.outgoingIds(node.card)) {
 			if (byId.has(id)) addEdge(node.card.id, id);
 		}
+	}
+
+	// 标记双向卡片：与种子互为引用的（既被种子引用、又引用种子）。
+	// 这些卡片在种子的「正对面」——既非纯出链也非纯入链，
+	// 布局时放在种子的上下方向、连线画双向箭头。
+	const seedIds = new Set(seeds.map((s) => s.id));
+	const seedOutgoing = new Set<string>();
+	for (const s of seeds) for (const id of source.outgoingIds(s)) seedOutgoing.add(id);
+	for (const node of nodes) {
+		if (node.depth === 0) continue;
+		// 判断 node 是否也引用了某种子（即 node 的出链里有种子）
+		const referencesSeed = source.outgoingIds(node.card).some((id) => seedIds.has(id));
+		if (seedOutgoing.has(node.card.id) && referencesSeed) node.via = 'both';
 	}
 
 	return { nodes, edges };

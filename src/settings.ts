@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	canvasLinkDepth: 1,
 	canvasLinkDirection: 'both',
 	canvasDrawEdges: true,
+	canvasBidirectionalColor: '5',
 };
 
 /** main.ts 的 CardBoxPlugin 需实现此接口，避免设置页与主模块循环依赖 */
@@ -171,6 +172,25 @@ export class CardBoxSettingTab extends PluginSettingTab {
 					await this.access.saveSettings();
 				}),
 			);
+
+		new Setting(containerEl)
+			.setName(i18n.canvasBidirectionalName)
+			.setDesc(i18n.canvasBidirectionalDesc)
+			.addDropdown((dd) => {
+				const colors: [string, string][] = [
+					['1', i18n.canvasColorRed],
+					['2', i18n.canvasColorOrange],
+					['3', i18n.canvasColorYellow],
+					['4', i18n.canvasColorGreen],
+					['5', i18n.canvasColorBlue],
+					['6', i18n.canvasColorPurple],
+				];
+				for (const [value, label] of colors) dd.addOption(value, label);
+				dd.setValue(s.canvasBidirectionalColor).onChange(async (v) => {
+					s.canvasBidirectionalColor = v;
+					await this.access.saveSettings();
+				});
+			});
 
 		new Setting(containerEl)
 			.setName(i18n.sortName)

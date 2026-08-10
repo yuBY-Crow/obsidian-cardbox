@@ -1,0 +1,58 @@
+<svg viewBox="0 0 792 717" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+<g font-family="system-ui" font-size="11" fill="#555">
+  <rect x="30" y="30" width="12" height="12" rx="3" fill="#3a7fd5" fill-opacity="0.3" stroke="#3a7fd5"/>
+  <text x="48" y="41">出链（它引用的）</text>
+  <rect x="160" y="30" width="12" height="12" rx="3" fill="#e05252" fill-opacity="0.3" stroke="#e05252"/>
+  <text x="178" y="41">入链（引用它的）</text>
+  <rect x="290" y="30" width="12" height="12" rx="3" fill="#8a5cd9" fill-opacity="0.3" stroke="#8a5cd9"/>
+  <text x="308" y="41">双链（上下方向）</text>
+  <line x1="420" y1="36" x2="460" y2="36" stroke="#3a7fd5" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="466" y="41">双向箭头连线</text>
+</g>
+<line x1="123" y1="445" x2="396" y2="359" stroke="#888" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<line x1="123" y1="445" x2="396" y2="532" stroke="#888" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<line x1="123" y1="445" x2="123" y2="98" stroke="#3a7fd5" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<line x1="123" y1="445" x2="123" y2="619" stroke="#3a7fd5" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<line x1="123" y1="445" x2="123" y2="272" stroke="#3a7fd5" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<line x1="396" y1="532" x2="669" y2="445" stroke="#888" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<g>
+  <rect x="30" y="377" width="186" height="136" rx="8" fill="#3a7fd5" fill-opacity="0.9" stroke="#111" stroke-width="2"/>
+  <text x="123" y="439" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="700" fill="#3a7fd5">★ test-vault/Cards</text>
+  <text x="123" y="457" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">卡片笔记写作法：核心框架.m</text>
+</g>
+<g>
+  <rect x="303" y="290" width="186" height="136" rx="8" fill="#e05252" fill-opacity="0.25" stroke="#e05252" stroke-width="1.2"/>
+  <text x="396" y="352" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="#e05252">test-vault/Cards</text>
+  <text x="396" y="370" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">闪念笔记：48 小时法则.m</text>
+</g>
+<g>
+  <rect x="303" y="464" width="186" height="136" rx="8" fill="#e0892f" fill-opacity="0.25" stroke="#e0892f" stroke-width="1.2"/>
+  <text x="396" y="526" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="#e0892f">test-vault/Cards</text>
+  <text x="396" y="544" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">文献笔记：用自己的话提炼.m</text>
+</g>
+<g>
+  <rect x="576" y="377" width="186" height="136" rx="8" fill="#d9b42c" fill-opacity="0.25" stroke="#d9b42c" stroke-width="1.2"/>
+  <text x="669" y="439" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="#d9b42c">test-vault/Cards</text>
+  <text x="669" y="457" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">书摘示例：知识的连接.md</text>
+</g>
+<g>
+  <rect x="30" y="30" width="186" height="136" rx="8" fill="#f0f0f0" fill-opacity="0.25" stroke="#f0f0f0" stroke-width="1.2"/>
+  <text x="123" y="92" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="#333">test-vault/Cards</text>
+  <text x="123" y="110" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">卡片盒方法论：为什么有效.m</text>
+</g>
+<g>
+  <rect x="30" y="204" width="186" height="136" rx="8" fill="#8a5cd9" fill-opacity="0.25" stroke="#8a5cd9" stroke-width="1.2"/>
+  <text x="123" y="266" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="#8a5cd9">test-vault/Cards</text>
+  <text x="123" y="284" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">非线性写作：从卡片到文章.m</text>
+</g>
+<g>
+  <rect x="30" y="551" width="186" height="136" rx="8" fill="#3fa653" fill-opacity="0.25" stroke="#3fa653" stroke-width="1.2"/>
+  <text x="123" y="613" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="#3fa653">test-vault/Cards</text>
+  <text x="123" y="631" text-anchor="middle" font-family="system-ui" font-size="10" fill="#999">永久笔记：原子化、可独立存在</text>
+</g>
+</svg>

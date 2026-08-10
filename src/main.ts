@@ -226,9 +226,13 @@ export default class CardBoxPlugin extends Plugin {
 		this.app.workspace.revealLeaf(leaf);
 	}
 
+	/**
+	 * 打开卡片笔记。用 openLinkText 并以 'tab' 模式打开，
+	 * 保证每次都落在**新标签页**而不是复用当前 tab——
+	 * 从卡片盒/扩展视图连续点开多张卡片时，互相不覆盖。
+	 */
 	async openFile(file: TFile): Promise<void> {
-		const leaf = this.app.workspace.getLeaf('tab');
-		await leaf.openFile(file);
+		await this.app.workspace.openLinkText(file.path, '', 'tab');
 	}
 
 	openCapture(prefill = '', parent?: Card): void {
@@ -280,6 +284,7 @@ export default class CardBoxPlugin extends Plugin {
 			ensureFolder: (folder) => this.service.ensureFolder(folder),
 			// 关掉连线时也关掉分层排布，退回网格
 			graph: opts.drawEdges ? graph : undefined,
+			bidirectionalColor: this.settings.canvasBidirectionalColor,
 		});
 		if (file && !activeCanvas) await this.openFile(file);
 	}
@@ -388,6 +393,9 @@ export default class CardBoxPlugin extends Plugin {
 		}
 		if (typeof this.settings.canvasDrawEdges !== 'boolean') {
 			this.settings.canvasDrawEdges = DEFAULT_SETTINGS.canvasDrawEdges;
+		}
+		if (!/^[1-6]$/.test(String(this.settings.canvasBidirectionalColor))) {
+			this.settings.canvasBidirectionalColor = DEFAULT_SETTINGS.canvasBidirectionalColor;
 		}
 	}
 

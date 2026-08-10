@@ -1,6 +1,6 @@
 {
 	"name": "cardbox",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"description": "CardBox Obsidian plugin: Writeathon-style slip box for mobile-first flash capture.",
 	"main": "main.js",
 	"scripts": {
@@ -15,7 +15,8 @@
 		"seed:links": "node scripts/seed-links.mjs",
 		"test:count": "node scripts/counttest.mjs",
 		"test:title": "node scripts/titlelinktest.mjs",
-		"test:depth": "node scripts/canvasdepthtest.mjs"
+		"test:depth": "node scripts/canvasdepthtest.mjs",
+		"preview:canvas": "node scripts/canvaspreview.mjs"
 	},
 	"keywords": [],
 	"author": "CardBox",

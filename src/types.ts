@@ -145,6 +145,8 @@ export interface CardBoxSettings {
 	canvasLinkDirection: 'outgoing' | 'incoming' | 'both';
 	/** 投放到白板时是否画出引用连线 */
 	canvasDrawEdges: boolean;
+	/** 双链连线的颜色（Canvas 预设色号 1-6），默认 '5' 蓝 */
+	canvasBidirectionalColor: string;
 }
 
 export interface FilterState {

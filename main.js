@@ -178,7 +178,15 @@ var i18n = {
   canvasDirBoth: "\u53CC\u5411",
   canvasDirectionDesc: "\u300C\u5B83\u5F15\u7528\u7684\u300D\u6307\u5361\u7247\u7684\u6269\u5C55\u5361\u7247\u4E0E\u6B63\u6587\u53CC\u94FE\uFF1B\u300C\u5F15\u7528\u5B83\u7684\u300D\u6307\u53CD\u5411\u94FE\u63A5\u3002",
   canvasDrawEdgesLabel: "\u753B\u51FA\u5F15\u7528\u8FDE\u7EBF",
-  canvasDrawEdgesDesc: "\u5728\u767D\u677F\u4E0A\u7528\u8FDE\u7EBF\u8868\u793A\u5361\u7247\u4E4B\u95F4\u7684\u5F15\u7528\u5173\u7CFB\uFF0C\u5E76\u6309\u5C42\u7EA7\u5206\u884C\u6392\u5E03\u3002",
+  canvasDrawEdgesDesc: "\u5728\u767D\u677F\u4E0A\u7528\u8FDE\u7EBF\u8868\u793A\u5361\u7247\u4E4B\u95F4\u7684\u5F15\u7528\u5173\u7CFB\uFF1B\u5355\u5361\u7247\u6295\u653E\u65F6\u79CD\u5B50\u5C45\u4E2D\u3001\u5DE6\u5165\u53F3\u51FA\u3001\u53CC\u94FE\u4E0A\u4E0B\u3002",
+  canvasBidirectionalName: "\u53CC\u94FE\u8FDE\u7EBF\u989C\u8272",
+  canvasBidirectionalDesc: "\u4E92\u4E3A\u5F15\u7528\u7684\u53CC\u94FE\u5361\u7247\u4E4B\u95F4\u7684\u8FDE\u7EBF\u989C\u8272\u3002\u53CC\u94FE\u5361\u7247\u4F1A\u653E\u5728\u5F53\u524D\u5361\u7247\u7684\u4E0A\u65B9\u548C\u4E0B\u65B9\u3002",
+  canvasColorRed: "\u7EA2",
+  canvasColorOrange: "\u6A59",
+  canvasColorYellow: "\u9EC4",
+  canvasColorGreen: "\u7EFF",
+  canvasColorBlue: "\u84DD",
+  canvasColorPurple: "\u7D2B",
   canvasPreview: (n) => `\u5C06\u6295\u653E ${n} \u5F20\u5361\u7247`,
   canvasPreviewSeed: (seed, total) => `${seed} \u5F20\u8D77\u59CB\u5361\u7247 + ${total - seed} \u5F20\u5173\u8054\u5361\u7247`,
   canvasSendButton: "\u6295\u653E",
@@ -272,7 +280,8 @@ var DEFAULT_SETTINGS = {
   masonryMinColumnWidth: 260,
   canvasLinkDepth: 1,
   canvasLinkDirection: "both",
-  canvasDrawEdges: true
+  canvasDrawEdges: true,
+  canvasBidirectionalColor: "5"
 };
 var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
   /**
@@ -366,6 +375,21 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.access.saveSettings();
       })
     );
+    new import_obsidian.Setting(containerEl).setName(i18n.canvasBidirectionalName).setDesc(i18n.canvasBidirectionalDesc).addDropdown((dd) => {
+      const colors = [
+        ["1", i18n.canvasColorRed],
+        ["2", i18n.canvasColorOrange],
+        ["3", i18n.canvasColorYellow],
+        ["4", i18n.canvasColorGreen],
+        ["5", i18n.canvasColorBlue],
+        ["6", i18n.canvasColorPurple]
+      ];
+      for (const [value, label] of colors) dd.addOption(value, label);
+      dd.setValue(s.canvasBidirectionalColor).onChange(async (v) => {
+        s.canvasBidirectionalColor = v;
+        await this.access.saveSettings();
+      });
+    });
     new import_obsidian.Setting(containerEl).setName(i18n.sortName).addDropdown((dd) => {
       dd.addOption("created-desc", i18n.sortCreatedDesc).addOption("created-asc", i18n.sortCreatedAsc).addOption("updated-desc", i18n.sortUpdatedDesc).addOption("title", i18n.sortTitle).setValue(s.defaultSort).onChange(async (v) => {
         s.defaultSort = v;
@@ -995,6 +1019,14 @@ function collectLinkedCards(seeds, source, direction, maxDepth, maxNodes = 200) 
     for (const id of source.outgoingIds(node.card)) {
       if (byId.has(id)) addEdge(node.card.id, id);
     }
+  }
+  const seedIds = new Set(seeds.map((s) => s.id));
+  const seedOutgoing = /* @__PURE__ */ new Set();
+  for (const s of seeds) for (const id of source.outgoingIds(s)) seedOutgoing.add(id);
+  for (const node of nodes) {
+    if (node.depth === 0) continue;
+    const referencesSeed = source.outgoingIds(node.card).some((id) => seedIds.has(id));
+    if (seedOutgoing.has(node.card.id) && referencesSeed) node.via = "both";
   }
   return { nodes, edges };
 }
@@ -3320,6 +3352,8 @@ var NODE_W = 300;
 var NODE_H = 220;
 var GAP = 40;
 var ROW_GAP = 120;
+var COL_STEP = NODE_W + 140;
+var V_STEP = NODE_H + 60;
 var COLOR_MAP = {
   red: "1",
   orange: "2",
@@ -3390,62 +3424,155 @@ function buildLayeredNodes(nodes, origin) {
   const widest = Math.max(1, ...depths.map((d) => byDepth.get(d).length));
   const totalWidth = widest * NODE_W + (widest - 1) * GAP;
   const canvasNodes = [];
-  const idToNodeId = /* @__PURE__ */ new Map();
+  const idToNode = /* @__PURE__ */ new Map();
   depths.forEach((depth, rowIndex) => {
     const row = byDepth.get(depth);
     const rowWidth = row.length * NODE_W + (row.length - 1) * GAP;
     const startX = origin.x + Math.round((totalWidth - rowWidth) / 2);
     const y = origin.y + rowIndex * (NODE_H + ROW_GAP);
     row.forEach((n, i) => {
-      const nodeId = randomNodeId();
-      idToNodeId.set(n.card.id, nodeId);
-      const node = {
-        id: nodeId,
-        type: "file",
-        file: n.card.path,
-        x: startX + i * (NODE_W + GAP),
-        y,
-        width: NODE_W,
-        height: NODE_H
-      };
-      if (n.card.color) {
-        const c = COLOR_MAP[n.card.color];
-        if (c) node.color = c;
-      }
+      const node = makeFileNode(n.card, startX + i * (NODE_W + GAP), y);
+      idToNode.set(n.card.id, node);
       canvasNodes.push(node);
     });
   });
-  return { canvasNodes, idToNodeId };
+  return { canvasNodes, idToNode };
 }
-function buildEdges(edges, idToNodeId) {
+function makeFileNode(card, x, y) {
+  const node = {
+    id: randomNodeId(),
+    type: "file",
+    file: card.path,
+    x,
+    y,
+    width: NODE_W,
+    height: NODE_H
+  };
+  if (card.color) {
+    const c = COLOR_MAP[card.color];
+    if (c) node.color = c;
+  }
+  return node;
+}
+function columnStartY(count, centerY) {
+  const total = count * NODE_H + (count - 1) * (V_STEP - NODE_H);
+  return Math.round(centerY - total / 2);
+}
+function buildRadialNodes(nodes, origin) {
+  const seed = nodes.find((n) => n.depth === 0);
+  if (!seed) return { canvasNodes: [], idToNode: /* @__PURE__ */ new Map(), leftCols: 0 };
+  const seedCenterY = origin.y + NODE_H / 2;
+  const canvasNodes = [];
+  const idToNode = /* @__PURE__ */ new Map();
+  const place = (n, x, y) => {
+    const node = makeFileNode(n.card, x, y);
+    idToNode.set(n.card.id, node);
+    canvasNodes.push(node);
+  };
+  place(seed, origin.x, origin.y);
+  const rightByDepth = groupByDepth(nodes.filter((n) => n.depth > 0 && n.via === "outgoing"));
+  for (const [depth, col] of rightByDepth) {
+    const x = origin.x + depth * COL_STEP;
+    const y0 = columnStartY(col.length, seedCenterY);
+    col.forEach((n, i) => place(n, x, y0 + i * V_STEP));
+  }
+  const leftByDepth = groupByDepth(nodes.filter((n) => n.depth > 0 && n.via === "incoming"));
+  for (const [depth, col] of leftByDepth) {
+    const x = origin.x - depth * COL_STEP;
+    const y0 = columnStartY(col.length, seedCenterY);
+    col.forEach((n, i) => place(n, x, y0 + i * V_STEP));
+  }
+  const both = nodes.filter((n) => n.via === "both");
+  const above = both.filter((_, i) => i % 2 === 0);
+  const below = both.filter((_, i) => i % 2 === 1);
+  above.forEach((n, i) => place(n, origin.x, origin.y - (above.length - i) * V_STEP));
+  below.forEach((n, i) => place(n, origin.x, origin.y + (i + 1) * V_STEP));
+  const leftCols = leftByDepth.size ? Math.max(...leftByDepth.keys()) : 0;
+  return { canvasNodes, idToNode, leftCols };
+}
+function groupByDepth(nodes) {
+  var _a;
+  const m = /* @__PURE__ */ new Map();
+  for (const n of nodes) {
+    const arr = (_a = m.get(n.depth)) != null ? _a : [];
+    arr.push(n);
+    m.set(n.depth, arr);
+  }
+  return new Map([...m.entries()].sort((a, b) => a[0] - b[0]));
+}
+function edgeSides(a, b) {
+  const ax = a.x + a.width / 2;
+  const ay = a.y + a.height / 2;
+  const bx = b.x + b.width / 2;
+  const by = b.y + b.height / 2;
+  const dx = bx - ax;
+  const dy = by - ay;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? { fromSide: "right", toSide: "left" } : { fromSide: "left", toSide: "right" };
+  }
+  return dy >= 0 ? { fromSide: "bottom", toSide: "top" } : { fromSide: "top", toSide: "bottom" };
+}
+function buildEdges(edges, idToNode, bidirColor) {
+  const keyOf = (a, b) => a + "\0" + b;
+  const onBoard = /* @__PURE__ */ new Set();
+  for (const e of edges) {
+    if (e.fromId !== e.toId && idToNode.has(e.fromId) && idToNode.has(e.toId)) {
+      onBoard.add(keyOf(e.fromId, e.toId));
+    }
+  }
+  const bidirectional = /* @__PURE__ */ new Set();
+  for (const key of onBoard) {
+    const [a, b] = key.split("\0");
+    if (onBoard.has(keyOf(b, a))) bidirectional.add(key);
+  }
   const out = [];
   const seen = /* @__PURE__ */ new Set();
   for (const e of edges) {
-    const from = idToNodeId.get(e.fromId);
-    const to = idToNodeId.get(e.toId);
+    const from = idToNode.get(e.fromId);
+    const to = idToNode.get(e.toId);
     if (!from || !to || from === to) continue;
-    const key = `${from}\0${to}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ id: randomNodeId(), fromNode: from, fromSide: "bottom", toNode: to, toSide: "top" });
+    const fwd = keyOf(e.fromId, e.toId);
+    const rev = keyOf(e.toId, e.fromId);
+    const isBi = bidirectional.has(fwd);
+    if (seen.has(fwd) || isBi && seen.has(rev)) continue;
+    seen.add(fwd);
+    out.push({
+      id: randomNodeId(),
+      fromNode: from.id,
+      toNode: to.id,
+      ...edgeSides(from, to),
+      toEnd: "arrow",
+      ...isBi ? { fromEnd: "arrow", color: bidirColor } : {}
+    });
   }
   return out;
 }
 async function sendCardsToCanvas(app, cards, opts) {
+  var _a, _b;
   if (!cards.length) {
     new import_obsidian17.Notice(i18n.canvasNoCards);
     return null;
   }
+  const bidirColor = opts.bidirectionalColor || "5";
   const layout = (targets, origin) => {
     if (opts.graph) {
       const keep = new Set(targets.map((c) => c.path));
       const graphNodes = opts.graph.nodes.filter((n) => keep.has(n.card.path));
       if (graphNodes.length) {
-        const { canvasNodes, idToNodeId } = buildLayeredNodes(graphNodes, origin);
-        return { nodes: canvasNodes, edges: buildEdges(opts.graph.edges, idToNodeId) };
+        const seedCount = graphNodes.filter((n) => n.depth === 0).length;
+        if (seedCount === 1) {
+          const { canvasNodes: canvasNodes2, idToNode: idToNode2, leftCols } = buildRadialNodes(graphNodes, origin);
+          return {
+            nodes: canvasNodes2,
+            edges: buildEdges(opts.graph.edges, idToNode2, bidirColor),
+            offsetX: leftCols * COL_STEP
+          };
+        }
+        const { canvasNodes, idToNode } = buildLayeredNodes(graphNodes, origin);
+        return { nodes: canvasNodes, edges: buildEdges(opts.graph.edges, idToNode, bidirColor), offsetX: 0 };
       }
     }
-    return { nodes: buildNodes(targets, origin), edges: [] };
+    return { nodes: buildNodes(targets, origin), edges: [], offsetX: 0 };
   };
   if (opts.activeCanvas) {
     const raw = await app.vault.read(opts.activeCanvas);
@@ -3456,7 +3583,15 @@ async function sendCardsToCanvas(app, cards, opts) {
       new import_obsidian17.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
       return opts.activeCanvas;
     }
-    const built2 = layout(fresh, nextOrigin(data2.nodes));
+    const base2 = nextOrigin(data2.nodes);
+    const built2 = layout(fresh, base2);
+    if (built2.offsetX > 0) {
+      let maxOldRight = -Infinity;
+      for (const n of data2.nodes) maxOldRight = Math.max(maxOldRight, ((_a = n.x) != null ? _a : 0) + ((_b = n.width) != null ? _b : 0));
+      const minNewX = base2.x - built2.offsetX;
+      const shift = Math.max(0, maxOldRight + GAP - minNewX);
+      for (const n of built2.nodes) n.x += shift;
+    }
     data2.nodes.push(...built2.nodes);
     data2.edges.push(...built2.edges);
     await app.vault.modify(opts.activeCanvas, JSON.stringify(data2, null, 2));
@@ -3681,9 +3816,13 @@ var CardBoxPlugin = class extends import_obsidian18.Plugin {
     await leaf.setViewState({ type: CARD_EXTEND_VIEW_TYPE, active: true, state: { rootId } });
     this.app.workspace.revealLeaf(leaf);
   }
+  /**
+   * 打开卡片笔记。用 openLinkText 并以 'tab' 模式打开，
+   * 保证每次都落在**新标签页**而不是复用当前 tab——
+   * 从卡片盒/扩展视图连续点开多张卡片时，互相不覆盖。
+   */
   async openFile(file) {
-    const leaf = this.app.workspace.getLeaf("tab");
-    await leaf.openFile(file);
+    await this.app.workspace.openLinkText(file.path, "", "tab");
   }
   openCapture(prefill = "", parent) {
     new CaptureModal(this.app, this.ctx, { prefill, parent }).open();
@@ -3727,7 +3866,8 @@ var CardBoxPlugin = class extends import_obsidian18.Plugin {
       activeCanvas,
       ensureFolder: (folder) => this.service.ensureFolder(folder),
       // 关掉连线时也关掉分层排布，退回网格
-      graph: opts.drawEdges ? graph : void 0
+      graph: opts.drawEdges ? graph : void 0,
+      bidirectionalColor: this.settings.canvasBidirectionalColor
     });
     if (file && !activeCanvas) await this.openFile(file);
   }
@@ -3823,6 +3963,9 @@ var CardBoxPlugin = class extends import_obsidian18.Plugin {
     }
     if (typeof this.settings.canvasDrawEdges !== "boolean") {
       this.settings.canvasDrawEdges = DEFAULT_SETTINGS.canvasDrawEdges;
+    }
+    if (!/^[1-6]$/.test(String(this.settings.canvasBidirectionalColor))) {
+      this.settings.canvasBidirectionalColor = DEFAULT_SETTINGS.canvasBidirectionalColor;
     }
   }
   async saveSettings() {
