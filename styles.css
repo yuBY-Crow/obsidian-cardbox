@@ -798,14 +798,20 @@ body.is-mobile .cardbox-color-dot {
 
 /* 窄屏（含手机）双列平铺：
    顶层卡片双列；展开的子卡片占满整行并保留缩进，层级依然清晰。
-   每张卡片随内容自适应高度，最长 400px，超出部分渐隐截断 */
+   每张卡片随内容自适应高度，最长约 400px，超出部分在 main 内部渐隐截断 */
 @media (max-width: 520px) {
 	.cardbox-list.is-masonry {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
+	/* 注意：不能在 .cardbox-tile 上加 max-height + overflow:hidden，
+	   chromium 会把 grid item 的 max-content 当 0，导致所有卡片
+	   塞进几像素行里重叠（曾踩坑，见 mobilefulltest）。
+	   改为在内部 .cardbox-tile-main 截断，让卡片本身高度由内容撑开。 */
 	.cardbox-list.is-masonry .cardbox-tile {
 		margin-left: 0;
-		max-height: 400px;
+	}
+	.cardbox-list.is-masonry .cardbox-tile-main {
+		max-height: 360px;
 		overflow: hidden;
 	}
 	/* 子卡片占满整行 + 层级缩进 + 左侧竖线 */
@@ -822,7 +828,10 @@ body.is-mobile .cardbox-list.is-masonry {
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile {
 	margin-left: 0;
-	max-height: 400px;
+}
+
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-main {
+	max-height: 360px;
 	overflow: hidden;
 }
 
@@ -1382,8 +1391,9 @@ body.is-mobile .cardbox-section-header {
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
+	/* 与 Obsidian 视图 header 同高（≈ 32-36px），避免按钮显得过胖 */
+	height: 32px;
 	min-width: 44px;
-	min-height: 44px;
 	padding: 0 12px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);

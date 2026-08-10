@@ -144,13 +144,23 @@ const metrics = await page.evaluate(() => {
 			isChild: t.classList.contains('is-child'),
 			borderLeft: getComputedStyle(t).borderLeftWidth,
 			borderStyle: getComputedStyle(t).borderLeftStyle,
-			maxHeight: getComputedStyle(t).maxHeight,
-			overflow: getComputedStyle(t).overflow,
+			// maxHeight/overflow 已从 .cardbox-tile 移到 .cardbox-tile-main（避免 grid 行高塌缩）
+			mainMaxHeight: (() => { const m = t.querySelector('.cardbox-tile-main'); return m ? getComputedStyle(m).maxHeight : ''; })(),
+			mainOverflow: (() => { const m = t.querySelector('.cardbox-tile-main'); return m ? getComputedStyle(m).overflow : ''; })(),
 		};
 	});
+	// 重叠检测：双列平铺下不能有卡片重叠
+	// （曾踩坑：max-height+overflow 在 .cardbox-tile 上让 chromium 把 grid 行高算成 ~0）
+	const overlapPairs = [];
+	for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+		const A = rects[i];
+		const B = rects[j];
+		if (Math.min(A.x2, B.x2) - Math.max(A.x1, B.x1) > 1 &&
+			Math.min(A.y2, B.y2) - Math.max(A.y1, B.y1) > 1) overlapPairs.push([A, B]);
+	}
 	// 用计算样式判断实际列数（缩进会干扰 left 统计）
 	const gridCols = getComputedStyle(list).gridTemplateColumns.split(' ').length;
-	return { rects, gridCols, listWidth: Math.round(list.getBoundingClientRect().width) };
+	return { rects, gridCols, listWidth: Math.round(list.getBoundingClientRect().width), overlapPairs: overlapPairs.length };
 });
 
 const results = [];
@@ -180,8 +190,9 @@ check('子卡有左侧竖线', tileExt1.isChild && tileExt1.borderLeft === '3px'
 check('顶层主卡无竖线', !tileA.isChild && !tileB.isChild && !tileC.isChild, { a: tileA.isChild, b: tileB.isChild, c: tileC.isChild });
 check('子卡在主卡下方', tileA.top < tileExt1.top && tileExt1.top < tileExt2.top,
 	{ main: tileA.top, ext1: tileExt1.top, ext2: tileExt2.top });
-check('卡片有 400px 高度上限', tileA.maxHeight === '400px', tileA.maxHeight);
-check('卡片超出隐藏', tileA.overflow === 'hidden', tileA.overflow);
+check('卡片高度上限在 .cardbox-tile-main', metrics.rects[0].mainMaxHeight === '360px', metrics.rects[0].mainMaxHeight);
+check('卡片超出隐藏在 .cardbox-tile-main', metrics.rects[0].mainOverflow === 'hidden', metrics.rects[0].mainOverflow);
+check('平铺卡片无重叠（grid 行高未塌缩）', metrics.overlapPairs === 0, metrics.overlapPairs);
 
 let pass = 0;
 let fail = 0;
