@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	cardsFolder: 'Cards',
 	mergeOutputFolder: 'Cards',
 	canvasOutputFolder: 'Cards',
-	filenameFormat: 'datetime',
+	filenameFormat: 'title',
 	defaultTags: [],
 	defaultViewMode: 'card',
 	defaultSort: 'created-desc',
@@ -16,6 +16,9 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	boxes: [],
 	activeBoxId: '',
 	masonryMinColumnWidth: 260,
+	canvasLinkDepth: 1,
+	canvasLinkDirection: 'both',
+	canvasDrawEdges: true,
 };
 
 /** main.ts 的 CardBoxPlugin 需实现此接口，避免设置页与主模块循环依赖 */
@@ -77,6 +80,19 @@ export class CardBoxSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl)
+			.setName(i18n.filenameFormatName)
+			.setDesc(i18n.filenameFormatDesc)
+			.addDropdown((dd) => {
+				dd.addOption('title', i18n.filenameFormatTitle)
+					.addOption('datetime', i18n.filenameFormatDatetime)
+					.setValue(s.filenameFormat)
+					.onChange(async (v) => {
+						s.filenameFormat = v as 'datetime' | 'title';
+						await this.access.saveSettings();
+					});
+			});
+
 		new Setting(containerEl).setName(i18n.defaultTagsName).addText((text) => {
 			text.setPlaceholder(i18n.tagInputPlaceholder);
 			text.inputEl.addEventListener('keydown', (e) => {
@@ -118,6 +134,43 @@ export class CardBoxSettingTab extends PluginSettingTab {
 					await this.access.saveSettings();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName(i18n.canvasDepthName)
+			.setDesc(i18n.canvasDepthSettingDesc)
+			.addDropdown((dd) => {
+				dd.addOption('0', i18n.canvasDepth0);
+				for (let n = 1; n <= 5; n++) dd.addOption(String(n), i18n.canvasDepthN(n));
+				dd.setValue(String(s.canvasLinkDepth)).onChange(async (v) => {
+					const n = Number(v);
+					s.canvasLinkDepth = isFinite(n) && n >= 0 ? Math.floor(n) : 1;
+					await this.access.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(i18n.canvasDirectionName)
+			.setDesc(i18n.canvasDirectionDesc)
+			.addDropdown((dd) => {
+				dd.addOption('outgoing', i18n.canvasDirOutgoing)
+					.addOption('incoming', i18n.canvasDirIncoming)
+					.addOption('both', i18n.canvasDirBoth)
+					.setValue(s.canvasLinkDirection)
+					.onChange(async (v) => {
+						s.canvasLinkDirection = v as 'outgoing' | 'incoming' | 'both';
+						await this.access.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(i18n.canvasDrawEdgesName)
+			.setDesc(i18n.canvasDrawEdgesDesc)
+			.addToggle((tg) =>
+				tg.setValue(s.canvasDrawEdges).onChange(async (v) => {
+					s.canvasDrawEdges = v;
+					await this.access.saveSettings();
+				}),
+			);
 
 		new Setting(containerEl)
 			.setName(i18n.sortName)

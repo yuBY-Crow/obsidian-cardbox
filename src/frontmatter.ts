@@ -1,7 +1,7 @@
 import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
 import type { Card, CardColor } from './types';
 import { CARD_COLORS } from './types';
-import { generateId, normalizeTags } from './utils/format';
+import { generateId, deriveFileBase, normalizeTags } from './utils/format';
 import { parseLinkList, parseLinkTarget, toLinkList, toWikilink } from './utils/link';
 
 const SNIPPET_LENGTH = 200;
@@ -28,9 +28,19 @@ export function buildCardContent(fm: Record<string, unknown>, body: string): str
 	return `---\n${stringifyYaml(fm)}---\n\n${body}`;
 }
 
-function deriveId(data: Record<string, unknown> | null, fileName: string): string {
-	if (data && typeof data.id === 'string' && data.id.trim()) return data.id.trim();
-	return fileName.replace(/\.md$/, '');
+/**
+ * 推导卡片 id。
+ *
+ * **文件名优先**，而不是 frontmatter 的 id 字段。原因：
+ * Obsidian 的 [[链接]] 解析的是文件名，图谱/反向链接/重命名跟随全部围绕文件名工作。
+ * 如果 id 用frontmatter 而文件名是标题，两者不一致时
+ * children:["[[标题]]"] 就无法在索引里查到对应卡片（索引按 id 建表）。
+ *
+ * 只有在文件名与 frontmatter id 都存在且不一致时，仍以文件名为准——
+ * 这样用标题重命名后，插件的关联能立刻跟上 Obsidian 改写的链接。
+ */
+function deriveId(_data: Record<string, unknown> | null, fileName: string): string {
+	return fileName.replace(/\.md$/i, '');
 }
 
 function numOr(v: unknown, fallback: number, now: number): number {
@@ -64,6 +74,8 @@ export class CardService {
 	constructor(
 		private app: App,
 		private getCardsFolder: () => string,
+		/** 文件名方案；默认 title（标题作文件名，双链可读） */
+		private getFilenameFormat: () => 'datetime' | 'title' = () => 'title',
 	) {}
 
 	private folder(): string {
@@ -104,8 +116,13 @@ export class CardService {
 		const trimmed = body.trim();
 		const title = data && typeof data.title === 'string' && data.title.trim() ? data.title.trim() : undefined;
 		const tags = normalizeTags(data?.tags);
+		const id = deriveId(data, file.name);
+		// frontmatter 里的旧 id：文件名改成标题后，老卡片的 children 可能仍写着旧 id，
+		// 索引会把它登记为别名，保证历史关联不断。
+		const fmId = data && typeof data.id === 'string' && data.id.trim() ? data.id.trim() : undefined;
 		return {
-			id: deriveId(data, file.name),
+			id,
+			legacyId: fmId && fmId !== id ? fmId : undefined,
 			path: file.path,
 			title,
 			tags,
@@ -124,20 +141,85 @@ export class CardService {
 		};
 	}
 
-	/** 新建卡片，返回新文件（空正文返回 null） */
+	/**
+	 * 生成一个在目标文件夹内不冲突的文件路径。
+	 * 同名时追加 -2、-3…（而不是时间戳），保持文件名可读。
+	 */
+	private uniquePath(folder: string, base: string): string {
+		const dir = folder ? `${folder}/` : '';
+		let candidate = `${dir}${base}.md`;
+		let n = 2;
+		while (this.app.vault.getAbstractFileByPath(candidate)) {
+			candidate = `${dir}${base}-${n}.md`;
+			n++;
+			if (n > 999) {
+				candidate = `${dir}${base}-${Date.now()}.md`;
+				break;
+			}
+		}
+		return candidate;
+	}
+
+	/**
+	 * 新建卡片，返回新文件（空正文返回 null）。
+	 *
+	 *文件名方案：
+	 * - title（默认）：用标题或正文首行作文件名，双链写成 [[卡片标题]]，易读易记；
+	 *   标题为空或全是非法字符时回落到时间戳。
+	 * - datetime：始终用 YYYY-MM-DD-HHmmss-xxx，绝不重名。
+	 *
+	 * 注意：id 由文件名决定，因此**不再写 frontmatter id**——
+	 * 写了反而会在用标题重命名后产生「文件名与 id 不一致」的歧义。
+	 */
 	async createCard(opts: { body: string; tags?: string[]; title?: string; parent?: string }): Promise<TFile | null> {
 		const body = opts.body.trim();
 		if (!body) return null;
 		const now = Date.now();
-		const id = generateId(now);
 		await this.ensureFolder(this.folder());
-		const path = `${this.folder()}/${id}.md`;
-		const fm: Record<string, unknown> = { id, created: now, updated: now };
+
+		let path: string;
+		if (this.getFilenameFormat() === 'title') {
+			const base = deriveFileBase(opts.title, body) || generateId(now);
+			path = this.uniquePath(this.folder(), base);
+		} else {
+			path = this.uniquePath(this.folder(), generateId(now));
+		}
+
+		const fm: Record<string, unknown> = { created: now, updated: now };
 		if (opts.title) fm.title = opts.title;
 		if (opts.tags && opts.tags.length) fm.tags = opts.tags;
 		if (opts.parent) fm.parent = toWikilink(opts.parent);
 		await this.app.vault.create(path, buildCardContent(fm, body));
 		return this.getFile(path);
+	}
+
+	/**
+	 * 用标题（或正文首行）重命名卡片文件。
+	 *
+	 * **必须走 fileManager.renameFile 而非 vault.rename**：
+	 * 只有前者会让 Obsidian 自动更新所有指向该文件的 [[链接]]
+	 *（含 frontmatter children、正文双链、其他笔记里的引用）。
+	 * 用 vault.rename 会造成全库断链且不可恢复。
+	 *
+	 * @returns 结果状态，供调用方给出准确提示
+	 */
+	async renameByTitle(card: Card): Promise<{ ok: boolean; from: string; to?: string; reason?: string }> {
+		const file = this.getFile(card.path);
+		if (!file) return { ok: false, from: card.id, reason: 'notfound' };
+
+		const body = await this.readBody(card);
+		const base = deriveFileBase(card.title, body);
+		if (!base) return { ok: false, from: card.id, reason: 'empty' };
+		if (base === file.basename) return { ok: false, from: card.id, reason: 'same' };
+
+		const folder = file.parent?.path && file.parent.path !== '/' ? file.parent.path : '';
+		const target = this.uniquePath(folder, base);
+		try {
+			await this.app.fileManager.renameFile(file, target);
+		} catch (err) {
+			return { ok: false, from: card.id, reason: String(err) };
+		}
+		return { ok: true, from: card.id, to: target.replace(/^.*\//, '').replace(/\.md$/i, '') };
 	}
 
 	/** 批量追加标签（顺序 await） */

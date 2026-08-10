@@ -7,8 +7,10 @@ import { CardBoxView, CARD_BOX_VIEW_TYPE } from './view/CardBoxView';
 import { CardExtendView, CARD_EXTEND_VIEW_TYPE } from './view/CardExtendView';
 import { CaptureModal } from './modals/CaptureModal';
 import { MergeModal } from './modals/MergeModal';
+import { CanvasSendModal, type CanvasSendOptions } from './modals/CanvasSendModal';
 import type { CardBoxContext } from './context';
 import { readCanvasCardPaths, sendCardsToCanvas } from './utils/canvas';
+import { collectLinkedCards } from './utils/graph';
 import { i18n } from './i18n';
 
 export default class CardBoxPlugin extends Plugin {
@@ -34,7 +36,11 @@ export default class CardBoxPlugin extends Plugin {
 	private async setup(): Promise<void> {
 		await this.loadSettings();
 
-		this.service = new CardService(this.app, () => this.settings.cardsFolder);
+		this.service = new CardService(
+			this.app,
+			() => this.settings.cardsFolder,
+			() => this.settings.filenameFormat,
+		);
 		this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
 		this.index.attach();
 
@@ -46,7 +52,8 @@ export default class CardBoxPlugin extends Plugin {
 			openCapture: (prefill, parent) => this.openCapture(prefill, parent),
 			saveSettings: () => this.saveSettings(),
 			openExtendView: (rootId) => this.openExtendView(rootId),
-			sendToCanvas: (cards) => this.sendToCanvas(cards),
+			sendToCanvas: (cards, silent) => this.sendToCanvas(cards, silent),
+			renameByTitle: (cards) => this.renameByTitle(cards),
 			boxes: {
 				list: () => this.settings.boxes,
 				get: (id) => this.settings.boxes.find((b) => b.id === id),
@@ -136,6 +143,24 @@ export default class CardBoxPlugin extends Plugin {
 		this.addSelectionCommand('archive-selected', i18n.archiveSelected, (view) => view.archiveSelected());
 		this.addSelectionCommand('delete-selected', i18n.deleteSelected, (view) => view.deleteSelected());
 		this.addSelectionCommand('send-canvas', i18n.sendToCanvas, (view) => view.sendSelectedToCanvas());
+		this.addSelectionCommand('rename-selected', i18n.renameByTitleBatch, (view) =>
+			void this.renameByTitle(view.getSelectedCards()),
+		);
+
+		// 在编辑器里直接把当前笔记按标题重命名
+		this.addCommand({
+			id: 'rename-current-by-title',
+			name: i18n.renameByTitle,
+			checkCallback: (checking) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!file || file.extension !== 'md' || !this.service.isCardPath(file.path)) return false;
+				const card = this.index.byPath(file.path);
+				if (!card) return false;
+				if (checking) return true;
+				void this.renameByTitle([card]);
+				return true;
+			},
+		});
 
 		// 从当前 Canvas 白板反向合并成文
 		this.addCommand({
@@ -212,15 +237,91 @@ export default class CardBoxPlugin extends Plugin {
 
 	// ---------- Canvas ----------
 
-	private async sendToCanvas(cards: Card[]): Promise<void> {
+	/**
+	 * 投放卡片到白板。
+	 * 默认弹窗让用户选引用层级与方向；silent 时按已保存默认值直接投放。
+	 */
+	private async sendToCanvas(cards: Card[], silent = false): Promise<void> {
+		if (!cards.length) {
+			new Notice(i18n.canvasNoCards);
+			return;
+		}
+		if (silent) {
+			await this.doSendToCanvas(cards, {
+				depth: this.settings.canvasLinkDepth,
+				direction: this.settings.canvasLinkDirection,
+				drawEdges: this.settings.canvasDrawEdges,
+				remember: false,
+			});
+			return;
+		}
+		new CanvasSendModal(this.app, cards, this.index, this.settings, (opts) => {
+			void this.doSendToCanvas(cards, opts);
+		}).open();
+	}
+
+	private async doSendToCanvas(seeds: Card[], opts: CanvasSendOptions): Promise<void> {
+		if (opts.remember) {
+			this.settings.canvasLinkDepth = opts.depth;
+			this.settings.canvasLinkDirection = opts.direction;
+			this.settings.canvasDrawEdges = opts.drawEdges;
+			await this.saveSettings();
+		}
+
+		// 按层级与方向展开关联网络
+		const graph = collectLinkedCards(seeds, this.index.graphSource(), opts.direction, opts.depth);
+		const cards = graph.nodes.map((n) => n.card);
+
 		const active = this.app.workspace.getActiveFile();
 		const activeCanvas = active?.extension === 'canvas' ? active : undefined;
 		const file = await sendCardsToCanvas(this.app, cards, {
 			folder: this.settings.canvasOutputFolder,
 			activeCanvas,
 			ensureFolder: (folder) => this.service.ensureFolder(folder),
+			// 关掉连线时也关掉分层排布，退回网格
+			graph: opts.drawEdges ? graph : undefined,
 		});
 		if (file && !activeCanvas) await this.openFile(file);
+	}
+
+	// ---------- 重命名 ----------
+
+	/**
+	 * 用标题重命名卡片文件。
+	 * 逐张顺序执行：renameFile 会触发 Obsidian 改写全库链接，
+	 * 并发执行可能让链接改写互相覆盖。
+	 */
+	private async renameByTitle(cards: Card[]): Promise<void> {
+		if (!cards.length) return;
+		let ok = 0;
+		let lastFrom = '';
+		let lastTo = '';
+		const reasons: string[] = [];
+		for (const card of cards) {
+			const r = await this.service.renameByTitle(card);
+			if (r.ok && r.to) {
+				ok++;
+				lastFrom = r.from;
+				lastTo = r.to;
+			} else if (r.reason && !['same', 'empty', 'notfound'].includes(r.reason)) {
+				reasons.push(r.reason);
+			} else if (r.reason) {
+				reasons.push(r.reason);
+			}
+		}
+		this.index.refreshPaths(cards.map((c) => c.path));
+
+		if (ok === 0) {
+			// 单张时给出确切原因，批量时不逐条打扰
+			const only = cards.length === 1 ? reasons[0] : undefined;
+			if (only === 'empty') new Notice(i18n.renameNoTitle, 3000);
+			else if (only === 'same') new Notice(i18n.renameSame, 2000);
+			else if (only) new Notice(i18n.renameFailed(only), 5000);
+			else new Notice(i18n.renameSame, 2000);
+			return;
+		}
+		if (ok === 1 && cards.length === 1) new Notice(i18n.renamed(lastFrom, lastTo), 3000);
+		else new Notice(i18n.renamedBatch(ok), 3000);
 	}
 
 	private async mergeFromCanvas(file: TFile): Promise<void> {
@@ -275,6 +376,18 @@ export default class CardBoxPlugin extends Plugin {
 		}
 		if (!Number.isFinite(this.settings.masonryMinColumnWidth) || this.settings.masonryMinColumnWidth < 160) {
 			this.settings.masonryMinColumnWidth = DEFAULT_SETTINGS.masonryMinColumnWidth;
+		}
+		// 白板投放选项：非法值归位
+		if (!['datetime', 'title'].includes(this.settings.filenameFormat)) {
+			this.settings.filenameFormat = DEFAULT_SETTINGS.filenameFormat;
+		}
+		const d = Number(this.settings.canvasLinkDepth);
+		this.settings.canvasLinkDepth = Number.isFinite(d) && d >= 0 && d <= 5 ? Math.floor(d) : DEFAULT_SETTINGS.canvasLinkDepth;
+		if (!['outgoing', 'incoming', 'both'].includes(this.settings.canvasLinkDirection)) {
+			this.settings.canvasLinkDirection = DEFAULT_SETTINGS.canvasLinkDirection;
+		}
+		if (typeof this.settings.canvasDrawEdges !== 'boolean') {
+			this.settings.canvasDrawEdges = DEFAULT_SETTINGS.canvasDrawEdges;
 		}
 	}
 

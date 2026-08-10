@@ -481,19 +481,16 @@ export class CardBoxView extends ItemView {
 				.onClick(() => void this.ctx.service.setPinned([card], !card.pinned)),
 		);
 
-		menu.addItem((item) =>
-			item
-				.setTitle(i18n.sendToCanvas)
-				.setIcon('layout-dashboard')
-				.onClick(() => void this.ctx.sendToCanvas([card])),
-		);
-
-		if (card.children.length > 0) {
+		// 展开/收起关联卡片，以及紧随其下的「投放到白板」——
+		// 两者都是「关联关系」相关操作，放在同一层级相邻位置。
+		// 判定用 extensionCount（含正文双链），与列表展开按钮口径一致。
+		const relatedCount = this.ctx.index.extensionCount(card);
+		if (relatedCount > 0) {
 			const expanded = this.expandedIds.has(card.id);
 			menu.addItem((item) =>
 				item
-					.setTitle(expanded ? i18n.collapseChildren : i18n.expandChildren)
-					.setIcon('chevron-down')
+					.setTitle(`${expanded ? i18n.collapseChildren : i18n.expandChildren}（${relatedCount}）`)
+					.setIcon(expanded ? 'chevron-down' : 'chevron-right')
 					.onClick(() => {
 						if (expanded) this.expandedIds.delete(card.id);
 						else this.expandedIds.add(card.id);
@@ -502,6 +499,21 @@ export class CardBoxView extends ItemView {
 					}),
 			);
 		}
+
+		menu.addItem((item) =>
+			item
+				.setTitle(i18n.sendToCanvas)
+				.setIcon('layout-dashboard')
+				.onClick(() => void this.ctx.sendToCanvas([card])),
+		);
+
+		menu.addItem((item) =>
+			item
+				.setTitle(i18n.renameByTitle)
+				.setIcon('text-cursor-input')
+				.onClick(() => void this.ctx.renameByTitle([card])),
+		);
+
 		menu.addItem((item) =>
 			item
 				.setTitle(card.archived ? i18n.unarchive : i18n.archive)
@@ -561,8 +573,10 @@ export class CardBoxView extends ItemView {
 	}
 
 	private linkExistingChild(parent: Card): void {
+		// 已是扩展卡片的（含正文双链）都排除，避免重复关联
+		const existing = this.ctx.index.extensionsOf(parent).map((e) => e.card.id);
 		new CardPickerModal(this.app, this.ctx.index, {
-			excludeIds: new Set([parent.id, ...parent.children]),
+			excludeIds: new Set([parent.id, ...existing]),
 			onPick: async (child) => {
 				await this.ctx.service.linkChild(parent, child);
 				this.expandedIds.add(parent.id);

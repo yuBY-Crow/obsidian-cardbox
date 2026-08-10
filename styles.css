@@ -1203,3 +1203,132 @@ body.is-mobile .cardbox-backlink-row {
 body.is-mobile .cardbox-backlink-btn {
 	min-height: 36px;
 }
+
+/* ===== 展开按钮旁的关联卡片数量 ===== */
+
+.cardbox-expand-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	flex: none;
+	cursor: pointer;
+	border-radius: var(--radius-s);
+	padding-right: 4px;
+}
+
+@media (hover: hover) {
+	.cardbox-expand-wrap:hover {
+		background: var(--background-modifier-hover);
+	}
+	/* 悬停整体时按钮自身不再单独高亮，避免双层背景 */
+	.cardbox-expand-wrap:hover .cardbox-expand-btn,
+	.cardbox-expand-wrap:hover .cardbox-extend-toggle {
+		background: transparent;
+		color: var(--text-normal);
+	}
+}
+
+.cardbox-expand-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 17px;
+	height: 17px;
+	padding: 0 4px;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-radius: 999px;
+	flex: none;
+	user-select: none;
+}
+
+body.is-mobile .cardbox-expand-wrap {
+	min-height: 44px;
+}
+
+body.is-mobile .cardbox-expand-count {
+	min-width: 20px;
+	height: 20px;
+	font-size: 12px;
+}
+
+/* ===== 可折叠分区标题 ===== */
+
+.cardbox-section-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	user-select: none;
+	border-radius: var(--radius-s);
+	padding: 4px 6px;
+	margin-left: -6px;
+}
+
+@media (hover: hover) {
+	.cardbox-section-header:hover {
+		background: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+.cardbox-section-caret {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex: none;
+	color: var(--text-faint);
+}
+
+.cardbox-section-caret svg {
+	width: 14px;
+	height: 14px;
+}
+
+.cardbox-section-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 17px;
+	height: 17px;
+	padding: 0 5px;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	color: var(--text-muted);
+	background: var(--background-modifier-border);
+	border-radius: 999px;
+	flex: none;
+}
+
+body.is-mobile .cardbox-section-header {
+	min-height: 44px;
+}
+
+/* ===== 投放到白板弹窗 ===== */
+
+.cardbox-canvas-modal h3 {
+	margin: 0 0 12px;
+	font-size: 16px;
+}
+
+.cardbox-canvas-preview {
+	margin: 12px 0 4px;
+	padding: 10px 12px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	font-size: 13px;
+	color: var(--text-normal);
+}
+
+.cardbox-canvas-preview-sub {
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--text-muted);
+}

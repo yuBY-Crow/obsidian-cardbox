@@ -5,8 +5,17 @@ export const CARD_COLORS: CardColor[] = ['red', 'orange', 'yellow', 'green', 'bl
 
 /** 卡片（= Vault 中的一张 Markdown 笔记） */
 export interface Card {
-	/** 唯一 id，等于文件名（去掉 .md），frontmatter id 优先 */
+	/**
+	 * 唯一 id = 文件名（去掉 .md）。
+	 * 与 Obsidian [[链接]] 的解析口径一致，因此关联、图谱、重命名跟随都能对上。
+	 */
 	id: string;
+	/**
+	 * frontmatter 中残留的旧 id（仅当它与文件名不同时存在）。
+	 * 用标题重命名后，老卡片的 children 可能仍写着旧 id，
+	 * 索引会把它登记为别名，保证历史关联不断链。
+	 */
+	legacyId?: string;
 	/** Vault 绝对路径 */
 	path: string;
 	/** 可选标题；闪念卡片常省略，正文即内容 */
@@ -130,6 +139,12 @@ export interface CardBoxSettings {
 	activeBoxId: string;
 	/** 瀑布流最小列宽（px），决定 PC 端平铺列数 */
 	masonryMinColumnWidth: number;
+	/** 投放到白板时的默认引用层级（0 = 只投当前卡片） */
+	canvasLinkDepth: number;
+	/** 投放到白板时的默认引用方向 */
+	canvasLinkDirection: 'outgoing' | 'incoming' | 'both';
+	/** 投放到白板时是否画出引用连线 */
+	canvasDrawEdges: boolean;
 }
 
 export interface FilterState {

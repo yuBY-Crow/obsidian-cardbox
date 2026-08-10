@@ -25,6 +25,8 @@ export class CardExtendView extends ItemView {
 	private ctx: CardBoxContext;
 	private rootId = '';
 	private expandedIds = new Set<string>();
+	/** 已折叠的分区（'extensions' | 'backlinks'），重渲染后保持 */
+	private collapsedSections = new Set<string>();
 	private raf = 0;
 	private bodyCache = new Map<string, string>();
 	private indexChangedCb = () => this.scheduleRender();
@@ -125,31 +127,62 @@ export class CardExtendView extends ItemView {
 		// 扩展卡片列
 		const childCol = wrap.createDiv({ cls: 'cardbox-extend-children' });
 		const exts = this.ctx.index.extensionsOf(root);
-		const header = childCol.createDiv({ cls: 'cardbox-extend-label' });
-		header.setText(`${i18n.extendChildren}（${exts.length}）`);
-		childCol.createDiv({ cls: 'cardbox-extend-hint', text: i18n.extendDragHint });
 
-		if (!exts.length) {
-			childCol.createDiv({ cls: 'cardbox-placeholder', text: i18n.extendEmpty });
-		} else {
-			const listEl = childCol.createDiv({ cls: 'cardbox-extend-list' });
-			for (const ext of exts) {
-				listEl.appendChild(this.buildBranch(root, ext.card, 0, ext.source));
+		// 扩展卡片分区（可整体收起）
+		const extOpen = !this.collapsedSections.has('extensions');
+		this.buildSectionHeader(childCol, 'extensions', i18n.extendChildren, exts.length, extOpen);
+		if (extOpen) {
+			if (!exts.length) {
+				childCol.createDiv({ cls: 'cardbox-placeholder', text: i18n.extendEmpty });
+			} else {
+				childCol.createDiv({ cls: 'cardbox-extend-hint', text: i18n.extendDragHint });
+				const listEl = childCol.createDiv({ cls: 'cardbox-extend-list' });
+				for (const ext of exts) {
+					listEl.appendChild(this.buildBranch(root, ext.card, 0, ext.source));
+				}
+				this.enableDragSort(listEl, root);
 			}
-			this.enableDragSort(listEl, root);
 		}
 
-		// 反向链接区：哪些卡片引用了当前主卡
+		// 反向链接区：哪些卡片引用了当前主卡（可整体收起）
 		const backlinks = this.ctx.index.backlinksOf(root);
 		const blSection = childCol.createDiv({ cls: 'cardbox-extend-backlinks' });
-		blSection.createDiv({ cls: 'cardbox-extend-label', text: `${i18n.extendBacklinks}（${backlinks.length}）` });
-		if (!backlinks.length) {
-			blSection.createDiv({ cls: 'cardbox-extend-hint', text: i18n.extendBacklinkEmpty });
-		} else {
-			for (const bl of backlinks) {
-				blSection.appendChild(this.buildBacklinkRow(root, bl));
+		const blOpen = !this.collapsedSections.has('backlinks');
+		this.buildSectionHeader(blSection, 'backlinks', i18n.extendBacklinks, backlinks.length, blOpen);
+		if (blOpen) {
+			if (!backlinks.length) {
+				blSection.createDiv({ cls: 'cardbox-extend-hint', text: i18n.extendBacklinkEmpty });
+			} else {
+				for (const bl of backlinks) {
+					blSection.appendChild(this.buildBacklinkRow(root, bl));
+				}
 			}
 		}
+	}
+
+	/**
+	 * 可折叠的分区标题。整行可点击，避免只有小三角能点。
+	 * 折叠状态存在 collapsedSections 里，重渲染后保持。
+	 */
+	private buildSectionHeader(
+		parent: HTMLElement,
+		key: string,
+		label: string,
+		count: number,
+		open: boolean,
+	): HTMLElement {
+		const header = parent.createDiv({ cls: 'cardbox-extend-label cardbox-section-header' });
+		const caret = header.createSpan({ cls: 'cardbox-section-caret' });
+		setIcon(caret, open ? 'chevron-down' : 'chevron-right');
+		header.createSpan({ text: label });
+		header.createSpan({ cls: 'cardbox-section-count', text: String(count) });
+		header.setAttribute('aria-label', open ? i18n.extendCollapseSection : i18n.extendExpandSection);
+		header.addEventListener('click', () => {
+			if (this.collapsedSections.has(key)) this.collapsedSections.delete(key);
+			else this.collapsedSections.add(key);
+			this.scheduleRender();
+		});
+		return header;
 	}
 
 	/** 反向链接行：点击打开，可一键设为当前主卡的扩展卡片 */
@@ -210,14 +243,21 @@ export class CardExtendView extends ItemView {
 		// 正文双链来源的顺序由正文决定，不能拖拽排序
 		if (!isRoot && source === 'explicit') head.addClass('is-draggable');
 
-		// 展开/收起全文
-		const toggle = head.createEl('button', {
+		const subCount = this.ctx.index.extensionCount(card);
+
+		// 展开/收起：紧邻显示关联卡片数量
+		const toggleWrap = head.createDiv({ cls: 'cardbox-expand-wrap' });
+		const toggle = toggleWrap.createEl('button', {
 			cls: 'cardbox-extend-toggle',
 			attr: { 'aria-label': i18n.extendToggleFull },
 		});
 		const isOpen = this.expandedIds.has(card.id);
 		setIcon(toggle, isOpen ? 'chevron-down' : 'chevron-right');
-		toggle.addEventListener('click', (e) => {
+		if (subCount > 0) {
+			const cnt = toggleWrap.createSpan({ cls: 'cardbox-expand-count', text: String(subCount) });
+			cnt.setAttribute('aria-label', i18n.relatedCount(subCount));
+		}
+		toggleWrap.addEventListener('click', (e) => {
 			e.stopPropagation();
 			if (isOpen) this.expandedIds.delete(card.id);
 			else this.expandedIds.add(card.id);
@@ -232,8 +272,7 @@ export class CardExtendView extends ItemView {
 			meta.createSpan({ cls: 'cardbox-chip cardbox-chip-sm', text: `#${tag}` });
 		}
 		meta.createSpan({ cls: 'cardbox-tile-time', text: formatRelativeTime(card.created) });
-		const subCount = this.ctx.index.extensionCount(card);
-		if (subCount) meta.createSpan({ cls: 'cardbox-child-badge', text: String(subCount) });
+		// 关联数量已在展开按钮旁显示，此处不重复
 		// 来源标识：区分显式关联与正文双链
 		if (!isRoot) {
 			meta.createSpan({
@@ -331,6 +370,37 @@ export class CardExtendView extends ItemView {
 				.setIcon('git-branch')
 				.onClick(() => this.setRoot(card.id)),
 		);
+
+		// 展开/收起关联卡片，紧随其下是「投放到白板」——同层级相邻，便于连续操作
+		const relatedCount = this.ctx.index.extensionCount(card);
+		if (relatedCount > 0) {
+			const isOpen = this.expandedIds.has(card.id);
+			menu.addItem((i) =>
+				i
+					.setTitle(`${isOpen ? i18n.collapseChildren : i18n.expandChildren}（${relatedCount}）`)
+					.setIcon(isOpen ? 'chevron-down' : 'chevron-right')
+					.onClick(() => {
+						if (isOpen) this.expandedIds.delete(card.id);
+						else this.expandedIds.add(card.id);
+						this.scheduleRender();
+					}),
+			);
+		}
+
+		menu.addItem((i) =>
+			i
+				.setTitle(i18n.sendToCanvas)
+				.setIcon('layout-dashboard')
+				.onClick(() => void this.ctx.sendToCanvas([card])),
+		);
+
+		menu.addItem((i) =>
+			i
+				.setTitle(i18n.renameByTitle)
+				.setIcon('text-cursor-input')
+				.onClick(() => void this.ctx.renameByTitle([card])),
+		);
+
 		const rect = anchor.getBoundingClientRect();
 		menu.showAtPosition({ x: rect.left, y: rect.bottom });
 	}

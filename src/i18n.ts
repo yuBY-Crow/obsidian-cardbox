@@ -51,6 +51,14 @@ export const i18n = {
 	unpin: '取消置顶',
 	openExtendView: '在扩展视图中打开',
 	sendToCanvas: '投放到白板（Canvas）',
+	renameByTitle: '用标题重命名卡片',
+	renameByTitleBatch: '用标题重命名所选卡片',
+	renamed: (from: string, to: string) => `已重命名：${from} → ${to}`,
+	renamedBatch: (n: number) => `已重命名 ${n} 张卡片（引用链接自动跟随）`,
+	renameNoTitle: '这张卡片没有标题也没有正文，无法生成文件名',
+	renameSame: '文件名已经是标题，无需重命名',
+	renameFailed: (msg: string) => `重命名失败：${msg}`,
+	relatedCount: (n: number) => `${n} 张关联卡片`,
 
 	// 颜色名
 	colorNames: {
@@ -121,6 +129,9 @@ export const i18n = {
 	extendInsertLink: '在正文插入双链',
 	extendLinkInserted: '已在正文插入双链',
 	extendLinkAsChild: '设为当前主卡的扩展卡片',
+	extendCollapseSection: '收起',
+	extendExpandSection: '展开',
+	extendSendToCanvas: '投放到白板',
 
 	// Canvas
 	canvasCreated: (name: string) => `已生成白板：${name}`,
@@ -128,6 +139,22 @@ export const i18n = {
 	canvasMergeFromCanvas: '将当前白板卡片合并为文章',
 	canvasNotCanvasView: '请先打开一个 Canvas 白板',
 	canvasNoCardNodes: '当前白板中没有卡片节点',
+	canvasSendTitle: '投放到白板',
+	canvasDepthLabel: '引用层级',
+	canvasDepth0: '仅当前卡片',
+	canvasDepthN: (n: number) => `${n} 层`,
+	canvasDepthDesc: '沿引用关系向外扩展几层。层级越大带上的卡片越多。',
+	canvasDirectionLabel: '引用方向',
+	canvasDirOutgoing: '它引用的',
+	canvasDirIncoming: '引用它的',
+	canvasDirBoth: '双向',
+	canvasDirectionDesc: '「它引用的」指卡片的扩展卡片与正文双链；「引用它的」指反向链接。',
+	canvasDrawEdgesLabel: '画出引用连线',
+	canvasDrawEdgesDesc: '在白板上用连线表示卡片之间的引用关系，并按层级分行排布。',
+	canvasPreview: (n: number) => `将投放 ${n} 张卡片`,
+	canvasPreviewSeed: (seed: number, total: number) => `${seed} 张起始卡片 + ${total - seed} 张关联卡片`,
+	canvasSendButton: '投放',
+	canvasRemember: '记住这些选项',
 
 	// 时间
 	today: '今天',
@@ -175,6 +202,16 @@ export const i18n = {
 	mergeFolderDesc: '「合并为文章」生成的新笔记存放位置。',
 	canvasFolderName: '白板输出文件夹',
 	canvasFolderDesc: '「投放到白板」生成的 .canvas 文件存放位置。',
+	filenameFormatName: '卡片文件名',
+	filenameFormatDesc:
+		'「标题」把标题（或正文首行）作为文件名，双链写成 [[卡片标题]]，易读易记；' +
+		'「时间戳」用 YYYY-MM-DD-HHmmss-xxx，绝不重名。两种模式都能正常读取已有卡片。',
+	filenameFormatTitle: '标题（推荐）',
+	filenameFormatDatetime: '时间戳',
+	canvasDepthName: '白板默认引用层级',
+	canvasDepthSettingDesc: '「投放到白板」时默认展开几层引用关系。0 表示只投放选中的卡片。',
+	canvasDirectionName: '白板默认引用方向',
+	canvasDrawEdgesName: '白板画出引用连线',
 	masonryWidthName: '平铺最小列宽',
 	masonryWidthDesc: 'PC 端平铺视图的每列最小宽度（px），越小列数越多。窄屏会自动降为单列。',
 	defaultTagsName: '新建卡片默认标签',

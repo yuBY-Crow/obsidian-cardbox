@@ -46,14 +46,23 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 
 	const main = el.createDiv({ cls: 'cardbox-tile-main' });
 
-	// 扩展卡片展开按钮
+	// 关联卡片数量（含正文双链引用）
+	const childCount = opts.childCount ?? card.children.length;
+
+	// 展开按钮：紧随其后显示关联卡片数量，一眼能看出有多少关联
 	if (opts.hasVisibleChildren) {
-		const expand = main.createEl('button', {
+		const expandWrap = main.createDiv({ cls: 'cardbox-expand-wrap' });
+		const expand = expandWrap.createEl('button', {
 			cls: 'cardbox-expand-btn',
 			attr: { 'aria-label': opts.expanded ? i18n.collapseChildren : i18n.expandChildren },
 		});
 		setIcon(expand, opts.expanded ? 'chevron-down' : 'chevron-right');
-		expand.addEventListener('click', (e) => {
+		if (childCount > 0) {
+			const cnt = expandWrap.createSpan({ cls: 'cardbox-expand-count', text: String(childCount) });
+			cnt.setAttribute('aria-label', i18n.relatedCount(childCount));
+		}
+		// 数字也可点击展开，扩大触摸目标
+		expandWrap.addEventListener('click', (e) => {
 			e.stopPropagation();
 			opts.onToggleExpand(card);
 		});
@@ -110,11 +119,11 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	}
 	meta.createSpan({ cls: 'cardbox-tile-time', text: formatRelativeTime(card.created) });
 
-	// 扩展卡片数量角标
-	const childCount = opts.childCount ?? card.children.length;
-	if (childCount > 0) {
+	// 有关联但当前不可展开（例如关联卡片被筛选条件挡住）时，
+	// 仍在 meta 行显示数量；可展开时数量已在展开按钮旁，不再重复显示。
+	if (childCount > 0 && !opts.hasVisibleChildren) {
 		const badge = meta.createSpan({ cls: 'cardbox-child-badge', text: String(childCount) });
-		badge.setAttribute('aria-label', i18n.childCount(childCount));
+		badge.setAttribute('aria-label', i18n.relatedCount(childCount));
 	}
 
 	// kebab 菜单按钮

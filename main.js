@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => CardBoxPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -83,6 +83,14 @@ var i18n = {
   unpin: "\u53D6\u6D88\u7F6E\u9876",
   openExtendView: "\u5728\u6269\u5C55\u89C6\u56FE\u4E2D\u6253\u5F00",
   sendToCanvas: "\u6295\u653E\u5230\u767D\u677F\uFF08Canvas\uFF09",
+  renameByTitle: "\u7528\u6807\u9898\u91CD\u547D\u540D\u5361\u7247",
+  renameByTitleBatch: "\u7528\u6807\u9898\u91CD\u547D\u540D\u6240\u9009\u5361\u7247",
+  renamed: (from, to) => `\u5DF2\u91CD\u547D\u540D\uFF1A${from} \u2192 ${to}`,
+  renamedBatch: (n) => `\u5DF2\u91CD\u547D\u540D ${n} \u5F20\u5361\u7247\uFF08\u5F15\u7528\u94FE\u63A5\u81EA\u52A8\u8DDF\u968F\uFF09`,
+  renameNoTitle: "\u8FD9\u5F20\u5361\u7247\u6CA1\u6709\u6807\u9898\u4E5F\u6CA1\u6709\u6B63\u6587\uFF0C\u65E0\u6CD5\u751F\u6210\u6587\u4EF6\u540D",
+  renameSame: "\u6587\u4EF6\u540D\u5DF2\u7ECF\u662F\u6807\u9898\uFF0C\u65E0\u9700\u91CD\u547D\u540D",
+  renameFailed: (msg) => `\u91CD\u547D\u540D\u5931\u8D25\uFF1A${msg}`,
+  relatedCount: (n) => `${n} \u5F20\u5173\u8054\u5361\u7247`,
   // 颜色名
   colorNames: {
     red: "\u7EA2",
@@ -150,12 +158,31 @@ var i18n = {
   extendInsertLink: "\u5728\u6B63\u6587\u63D2\u5165\u53CC\u94FE",
   extendLinkInserted: "\u5DF2\u5728\u6B63\u6587\u63D2\u5165\u53CC\u94FE",
   extendLinkAsChild: "\u8BBE\u4E3A\u5F53\u524D\u4E3B\u5361\u7684\u6269\u5C55\u5361\u7247",
+  extendCollapseSection: "\u6536\u8D77",
+  extendExpandSection: "\u5C55\u5F00",
+  extendSendToCanvas: "\u6295\u653E\u5230\u767D\u677F",
   // Canvas
   canvasCreated: (name) => `\u5DF2\u751F\u6210\u767D\u677F\uFF1A${name}`,
   canvasNoCards: "\u8BF7\u5148\u9009\u62E9\u5361\u7247",
   canvasMergeFromCanvas: "\u5C06\u5F53\u524D\u767D\u677F\u5361\u7247\u5408\u5E76\u4E3A\u6587\u7AE0",
   canvasNotCanvasView: "\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A Canvas \u767D\u677F",
   canvasNoCardNodes: "\u5F53\u524D\u767D\u677F\u4E2D\u6CA1\u6709\u5361\u7247\u8282\u70B9",
+  canvasSendTitle: "\u6295\u653E\u5230\u767D\u677F",
+  canvasDepthLabel: "\u5F15\u7528\u5C42\u7EA7",
+  canvasDepth0: "\u4EC5\u5F53\u524D\u5361\u7247",
+  canvasDepthN: (n) => `${n} \u5C42`,
+  canvasDepthDesc: "\u6CBF\u5F15\u7528\u5173\u7CFB\u5411\u5916\u6269\u5C55\u51E0\u5C42\u3002\u5C42\u7EA7\u8D8A\u5927\u5E26\u4E0A\u7684\u5361\u7247\u8D8A\u591A\u3002",
+  canvasDirectionLabel: "\u5F15\u7528\u65B9\u5411",
+  canvasDirOutgoing: "\u5B83\u5F15\u7528\u7684",
+  canvasDirIncoming: "\u5F15\u7528\u5B83\u7684",
+  canvasDirBoth: "\u53CC\u5411",
+  canvasDirectionDesc: "\u300C\u5B83\u5F15\u7528\u7684\u300D\u6307\u5361\u7247\u7684\u6269\u5C55\u5361\u7247\u4E0E\u6B63\u6587\u53CC\u94FE\uFF1B\u300C\u5F15\u7528\u5B83\u7684\u300D\u6307\u53CD\u5411\u94FE\u63A5\u3002",
+  canvasDrawEdgesLabel: "\u753B\u51FA\u5F15\u7528\u8FDE\u7EBF",
+  canvasDrawEdgesDesc: "\u5728\u767D\u677F\u4E0A\u7528\u8FDE\u7EBF\u8868\u793A\u5361\u7247\u4E4B\u95F4\u7684\u5F15\u7528\u5173\u7CFB\uFF0C\u5E76\u6309\u5C42\u7EA7\u5206\u884C\u6392\u5E03\u3002",
+  canvasPreview: (n) => `\u5C06\u6295\u653E ${n} \u5F20\u5361\u7247`,
+  canvasPreviewSeed: (seed, total) => `${seed} \u5F20\u8D77\u59CB\u5361\u7247 + ${total - seed} \u5F20\u5173\u8054\u5361\u7247`,
+  canvasSendButton: "\u6295\u653E",
+  canvasRemember: "\u8BB0\u4F4F\u8FD9\u4E9B\u9009\u9879",
   // 时间
   today: "\u4ECA\u5929",
   yesterday: "\u6628\u5929",
@@ -197,6 +224,14 @@ var i18n = {
   mergeFolderDesc: "\u300C\u5408\u5E76\u4E3A\u6587\u7AE0\u300D\u751F\u6210\u7684\u65B0\u7B14\u8BB0\u5B58\u653E\u4F4D\u7F6E\u3002",
   canvasFolderName: "\u767D\u677F\u8F93\u51FA\u6587\u4EF6\u5939",
   canvasFolderDesc: "\u300C\u6295\u653E\u5230\u767D\u677F\u300D\u751F\u6210\u7684 .canvas \u6587\u4EF6\u5B58\u653E\u4F4D\u7F6E\u3002",
+  filenameFormatName: "\u5361\u7247\u6587\u4EF6\u540D",
+  filenameFormatDesc: "\u300C\u6807\u9898\u300D\u628A\u6807\u9898\uFF08\u6216\u6B63\u6587\u9996\u884C\uFF09\u4F5C\u4E3A\u6587\u4EF6\u540D\uFF0C\u53CC\u94FE\u5199\u6210 [[\u5361\u7247\u6807\u9898]]\uFF0C\u6613\u8BFB\u6613\u8BB0\uFF1B\u300C\u65F6\u95F4\u6233\u300D\u7528 YYYY-MM-DD-HHmmss-xxx\uFF0C\u7EDD\u4E0D\u91CD\u540D\u3002\u4E24\u79CD\u6A21\u5F0F\u90FD\u80FD\u6B63\u5E38\u8BFB\u53D6\u5DF2\u6709\u5361\u7247\u3002",
+  filenameFormatTitle: "\u6807\u9898\uFF08\u63A8\u8350\uFF09",
+  filenameFormatDatetime: "\u65F6\u95F4\u6233",
+  canvasDepthName: "\u767D\u677F\u9ED8\u8BA4\u5F15\u7528\u5C42\u7EA7",
+  canvasDepthSettingDesc: "\u300C\u6295\u653E\u5230\u767D\u677F\u300D\u65F6\u9ED8\u8BA4\u5C55\u5F00\u51E0\u5C42\u5F15\u7528\u5173\u7CFB\u30020 \u8868\u793A\u53EA\u6295\u653E\u9009\u4E2D\u7684\u5361\u7247\u3002",
+  canvasDirectionName: "\u767D\u677F\u9ED8\u8BA4\u5F15\u7528\u65B9\u5411",
+  canvasDrawEdgesName: "\u767D\u677F\u753B\u51FA\u5F15\u7528\u8FDE\u7EBF",
   masonryWidthName: "\u5E73\u94FA\u6700\u5C0F\u5217\u5BBD",
   masonryWidthDesc: "PC \u7AEF\u5E73\u94FA\u89C6\u56FE\u7684\u6BCF\u5217\u6700\u5C0F\u5BBD\u5EA6\uFF08px\uFF09\uFF0C\u8D8A\u5C0F\u5217\u6570\u8D8A\u591A\u3002\u7A84\u5C4F\u4F1A\u81EA\u52A8\u964D\u4E3A\u5355\u5217\u3002",
   defaultTagsName: "\u65B0\u5EFA\u5361\u7247\u9ED8\u8BA4\u6807\u7B7E",
@@ -225,7 +260,7 @@ var DEFAULT_SETTINGS = {
   cardsFolder: "Cards",
   mergeOutputFolder: "Cards",
   canvasOutputFolder: "Cards",
-  filenameFormat: "datetime",
+  filenameFormat: "title",
   defaultTags: [],
   defaultViewMode: "card",
   defaultSort: "created-desc",
@@ -234,7 +269,10 @@ var DEFAULT_SETTINGS = {
   archiveMethod: "flag",
   boxes: [],
   activeBoxId: "",
-  masonryMinColumnWidth: 260
+  masonryMinColumnWidth: 260,
+  canvasLinkDepth: 1,
+  canvasLinkDirection: "both",
+  canvasDrawEdges: true
 };
 var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
   /**
@@ -271,6 +309,12 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.access.saveSettings();
       });
     });
+    new import_obsidian.Setting(containerEl).setName(i18n.filenameFormatName).setDesc(i18n.filenameFormatDesc).addDropdown((dd) => {
+      dd.addOption("title", i18n.filenameFormatTitle).addOption("datetime", i18n.filenameFormatDatetime).setValue(s.filenameFormat).onChange(async (v) => {
+        s.filenameFormat = v;
+        await this.access.saveSettings();
+      });
+    });
     new import_obsidian.Setting(containerEl).setName(i18n.defaultTagsName).addText((text) => {
       text.setPlaceholder(i18n.tagInputPlaceholder);
       text.inputEl.addEventListener("keydown", (e) => {
@@ -301,6 +345,27 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.access.saveSettings();
       });
     });
+    new import_obsidian.Setting(containerEl).setName(i18n.canvasDepthName).setDesc(i18n.canvasDepthSettingDesc).addDropdown((dd) => {
+      dd.addOption("0", i18n.canvasDepth0);
+      for (let n = 1; n <= 5; n++) dd.addOption(String(n), i18n.canvasDepthN(n));
+      dd.setValue(String(s.canvasLinkDepth)).onChange(async (v) => {
+        const n = Number(v);
+        s.canvasLinkDepth = isFinite(n) && n >= 0 ? Math.floor(n) : 1;
+        await this.access.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName(i18n.canvasDirectionName).setDesc(i18n.canvasDirectionDesc).addDropdown((dd) => {
+      dd.addOption("outgoing", i18n.canvasDirOutgoing).addOption("incoming", i18n.canvasDirIncoming).addOption("both", i18n.canvasDirBoth).setValue(s.canvasLinkDirection).onChange(async (v) => {
+        s.canvasLinkDirection = v;
+        await this.access.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName(i18n.canvasDrawEdgesName).setDesc(i18n.canvasDrawEdgesDesc).addToggle(
+      (tg) => tg.setValue(s.canvasDrawEdges).onChange(async (v) => {
+        s.canvasDrawEdges = v;
+        await this.access.saveSettings();
+      })
+    );
     new import_obsidian.Setting(containerEl).setName(i18n.sortName).addDropdown((dd) => {
       dd.addOption("created-desc", i18n.sortCreatedDesc).addOption("created-asc", i18n.sortCreatedAsc).addOption("updated-desc", i18n.sortUpdatedDesc).addOption("title", i18n.sortTitle).setValue(s.defaultSort).onChange(async (v) => {
         s.defaultSort = v;
@@ -414,7 +479,15 @@ function formatDayHeader(ts, now = Date.now()) {
   return `${d.getFullYear()}\u5E74${d.getMonth() + 1}\u6708${d.getDate()}\u65E5\uFF08${weekday}\uFF09`;
 }
 function sanitizeFileName(title) {
-  return title.replace(/[\\/:*?"<>|]/g, "").trim().replace(/\s+/g, " ").slice(0, 80);
+  return title.replace(/[\\/:*?"<>|]/g, "").replace(/[[\]#^]/g, "").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "").slice(0, 80).trim();
+}
+function deriveFileBase(title, body) {
+  const fromTitle = sanitizeFileName(title != null ? title : "");
+  if (fromTitle) return fromTitle;
+  const firstLine2 = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0);
+  if (!firstLine2) return "";
+  const cleaned = firstLine2.replace(/^#{1,6}\s*/, "").replace(/^[-*+]\s+(\[[ xX]\]\s*)?/, "").replace(/^>\s*/, "");
+  return sanitizeFileName(cleaned);
 }
 function normalizeTag(tag) {
   if (typeof tag !== "string") return "";
@@ -493,9 +566,8 @@ ${(0, import_obsidian2.stringifyYaml)(fm)}---
 
 ${body}`;
 }
-function deriveId(data, fileName) {
-  if (data && typeof data.id === "string" && data.id.trim()) return data.id.trim();
-  return fileName.replace(/\.md$/, "");
+function deriveId(_data, fileName) {
+  return fileName.replace(/\.md$/i, "");
 }
 function numOr(v, fallback, now) {
   if (typeof v === "number" && isFinite(v)) return v;
@@ -516,9 +588,10 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 var CardService = class {
-  constructor(app, getCardsFolder) {
+  constructor(app, getCardsFolder, getFilenameFormat = () => "title") {
     this.app = app;
     this.getCardsFolder = getCardsFolder;
+    this.getFilenameFormat = getFilenameFormat;
   }
   folder() {
     return this.getCardsFolder().trim().replace(/^\/+|\/+$/g, "");
@@ -552,8 +625,11 @@ var CardService = class {
     const trimmed = body.trim();
     const title = data && typeof data.title === "string" && data.title.trim() ? data.title.trim() : void 0;
     const tags = normalizeTags(data == null ? void 0 : data.tags);
+    const id = deriveId(data, file.name);
+    const fmId = data && typeof data.id === "string" && data.id.trim() ? data.id.trim() : void 0;
     return {
-      id: deriveId(data, file.name),
+      id,
+      legacyId: fmId && fmId !== id ? fmId : void 0,
       path: file.path,
       title,
       tags,
@@ -571,20 +647,80 @@ var CardService = class {
       mtime: file.stat.mtime
     };
   }
-  /** 新建卡片，返回新文件（空正文返回 null） */
+  /**
+   * 生成一个在目标文件夹内不冲突的文件路径。
+   * 同名时追加 -2、-3…（而不是时间戳），保持文件名可读。
+   */
+  uniquePath(folder, base) {
+    const dir = folder ? `${folder}/` : "";
+    let candidate = `${dir}${base}.md`;
+    let n = 2;
+    while (this.app.vault.getAbstractFileByPath(candidate)) {
+      candidate = `${dir}${base}-${n}.md`;
+      n++;
+      if (n > 999) {
+        candidate = `${dir}${base}-${Date.now()}.md`;
+        break;
+      }
+    }
+    return candidate;
+  }
+  /**
+   * 新建卡片，返回新文件（空正文返回 null）。
+   *
+   *文件名方案：
+   * - title（默认）：用标题或正文首行作文件名，双链写成 [[卡片标题]]，易读易记；
+   *   标题为空或全是非法字符时回落到时间戳。
+   * - datetime：始终用 YYYY-MM-DD-HHmmss-xxx，绝不重名。
+   *
+   * 注意：id 由文件名决定，因此**不再写 frontmatter id**——
+   * 写了反而会在用标题重命名后产生「文件名与 id 不一致」的歧义。
+   */
   async createCard(opts) {
     const body = opts.body.trim();
     if (!body) return null;
     const now = Date.now();
-    const id = generateId(now);
     await this.ensureFolder(this.folder());
-    const path = `${this.folder()}/${id}.md`;
-    const fm = { id, created: now, updated: now };
+    let path;
+    if (this.getFilenameFormat() === "title") {
+      const base = deriveFileBase(opts.title, body) || generateId(now);
+      path = this.uniquePath(this.folder(), base);
+    } else {
+      path = this.uniquePath(this.folder(), generateId(now));
+    }
+    const fm = { created: now, updated: now };
     if (opts.title) fm.title = opts.title;
     if (opts.tags && opts.tags.length) fm.tags = opts.tags;
     if (opts.parent) fm.parent = toWikilink(opts.parent);
     await this.app.vault.create(path, buildCardContent(fm, body));
     return this.getFile(path);
+  }
+  /**
+   * 用标题（或正文首行）重命名卡片文件。
+   *
+   * **必须走 fileManager.renameFile 而非 vault.rename**：
+   * 只有前者会让 Obsidian 自动更新所有指向该文件的 [[链接]]
+   *（含 frontmatter children、正文双链、其他笔记里的引用）。
+   * 用 vault.rename 会造成全库断链且不可恢复。
+   *
+   * @returns 结果状态，供调用方给出准确提示
+   */
+  async renameByTitle(card) {
+    var _a;
+    const file = this.getFile(card.path);
+    if (!file) return { ok: false, from: card.id, reason: "notfound" };
+    const body = await this.readBody(card);
+    const base = deriveFileBase(card.title, body);
+    if (!base) return { ok: false, from: card.id, reason: "empty" };
+    if (base === file.basename) return { ok: false, from: card.id, reason: "same" };
+    const folder = ((_a = file.parent) == null ? void 0 : _a.path) && file.parent.path !== "/" ? file.parent.path : "";
+    const target = this.uniquePath(folder, base);
+    try {
+      await this.app.fileManager.renameFile(file, target);
+    } catch (err) {
+      return { ok: false, from: card.id, reason: String(err) };
+    }
+    return { ok: true, from: card.id, to: target.replace(/^.*\//, "").replace(/\.md$/i, "") };
   }
   /** 批量追加标签（顺序 await） */
   async setTags(cards, tagsToAdd) {
@@ -793,6 +929,79 @@ function cardMatchesBox(card, def, now = Date.now()) {
   return true;
 }
 
+// src/utils/graph.ts
+function defaultOutgoingIds(card) {
+  const out = [];
+  for (const id of card.children) if (id && !out.includes(id)) out.push(id);
+  for (const id of card.bodyLinks) if (id && !out.includes(id)) out.push(id);
+  return out;
+}
+function collectLinkedCards(seeds, source, direction, maxDepth, maxNodes = 200) {
+  const nodes = [];
+  const byId = /* @__PURE__ */ new Map();
+  const edgeKeys = /* @__PURE__ */ new Set();
+  const edges = [];
+  const addEdge = (fromId, toId) => {
+    if (fromId === toId) return;
+    const key = `${fromId}\0${toId}`;
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    edges.push({ fromId, toId });
+  };
+  let frontier = [];
+  for (const seed of seeds) {
+    if (byId.has(seed.id)) continue;
+    const node = { card: seed, depth: 0, via: "seed" };
+    byId.set(seed.id, node);
+    nodes.push(node);
+    frontier.push(seed);
+  }
+  const depthLimit = Math.max(0, Math.floor(maxDepth));
+  const wantOut = direction === "outgoing" || direction === "both";
+  const wantIn = direction === "incoming" || direction === "both";
+  for (let depth = 1; depth <= depthLimit && frontier.length; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      if (wantOut) {
+        for (const id of source.outgoingIds(cur)) {
+          const target = source.getById(id);
+          if (!target) continue;
+          addEdge(cur.id, target.id);
+          if (byId.has(target.id)) continue;
+          if (nodes.length >= maxNodes) continue;
+          const node = { card: target, depth, via: "outgoing" };
+          byId.set(target.id, node);
+          nodes.push(node);
+          next.push(target);
+        }
+      }
+      if (wantIn) {
+        for (const id of source.incomingIds(cur)) {
+          const target = source.getById(id);
+          if (!target) continue;
+          addEdge(target.id, cur.id);
+          if (byId.has(target.id)) continue;
+          if (nodes.length >= maxNodes) continue;
+          const node = { card: target, depth, via: "incoming" };
+          byId.set(target.id, node);
+          nodes.push(node);
+          next.push(target);
+        }
+      }
+    }
+    frontier = next;
+  }
+  for (const node of nodes) {
+    for (const id of source.outgoingIds(node.card)) {
+      if (byId.has(id)) addEdge(node.card.id, id);
+    }
+  }
+  return { nodes, edges };
+}
+function countLinkedCards(seeds, source, direction, maxDepth, maxNodes = 200) {
+  return collectLinkedCards(seeds, source, direction, maxDepth, maxNodes).nodes.length;
+}
+
 // src/index.ts
 var SCAN_CONCURRENCY = 10;
 var UPDATE_BUMP_THRESHOLD_MS = 1e3;
@@ -804,6 +1013,8 @@ var CardIndex = class {
     this.getFolder = getFolder;
     this.cardsById = /* @__PURE__ */ new Map();
     this.pathToId = /* @__PURE__ */ new Map();
+    /**旧 id（frontmatter 残留）→ 当前 id，保证历史关联不断链 */
+    this.aliasToId = /* @__PURE__ */ new Map();
     this.tagCounts = /* @__PURE__ */ new Map();
     this.sorted = [];
     this.needsSort = true;
@@ -880,11 +1091,13 @@ var CardIndex = class {
     await Promise.all(workers);
     this.cardsById.clear();
     this.pathToId.clear();
+    this.aliasToId.clear();
     this.tagCounts.clear();
     for (const card of results) {
       this.fillBodyLinks(card);
       this.cardsById.set(card.id, card);
       this.pathToId.set(card.path, card.id);
+      if (card.legacyId) this.aliasToId.set(card.legacyId, card.id);
       this.addTagCounts(card, 1);
     }
     this.needsSort = true;
@@ -962,8 +1175,18 @@ var CardIndex = class {
     const old = this.cardsById.get(card.id);
     if (old && old.path !== card.path) this.pathToId.delete(old.path);
     if (old) this.addTagCounts(old, -1);
+    const prevId = this.pathToId.get(card.path);
+    if (prevId && prevId !== card.id) {
+      const stale = this.cardsById.get(prevId);
+      if (stale) {
+        this.addTagCounts(stale, -1);
+        this.cardsById.delete(prevId);
+        if (stale.legacyId) this.aliasToId.delete(stale.legacyId);
+      }
+    }
     this.cardsById.set(card.id, card);
     this.pathToId.set(card.path, card.id);
+    if (card.legacyId) this.aliasToId.set(card.legacyId, card.id);
     this.addTagCounts(card, 1);
     this.needsSort = true;
     this.notify();
@@ -973,6 +1196,7 @@ var CardIndex = class {
     const card = id ? this.cardsById.get(id) : void 0;
     if (id && card) {
       this.cardsById.delete(id);
+      if (card.legacyId) this.aliasToId.delete(card.legacyId);
       this.addTagCounts(card, -1);
     }
     this.pathToId.delete(path);
@@ -999,7 +1223,7 @@ var CardIndex = class {
     return this.sorted;
   }
   getById(id) {
-    return this.cardsById.get(id);
+    return this.resolve(id);
   }
   byPath(path) {
     const id = this.pathToId.get(path);
@@ -1013,6 +1237,28 @@ var CardIndex = class {
   }
   // ---------- 扩展关系（frontmatter 显式关联 + 正文双链） ----------
   /**
+   * 按 id 解析卡片，带别名兜底。
+   * 所有「关系解析」都必须走这里而不是直接查 cardsById——
+   * 否则老卡片 children 里写的旧 id 会解析不到，历史关联断链。
+   */
+  resolve(id) {
+    const direct = this.cardsById.get(id);
+    if (direct) return direct;
+    const aliased = this.aliasToId.get(id);
+    return aliased ? this.cardsById.get(aliased) : void 0;
+  }
+  /** 一张卡片可能被别人用哪些 id 引用（当前文件名 + 残留的旧 id） */
+  idsOf(card) {
+    return card.legacyId ? [card.id, card.legacyId] : [card.id];
+  }
+  /** 判断 other 是否引用了 card（兼容旧 id 写法） */
+  referencesCard(other, card) {
+    for (const id of this.idsOf(card)) {
+      if (other.children.includes(id) || other.bodyLinks.includes(id)) return true;
+    }
+    return false;
+  }
+  /**
    * 取一张卡片的全部扩展卡片。
    * 顺序：frontmatter children 在前（可拖拽排序），正文双链按出现顺序追加。
    * source 标明来源，供视图区分「显式关联」与「正文链接」。
@@ -1021,22 +1267,20 @@ var CardIndex = class {
     const out = [];
     const seen = /* @__PURE__ */ new Set([card.id]);
     for (const id of card.children) {
-      if (seen.has(id)) continue;
-      const c = this.cardsById.get(id);
-      if (!c) continue;
-      seen.add(id);
+      const c = this.resolve(id);
+      if (!c || seen.has(c.id)) continue;
+      seen.add(c.id);
       out.push({ card: c, source: "explicit" });
     }
     for (const id of card.bodyLinks) {
-      if (seen.has(id)) continue;
-      const c = this.cardsById.get(id);
-      if (!c) continue;
-      seen.add(id);
+      const c = this.resolve(id);
+      if (!c || seen.has(c.id)) continue;
+      seen.add(c.id);
       out.push({ card: c, source: "body" });
     }
     return out;
   }
-  /** 扩展卡片数量（列表红点角标用） */
+  /** 扩展卡片数量（展开按钮旁的数字 / 列表角标用） */
   extensionCount(card) {
     return this.extensionsOf(card).length;
   }
@@ -1049,10 +1293,38 @@ var CardIndex = class {
     const out = [];
     for (const other of this.cardsById.values()) {
       if (other.id === card.id || forward.has(other.id)) continue;
-      if (other.children.includes(card.id) || other.bodyLinks.includes(card.id)) out.push(other);
+      if (this.referencesCard(other, card)) out.push(other);
     }
     out.sort((a, b) => b.created - a.created);
     return out;
+  }
+  /** 全部引用当前卡片的卡片 id（不做 forward 排除，供图遍历使用） */
+  allIncomingIds(card) {
+    const out = [];
+    for (const other of this.cardsById.values()) {
+      if (other.id === card.id) continue;
+      if (this.referencesCard(other, card)) out.push(other.id);
+    }
+    return out;
+  }
+  /**
+   * 供 utils/graph 做引用关系遍历的数据源。
+   * 抽成接口是为了让图算法可脱离 Obsidian 单测。
+   */
+  graphSource() {
+    return {
+      getById: (id) => this.resolve(id),
+      // 出链要归一化成「当前 id」，否则旧 id 会让 BFS 在图里重复登记同一张卡
+      outgoingIds: (card) => {
+        const out = [];
+        for (const raw of defaultOutgoingIds(card)) {
+          const c = this.resolve(raw);
+          if (c && !out.includes(c.id)) out.push(c.id);
+        }
+        return out;
+      },
+      incomingIds: (card) => this.allIncomingIds(card)
+    };
   }
   /**
    * 主查询：卡片盒条件 → 筛选条件 → 关键字 → 排序。
@@ -1169,13 +1441,19 @@ function buildCardTile(opts) {
   if (card.color) el.addClass("has-color", `cardbox-color-${card.color}`);
   if (card.color) el.createDiv({ cls: "cardbox-tile-colorbar" });
   const main = el.createDiv({ cls: "cardbox-tile-main" });
+  const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
   if (opts.hasVisibleChildren) {
-    const expand = main.createEl("button", {
+    const expandWrap = main.createDiv({ cls: "cardbox-expand-wrap" });
+    const expand = expandWrap.createEl("button", {
       cls: "cardbox-expand-btn",
       attr: { "aria-label": opts.expanded ? i18n.collapseChildren : i18n.expandChildren }
     });
     (0, import_obsidian4.setIcon)(expand, opts.expanded ? "chevron-down" : "chevron-right");
-    expand.addEventListener("click", (e) => {
+    if (childCount > 0) {
+      const cnt = expandWrap.createSpan({ cls: "cardbox-expand-count", text: String(childCount) });
+      cnt.setAttribute("aria-label", i18n.relatedCount(childCount));
+    }
+    expandWrap.addEventListener("click", (e) => {
       e.stopPropagation();
       opts.onToggleExpand(card);
     });
@@ -1218,10 +1496,9 @@ function buildCardTile(opts) {
     meta.createSpan({ cls: "cardbox-chip cardbox-chip-sm", text: `#${tag}` });
   }
   meta.createSpan({ cls: "cardbox-tile-time", text: formatRelativeTime(card.created) });
-  const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
-  if (childCount > 0) {
+  if (childCount > 0 && !opts.hasVisibleChildren) {
     const badge = meta.createSpan({ cls: "cardbox-child-badge", text: String(childCount) });
-    badge.setAttribute("aria-label", i18n.childCount(childCount));
+    badge.setAttribute("aria-label", i18n.relatedCount(childCount));
   }
   const more = main.createEl("button", {
     cls: "cardbox-more-btn",
@@ -2326,13 +2603,11 @@ var CardBoxView = class extends import_obsidian12.ItemView {
     menu.addItem(
       (item) => item.setTitle(card.pinned ? i18n.unpin : i18n.pin).setIcon("pin").onClick(() => void this.ctx.service.setPinned([card], !card.pinned))
     );
-    menu.addItem(
-      (item) => item.setTitle(i18n.sendToCanvas).setIcon("layout-dashboard").onClick(() => void this.ctx.sendToCanvas([card]))
-    );
-    if (card.children.length > 0) {
+    const relatedCount = this.ctx.index.extensionCount(card);
+    if (relatedCount > 0) {
       const expanded = this.expandedIds.has(card.id);
       menu.addItem(
-        (item) => item.setTitle(expanded ? i18n.collapseChildren : i18n.expandChildren).setIcon("chevron-down").onClick(() => {
+        (item) => item.setTitle(`${expanded ? i18n.collapseChildren : i18n.expandChildren}\uFF08${relatedCount}\uFF09`).setIcon(expanded ? "chevron-down" : "chevron-right").onClick(() => {
           if (expanded) this.expandedIds.delete(card.id);
           else this.expandedIds.add(card.id);
           this.renderKey = "";
@@ -2340,6 +2615,12 @@ var CardBoxView = class extends import_obsidian12.ItemView {
         })
       );
     }
+    menu.addItem(
+      (item) => item.setTitle(i18n.sendToCanvas).setIcon("layout-dashboard").onClick(() => void this.ctx.sendToCanvas([card]))
+    );
+    menu.addItem(
+      (item) => item.setTitle(i18n.renameByTitle).setIcon("text-cursor-input").onClick(() => void this.ctx.renameByTitle([card]))
+    );
     menu.addItem(
       (item) => item.setTitle(card.archived ? i18n.unarchive : i18n.archive).setIcon("archive").onClick(() => this.archiveCards([card], !card.archived))
     );
@@ -2388,8 +2669,9 @@ var CardBoxView = class extends import_obsidian12.ItemView {
     menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
   }
   linkExistingChild(parent) {
+    const existing = this.ctx.index.extensionsOf(parent).map((e) => e.card.id);
     new CardPickerModal(this.app, this.ctx.index, {
-      excludeIds: /* @__PURE__ */ new Set([parent.id, ...parent.children]),
+      excludeIds: /* @__PURE__ */ new Set([parent.id, ...existing]),
       onPick: async (child) => {
         await this.ctx.service.linkChild(parent, child);
         this.expandedIds.add(parent.id);
@@ -2486,6 +2768,8 @@ var CardExtendView = class extends import_obsidian14.ItemView {
     super(leaf);
     this.rootId = "";
     this.expandedIds = /* @__PURE__ */ new Set();
+    /** 已折叠的分区（'extensions' | 'backlinks'），重渲染后保持 */
+    this.collapsedSections = /* @__PURE__ */ new Set();
     this.raf = 0;
     this.bodyCache = /* @__PURE__ */ new Map();
     this.indexChangedCb = () => this.scheduleRender();
@@ -2563,28 +2847,51 @@ var CardExtendView = class extends import_obsidian14.ItemView {
     mainCol.appendChild(this.buildPanel(root, true));
     const childCol = wrap.createDiv({ cls: "cardbox-extend-children" });
     const exts = this.ctx.index.extensionsOf(root);
-    const header = childCol.createDiv({ cls: "cardbox-extend-label" });
-    header.setText(`${i18n.extendChildren}\uFF08${exts.length}\uFF09`);
-    childCol.createDiv({ cls: "cardbox-extend-hint", text: i18n.extendDragHint });
-    if (!exts.length) {
-      childCol.createDiv({ cls: "cardbox-placeholder", text: i18n.extendEmpty });
-    } else {
-      const listEl = childCol.createDiv({ cls: "cardbox-extend-list" });
-      for (const ext of exts) {
-        listEl.appendChild(this.buildBranch(root, ext.card, 0, ext.source));
+    const extOpen = !this.collapsedSections.has("extensions");
+    this.buildSectionHeader(childCol, "extensions", i18n.extendChildren, exts.length, extOpen);
+    if (extOpen) {
+      if (!exts.length) {
+        childCol.createDiv({ cls: "cardbox-placeholder", text: i18n.extendEmpty });
+      } else {
+        childCol.createDiv({ cls: "cardbox-extend-hint", text: i18n.extendDragHint });
+        const listEl = childCol.createDiv({ cls: "cardbox-extend-list" });
+        for (const ext of exts) {
+          listEl.appendChild(this.buildBranch(root, ext.card, 0, ext.source));
+        }
+        this.enableDragSort(listEl, root);
       }
-      this.enableDragSort(listEl, root);
     }
     const backlinks = this.ctx.index.backlinksOf(root);
     const blSection = childCol.createDiv({ cls: "cardbox-extend-backlinks" });
-    blSection.createDiv({ cls: "cardbox-extend-label", text: `${i18n.extendBacklinks}\uFF08${backlinks.length}\uFF09` });
-    if (!backlinks.length) {
-      blSection.createDiv({ cls: "cardbox-extend-hint", text: i18n.extendBacklinkEmpty });
-    } else {
-      for (const bl of backlinks) {
-        blSection.appendChild(this.buildBacklinkRow(root, bl));
+    const blOpen = !this.collapsedSections.has("backlinks");
+    this.buildSectionHeader(blSection, "backlinks", i18n.extendBacklinks, backlinks.length, blOpen);
+    if (blOpen) {
+      if (!backlinks.length) {
+        blSection.createDiv({ cls: "cardbox-extend-hint", text: i18n.extendBacklinkEmpty });
+      } else {
+        for (const bl of backlinks) {
+          blSection.appendChild(this.buildBacklinkRow(root, bl));
+        }
       }
     }
+  }
+  /**
+   * 可折叠的分区标题。整行可点击，避免只有小三角能点。
+   * 折叠状态存在 collapsedSections 里，重渲染后保持。
+   */
+  buildSectionHeader(parent, key, label, count, open) {
+    const header = parent.createDiv({ cls: "cardbox-extend-label cardbox-section-header" });
+    const caret = header.createSpan({ cls: "cardbox-section-caret" });
+    (0, import_obsidian14.setIcon)(caret, open ? "chevron-down" : "chevron-right");
+    header.createSpan({ text: label });
+    header.createSpan({ cls: "cardbox-section-count", text: String(count) });
+    header.setAttribute("aria-label", open ? i18n.extendCollapseSection : i18n.extendExpandSection);
+    header.addEventListener("click", () => {
+      if (this.collapsedSections.has(key)) this.collapsedSections.delete(key);
+      else this.collapsedSections.add(key);
+      this.scheduleRender();
+    });
+    return header;
   }
   /** 反向链接行：点击打开，可一键设为当前主卡的扩展卡片 */
   buildBacklinkRow(root, card) {
@@ -2633,13 +2940,19 @@ var CardExtendView = class extends import_obsidian14.ItemView {
     panel.setAttribute("data-card-id", card.id);
     const head = panel.createDiv({ cls: "cardbox-extend-head" });
     if (!isRoot && source === "explicit") head.addClass("is-draggable");
-    const toggle = head.createEl("button", {
+    const subCount = this.ctx.index.extensionCount(card);
+    const toggleWrap = head.createDiv({ cls: "cardbox-expand-wrap" });
+    const toggle = toggleWrap.createEl("button", {
       cls: "cardbox-extend-toggle",
       attr: { "aria-label": i18n.extendToggleFull }
     });
     const isOpen = this.expandedIds.has(card.id);
     (0, import_obsidian14.setIcon)(toggle, isOpen ? "chevron-down" : "chevron-right");
-    toggle.addEventListener("click", (e) => {
+    if (subCount > 0) {
+      const cnt = toggleWrap.createSpan({ cls: "cardbox-expand-count", text: String(subCount) });
+      cnt.setAttribute("aria-label", i18n.relatedCount(subCount));
+    }
+    toggleWrap.addEventListener("click", (e) => {
       e.stopPropagation();
       if (isOpen) this.expandedIds.delete(card.id);
       else this.expandedIds.add(card.id);
@@ -2653,8 +2966,6 @@ var CardExtendView = class extends import_obsidian14.ItemView {
       meta.createSpan({ cls: "cardbox-chip cardbox-chip-sm", text: `#${tag}` });
     }
     meta.createSpan({ cls: "cardbox-tile-time", text: formatRelativeTime(card.created) });
-    const subCount = this.ctx.index.extensionCount(card);
-    if (subCount) meta.createSpan({ cls: "cardbox-child-badge", text: String(subCount) });
     if (!isRoot) {
       meta.createSpan({
         cls: `cardbox-source-badge is-${source}`,
@@ -2723,6 +3034,23 @@ var CardExtendView = class extends import_obsidian14.ItemView {
     }
     menu.addItem(
       (i) => i.setTitle(i18n.openExtendView).setIcon("git-branch").onClick(() => this.setRoot(card.id))
+    );
+    const relatedCount = this.ctx.index.extensionCount(card);
+    if (relatedCount > 0) {
+      const isOpen = this.expandedIds.has(card.id);
+      menu.addItem(
+        (i) => i.setTitle(`${isOpen ? i18n.collapseChildren : i18n.expandChildren}\uFF08${relatedCount}\uFF09`).setIcon(isOpen ? "chevron-down" : "chevron-right").onClick(() => {
+          if (isOpen) this.expandedIds.delete(card.id);
+          else this.expandedIds.add(card.id);
+          this.scheduleRender();
+        })
+      );
+    }
+    menu.addItem(
+      (i) => i.setTitle(i18n.sendToCanvas).setIcon("layout-dashboard").onClick(() => void this.ctx.sendToCanvas([card]))
+    );
+    menu.addItem(
+      (i) => i.setTitle(i18n.renameByTitle).setIcon("text-cursor-input").onClick(() => void this.ctx.renameByTitle([card]))
     );
     const rect = anchor.getBoundingClientRect();
     menu.showAtPosition({ x: rect.left, y: rect.bottom });
@@ -2916,11 +3244,82 @@ var CaptureModal = class extends import_obsidian15.Modal {
   }
 };
 
-// src/utils/canvas.ts
+// src/modals/CanvasSendModal.ts
 var import_obsidian16 = require("obsidian");
+var MAX_DEPTH = 5;
+var CanvasSendModal = class extends import_obsidian16.Modal {
+  constructor(app, seeds, index, settings, onSubmit) {
+    super(app);
+    this.seeds = seeds;
+    this.index = index;
+    this.onSubmit = onSubmit;
+    this.remember = true;
+    this.depth = settings.canvasLinkDepth;
+    this.direction = settings.canvasLinkDirection;
+    this.drawEdges = settings.canvasDrawEdges;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("cardbox-canvas-modal");
+    contentEl.createEl("h3", { text: i18n.canvasSendTitle });
+    new import_obsidian16.Setting(contentEl).setName(i18n.canvasDepthLabel).setDesc(i18n.canvasDepthDesc).addDropdown((dd) => {
+      dd.addOption("0", i18n.canvasDepth0);
+      for (let n = 1; n <= MAX_DEPTH; n++) dd.addOption(String(n), i18n.canvasDepthN(n));
+      dd.setValue(String(this.depth)).onChange((v) => {
+        const n = Number(v);
+        this.depth = isFinite(n) ? n : 1;
+        this.updatePreview();
+      });
+    });
+    new import_obsidian16.Setting(contentEl).setName(i18n.canvasDirectionLabel).setDesc(i18n.canvasDirectionDesc).addDropdown((dd) => {
+      dd.addOption("outgoing", i18n.canvasDirOutgoing);
+      dd.addOption("incoming", i18n.canvasDirIncoming);
+      dd.addOption("both", i18n.canvasDirBoth);
+      dd.setValue(this.direction).onChange((v) => {
+        this.direction = v;
+        this.updatePreview();
+      });
+    });
+    new import_obsidian16.Setting(contentEl).setName(i18n.canvasDrawEdgesLabel).setDesc(i18n.canvasDrawEdgesDesc).addToggle((tg) => tg.setValue(this.drawEdges).onChange((v) => this.drawEdges = v));
+    new import_obsidian16.Setting(contentEl).setName(i18n.canvasRemember).addToggle((tg) => tg.setValue(this.remember).onChange((v) => this.remember = v));
+    this.previewEl = contentEl.createDiv({ cls: "cardbox-canvas-preview" });
+    this.updatePreview();
+    new import_obsidian16.Setting(contentEl).addButton(
+      (b) => b.setButtonText(i18n.canvasSendButton).setCta().onClick(() => {
+        this.close();
+        this.onSubmit({
+          depth: this.depth,
+          direction: this.direction,
+          drawEdges: this.drawEdges,
+          remember: this.remember
+        });
+      })
+    ).addButton((b) => b.setButtonText(i18n.cancel).onClick(() => this.close()));
+  }
+  /** 实时预估投放数量：直接跑一遍遍历，卡片量级下开销可忽略 */
+  updatePreview() {
+    const total = countLinkedCards(this.seeds, this.index.graphSource(), this.direction, this.depth);
+    this.previewEl.empty();
+    this.previewEl.createDiv({ text: i18n.canvasPreview(total) });
+    if (total > this.seeds.length) {
+      this.previewEl.createDiv({
+        cls: "cardbox-canvas-preview-sub",
+        text: i18n.canvasPreviewSeed(this.seeds.length, total)
+      });
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
+// src/utils/canvas.ts
+var import_obsidian17 = require("obsidian");
 var NODE_W = 300;
 var NODE_H = 220;
 var GAP = 40;
+var ROW_GAP = 120;
 var COLOR_MAP = {
   red: "1",
   orange: "2",
@@ -2979,23 +3378,89 @@ function buildNodes(cards, origin) {
     return node;
   });
 }
+function buildLayeredNodes(nodes, origin) {
+  var _a;
+  const byDepth = /* @__PURE__ */ new Map();
+  for (const n of nodes) {
+    const arr = (_a = byDepth.get(n.depth)) != null ? _a : [];
+    arr.push(n);
+    byDepth.set(n.depth, arr);
+  }
+  const depths = Array.from(byDepth.keys()).sort((a, b) => a - b);
+  const widest = Math.max(1, ...depths.map((d) => byDepth.get(d).length));
+  const totalWidth = widest * NODE_W + (widest - 1) * GAP;
+  const canvasNodes = [];
+  const idToNodeId = /* @__PURE__ */ new Map();
+  depths.forEach((depth, rowIndex) => {
+    const row = byDepth.get(depth);
+    const rowWidth = row.length * NODE_W + (row.length - 1) * GAP;
+    const startX = origin.x + Math.round((totalWidth - rowWidth) / 2);
+    const y = origin.y + rowIndex * (NODE_H + ROW_GAP);
+    row.forEach((n, i) => {
+      const nodeId = randomNodeId();
+      idToNodeId.set(n.card.id, nodeId);
+      const node = {
+        id: nodeId,
+        type: "file",
+        file: n.card.path,
+        x: startX + i * (NODE_W + GAP),
+        y,
+        width: NODE_W,
+        height: NODE_H
+      };
+      if (n.card.color) {
+        const c = COLOR_MAP[n.card.color];
+        if (c) node.color = c;
+      }
+      canvasNodes.push(node);
+    });
+  });
+  return { canvasNodes, idToNodeId };
+}
+function buildEdges(edges, idToNodeId) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const e of edges) {
+    const from = idToNodeId.get(e.fromId);
+    const to = idToNodeId.get(e.toId);
+    if (!from || !to || from === to) continue;
+    const key = `${from}\0${to}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ id: randomNodeId(), fromNode: from, fromSide: "bottom", toNode: to, toSide: "top" });
+  }
+  return out;
+}
 async function sendCardsToCanvas(app, cards, opts) {
   if (!cards.length) {
-    new import_obsidian16.Notice(i18n.canvasNoCards);
+    new import_obsidian17.Notice(i18n.canvasNoCards);
     return null;
   }
+  const layout = (targets, origin) => {
+    if (opts.graph) {
+      const keep = new Set(targets.map((c) => c.path));
+      const graphNodes = opts.graph.nodes.filter((n) => keep.has(n.card.path));
+      if (graphNodes.length) {
+        const { canvasNodes, idToNodeId } = buildLayeredNodes(graphNodes, origin);
+        return { nodes: canvasNodes, edges: buildEdges(opts.graph.edges, idToNodeId) };
+      }
+    }
+    return { nodes: buildNodes(targets, origin), edges: [] };
+  };
   if (opts.activeCanvas) {
     const raw = await app.vault.read(opts.activeCanvas);
     const data2 = parseCanvas(raw);
     const existing = new Set(data2.nodes.filter((n) => n.type === "file").map((n) => n.file));
     const fresh = cards.filter((c) => !existing.has(c.path));
     if (!fresh.length) {
-      new import_obsidian16.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
+      new import_obsidian17.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
       return opts.activeCanvas;
     }
-    data2.nodes.push(...buildNodes(fresh, nextOrigin(data2.nodes)));
+    const built2 = layout(fresh, nextOrigin(data2.nodes));
+    data2.nodes.push(...built2.nodes);
+    data2.edges.push(...built2.edges);
     await app.vault.modify(opts.activeCanvas, JSON.stringify(data2, null, 2));
-    new import_obsidian16.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
+    new import_obsidian17.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
     return opts.activeCanvas;
   }
   const folder = opts.folder.trim().replace(/^\/+|\/+$/g, "");
@@ -3006,13 +3471,14 @@ async function sendCardsToCanvas(app, cards, opts) {
     const suffix = Date.now();
     path = folder ? `${folder}/${base}-${suffix}.canvas` : `${base}-${suffix}.canvas`;
   }
-  const data = { nodes: buildNodes(cards, { x: 0, y: 0 }), edges: [] };
+  const built = layout(cards, { x: 0, y: 0 });
+  const data = { nodes: built.nodes, edges: built.edges };
   try {
     const file = await app.vault.create(path, JSON.stringify(data, null, 2));
-    new import_obsidian16.Notice(i18n.canvasCreated(file.basename));
+    new import_obsidian17.Notice(i18n.canvasCreated(file.basename));
     return file;
   } catch (err) {
-    new import_obsidian16.Notice(String(err));
+    new import_obsidian17.Notice(String(err));
     return null;
   }
 }
@@ -3026,7 +3492,7 @@ async function readCanvasCardPaths(app, file) {
 }
 
 // src/main.ts
-var CardBoxPlugin = class extends import_obsidian17.Plugin {
+var CardBoxPlugin = class extends import_obsidian18.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -3041,12 +3507,16 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
       await this.setup();
     } catch (e) {
       console.error("[CardBox] \u63D2\u4EF6\u521D\u59CB\u5316\u5931\u8D25", e);
-      new import_obsidian17.Notice("CardBox \u521D\u59CB\u5316\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0\uFF08Ctrl+Shift+I\uFF09\u83B7\u53D6\u8BE6\u60C5", 8e3);
+      new import_obsidian18.Notice("CardBox \u521D\u59CB\u5316\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0\uFF08Ctrl+Shift+I\uFF09\u83B7\u53D6\u8BE6\u60C5", 8e3);
     }
   }
   async setup() {
     await this.loadSettings();
-    this.service = new CardService(this.app, () => this.settings.cardsFolder);
+    this.service = new CardService(
+      this.app,
+      () => this.settings.cardsFolder,
+      () => this.settings.filenameFormat
+    );
     this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
     this.index.attach();
     this.ctx = {
@@ -3057,7 +3527,8 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
       openCapture: (prefill, parent) => this.openCapture(prefill, parent),
       saveSettings: () => this.saveSettings(),
       openExtendView: (rootId) => this.openExtendView(rootId),
-      sendToCanvas: (cards) => this.sendToCanvas(cards),
+      sendToCanvas: (cards, silent) => this.sendToCanvas(cards, silent),
+      renameByTitle: (cards) => this.renameByTitle(cards),
       boxes: {
         list: () => this.settings.boxes,
         get: (id) => this.settings.boxes.find((b) => b.id === id),
@@ -3066,14 +3537,14 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
           if (i >= 0) this.settings.boxes[i] = def;
           else this.settings.boxes.push(def);
           await this.saveSettings();
-          new import_obsidian17.Notice(i18n.boxSaved(def.name), 1500);
+          new import_obsidian18.Notice(i18n.boxSaved(def.name), 1500);
         },
         remove: async (id) => {
           const def = this.settings.boxes.find((b) => b.id === id);
           this.settings.boxes = this.settings.boxes.filter((b) => b.id !== id);
           if (this.settings.activeBoxId === id) this.settings.activeBoxId = "";
           await this.saveSettings();
-          if (def) new import_obsidian17.Notice(i18n.boxDeleted(def.name), 1500);
+          if (def) new import_obsidian18.Notice(i18n.boxDeleted(def.name), 1500);
         },
         activeId: () => this.settings.activeBoxId,
         setActiveId: async (id) => {
@@ -3135,6 +3606,24 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
     this.addSelectionCommand("archive-selected", i18n.archiveSelected, (view) => view.archiveSelected());
     this.addSelectionCommand("delete-selected", i18n.deleteSelected, (view) => view.deleteSelected());
     this.addSelectionCommand("send-canvas", i18n.sendToCanvas, (view) => view.sendSelectedToCanvas());
+    this.addSelectionCommand(
+      "rename-selected",
+      i18n.renameByTitleBatch,
+      (view) => void this.renameByTitle(view.getSelectedCards())
+    );
+    this.addCommand({
+      id: "rename-current-by-title",
+      name: i18n.renameByTitle,
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file || file.extension !== "md" || !this.service.isCardPath(file.path)) return false;
+        const card = this.index.byPath(file.path);
+        if (!card) return false;
+        if (checking) return true;
+        void this.renameByTitle([card]);
+        return true;
+      }
+    });
     this.addCommand({
       id: "merge-from-canvas",
       name: i18n.canvasMergeFromCanvas,
@@ -3200,15 +3689,83 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
     new CaptureModal(this.app, this.ctx, { prefill, parent }).open();
   }
   // ---------- Canvas ----------
-  async sendToCanvas(cards) {
+  /**
+   * 投放卡片到白板。
+   * 默认弹窗让用户选引用层级与方向；silent 时按已保存默认值直接投放。
+   */
+  async sendToCanvas(cards, silent = false) {
+    if (!cards.length) {
+      new import_obsidian18.Notice(i18n.canvasNoCards);
+      return;
+    }
+    if (silent) {
+      await this.doSendToCanvas(cards, {
+        depth: this.settings.canvasLinkDepth,
+        direction: this.settings.canvasLinkDirection,
+        drawEdges: this.settings.canvasDrawEdges,
+        remember: false
+      });
+      return;
+    }
+    new CanvasSendModal(this.app, cards, this.index, this.settings, (opts) => {
+      void this.doSendToCanvas(cards, opts);
+    }).open();
+  }
+  async doSendToCanvas(seeds, opts) {
+    if (opts.remember) {
+      this.settings.canvasLinkDepth = opts.depth;
+      this.settings.canvasLinkDirection = opts.direction;
+      this.settings.canvasDrawEdges = opts.drawEdges;
+      await this.saveSettings();
+    }
+    const graph = collectLinkedCards(seeds, this.index.graphSource(), opts.direction, opts.depth);
+    const cards = graph.nodes.map((n) => n.card);
     const active = this.app.workspace.getActiveFile();
     const activeCanvas = (active == null ? void 0 : active.extension) === "canvas" ? active : void 0;
     const file = await sendCardsToCanvas(this.app, cards, {
       folder: this.settings.canvasOutputFolder,
       activeCanvas,
-      ensureFolder: (folder) => this.service.ensureFolder(folder)
+      ensureFolder: (folder) => this.service.ensureFolder(folder),
+      // 关掉连线时也关掉分层排布，退回网格
+      graph: opts.drawEdges ? graph : void 0
     });
     if (file && !activeCanvas) await this.openFile(file);
+  }
+  // ---------- 重命名 ----------
+  /**
+   * 用标题重命名卡片文件。
+   * 逐张顺序执行：renameFile 会触发 Obsidian 改写全库链接，
+   * 并发执行可能让链接改写互相覆盖。
+   */
+  async renameByTitle(cards) {
+    if (!cards.length) return;
+    let ok = 0;
+    let lastFrom = "";
+    let lastTo = "";
+    const reasons = [];
+    for (const card of cards) {
+      const r = await this.service.renameByTitle(card);
+      if (r.ok && r.to) {
+        ok++;
+        lastFrom = r.from;
+        lastTo = r.to;
+      } else if (r.reason && !["same", "empty", "notfound"].includes(r.reason)) {
+        reasons.push(r.reason);
+      } else if (r.reason) {
+        reasons.push(r.reason);
+      }
+    }
+    this.index.refreshPaths(cards.map((c) => c.path));
+    if (ok === 0) {
+      const only = cards.length === 1 ? reasons[0] : void 0;
+      if (only === "empty") new import_obsidian18.Notice(i18n.renameNoTitle, 3e3);
+      else if (only === "same") new import_obsidian18.Notice(i18n.renameSame, 2e3);
+      else if (only) new import_obsidian18.Notice(i18n.renameFailed(only), 5e3);
+      else new import_obsidian18.Notice(i18n.renameSame, 2e3);
+      return;
+    }
+    if (ok === 1 && cards.length === 1) new import_obsidian18.Notice(i18n.renamed(lastFrom, lastTo), 3e3);
+    else new import_obsidian18.Notice(i18n.renamedBatch(ok), 3e3);
   }
   async mergeFromCanvas(file) {
     const paths = await readCanvasCardPaths(this.app, file);
@@ -3222,7 +3779,7 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
       }
     }
     if (!cards.length) {
-      new import_obsidian17.Notice(i18n.canvasNoCardNodes);
+      new import_obsidian18.Notice(i18n.canvasNoCardNodes);
       return;
     }
     new MergeModal(this.app, this.ctx, cards).open();
@@ -3233,7 +3790,7 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
     if (!this.app.vault.getAbstractFileByPath(folder)) {
       try {
         await this.app.vault.createFolder(folder);
-        new import_obsidian17.Notice(i18n.noticeFolderCreated(folder));
+        new import_obsidian18.Notice(i18n.noticeFolderCreated(folder));
       } catch (e) {
       }
     }
@@ -3255,6 +3812,17 @@ var CardBoxPlugin = class extends import_obsidian17.Plugin {
     }
     if (!Number.isFinite(this.settings.masonryMinColumnWidth) || this.settings.masonryMinColumnWidth < 160) {
       this.settings.masonryMinColumnWidth = DEFAULT_SETTINGS.masonryMinColumnWidth;
+    }
+    if (!["datetime", "title"].includes(this.settings.filenameFormat)) {
+      this.settings.filenameFormat = DEFAULT_SETTINGS.filenameFormat;
+    }
+    const d = Number(this.settings.canvasLinkDepth);
+    this.settings.canvasLinkDepth = Number.isFinite(d) && d >= 0 && d <= 5 ? Math.floor(d) : DEFAULT_SETTINGS.canvasLinkDepth;
+    if (!["outgoing", "incoming", "both"].includes(this.settings.canvasLinkDirection)) {
+      this.settings.canvasLinkDirection = DEFAULT_SETTINGS.canvasLinkDirection;
+    }
+    if (typeof this.settings.canvasDrawEdges !== "boolean") {
+      this.settings.canvasDrawEdges = DEFAULT_SETTINGS.canvasDrawEdges;
     }
   }
   async saveSettings() {

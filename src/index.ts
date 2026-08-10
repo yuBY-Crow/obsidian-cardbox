@@ -5,6 +5,7 @@ import type { Card, CardBoxDef, FilterState, SortMode } from './types';
 import { CardService } from './frontmatter';
 import { cardMatchesBox } from './boxes';
 import { parseLinkTarget } from './utils/link';
+import { defaultOutgoingIds, type GraphSource } from './utils/graph';
 
 const SCAN_CONCURRENCY = 10;
 const UPDATE_BUMP_THRESHOLD_MS = 1000; // mtime 比 updated 新超过此值才回写 updated
@@ -17,6 +18,8 @@ const UPDATE_BUMP_COOLDOWN_MS = 1500;
 export class CardIndex {
 	private cardsById = new Map<string, Card>();
 	private pathToId = new Map<string, string>();
+	/**旧 id（frontmatter 残留）→ 当前 id，保证历史关联不断链 */
+	private aliasToId = new Map<string, string>();
 	private tagCounts = new Map<string, number>();
 	private sorted: Card[] = [];
 	private needsSort = true;
@@ -106,11 +109,13 @@ export class CardIndex {
 
 		this.cardsById.clear();
 		this.pathToId.clear();
+		this.aliasToId.clear();
 		this.tagCounts.clear();
 		for (const card of results) {
 			this.fillBodyLinks(card);
 			this.cardsById.set(card.id, card);
 			this.pathToId.set(card.path, card.id);
+			if (card.legacyId) this.aliasToId.set(card.legacyId, card.id);
 			this.addTagCounts(card, +1);
 		}
 		this.needsSort = true;
@@ -195,8 +200,20 @@ export class CardIndex {
 		const old = this.cardsById.get(card.id);
 		if (old && old.path !== card.path) this.pathToId.delete(old.path);
 		if (old) this.addTagCounts(old, -1);
+		// 同一路径的卡片如果 id 变了（例如被重命名），要清掉旧 id 条目，
+		// 否则索引里会同时存在改名前后两张「同一张卡」。
+		const prevId = this.pathToId.get(card.path);
+		if (prevId && prevId !== card.id) {
+			const stale = this.cardsById.get(prevId);
+			if (stale) {
+				this.addTagCounts(stale, -1);
+				this.cardsById.delete(prevId);
+				if (stale.legacyId) this.aliasToId.delete(stale.legacyId);
+			}
+		}
 		this.cardsById.set(card.id, card);
 		this.pathToId.set(card.path, card.id);
+		if (card.legacyId) this.aliasToId.set(card.legacyId, card.id);
 		this.addTagCounts(card, +1);
 		this.needsSort = true;
 		this.notify();
@@ -207,6 +224,7 @@ export class CardIndex {
 		const card = id ? this.cardsById.get(id) : undefined;
 		if (id && card) {
 			this.cardsById.delete(id);
+			if (card.legacyId) this.aliasToId.delete(card.legacyId);
 			this.addTagCounts(card, -1);
 		}
 		this.pathToId.delete(path);
@@ -236,7 +254,7 @@ export class CardIndex {
 	}
 
 	getById(id: string): Card | undefined {
-		return this.cardsById.get(id);
+		return this.resolve(id);
 	}
 
 	byPath(path: string): Card | undefined {
@@ -254,6 +272,31 @@ export class CardIndex {
 	// ---------- 扩展关系（frontmatter 显式关联 + 正文双链） ----------
 
 	/**
+	 * 按 id 解析卡片，带别名兜底。
+	 * 所有「关系解析」都必须走这里而不是直接查 cardsById——
+	 * 否则老卡片 children 里写的旧 id 会解析不到，历史关联断链。
+	 */
+	private resolve(id: string): Card | undefined {
+		const direct = this.cardsById.get(id);
+		if (direct) return direct;
+		const aliased = this.aliasToId.get(id);
+		return aliased ? this.cardsById.get(aliased) : undefined;
+	}
+
+	/** 一张卡片可能被别人用哪些 id 引用（当前文件名 + 残留的旧 id） */
+	private idsOf(card: Card): string[] {
+		return card.legacyId ? [card.id, card.legacyId] : [card.id];
+	}
+
+	/** 判断 other 是否引用了 card（兼容旧 id 写法） */
+	private referencesCard(other: Card, card: Card): boolean {
+		for (const id of this.idsOf(card)) {
+			if (other.children.includes(id) || other.bodyLinks.includes(id)) return true;
+		}
+		return false;
+	}
+
+	/**
 	 * 取一张卡片的全部扩展卡片。
 	 * 顺序：frontmatter children 在前（可拖拽排序），正文双链按出现顺序追加。
 	 * source 标明来源，供视图区分「显式关联」与「正文链接」。
@@ -262,23 +305,21 @@ export class CardIndex {
 		const out: { card: Card; source: 'explicit' | 'body' }[] = [];
 		const seen = new Set<string>([card.id]);
 		for (const id of card.children) {
-			if (seen.has(id)) continue;
-			const c = this.cardsById.get(id);
-			if (!c) continue;
-			seen.add(id);
+			const c = this.resolve(id);
+			if (!c || seen.has(c.id)) continue;
+			seen.add(c.id);
 			out.push({ card: c, source: 'explicit' });
 		}
 		for (const id of card.bodyLinks) {
-			if (seen.has(id)) continue;
-			const c = this.cardsById.get(id);
-			if (!c) continue;
-			seen.add(id);
+			const c = this.resolve(id);
+			if (!c || seen.has(c.id)) continue;
+			seen.add(c.id);
 			out.push({ card: c, source: 'body' });
 		}
 		return out;
 	}
 
-	/** 扩展卡片数量（列表红点角标用） */
+	/** 扩展卡片数量（展开按钮旁的数字 / 列表角标用） */
 	extensionCount(card: Card): number {
 		return this.extensionsOf(card).length;
 	}
@@ -292,10 +333,40 @@ export class CardIndex {
 		const out: Card[] = [];
 		for (const other of this.cardsById.values()) {
 			if (other.id === card.id || forward.has(other.id)) continue;
-			if (other.children.includes(card.id) || other.bodyLinks.includes(card.id)) out.push(other);
+			if (this.referencesCard(other, card)) out.push(other);
 		}
 		out.sort((a, b) => b.created - a.created);
 		return out;
+	}
+
+	/** 全部引用当前卡片的卡片 id（不做 forward 排除，供图遍历使用） */
+	private allIncomingIds(card: Card): string[] {
+		const out: string[] = [];
+		for (const other of this.cardsById.values()) {
+			if (other.id === card.id) continue;
+			if (this.referencesCard(other, card)) out.push(other.id);
+		}
+		return out;
+	}
+
+	/**
+	 * 供 utils/graph 做引用关系遍历的数据源。
+	 * 抽成接口是为了让图算法可脱离 Obsidian 单测。
+	 */
+	graphSource(): GraphSource {
+		return {
+			getById: (id) => this.resolve(id),
+			// 出链要归一化成「当前 id」，否则旧 id 会让 BFS 在图里重复登记同一张卡
+			outgoingIds: (card) => {
+				const out: string[] = [];
+				for (const raw of defaultOutgoingIds(card)) {
+					const c = this.resolve(raw);
+					if (c && !out.includes(c.id)) out.push(c.id);
+				}
+				return out;
+			},
+			incomingIds: (card) => this.allIncomingIds(card),
+		};
 	}
 
 	/**

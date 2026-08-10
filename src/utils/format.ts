@@ -58,9 +58,44 @@ export function formatDayHeader(ts: number, now: number = Date.now()): string {
 	return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekday}）`;
 }
 
-/** 文件名安全化：去掉 Windows 非法字符 */
+/**
+ * 文件名安全化：去掉 Windows 非法字符。
+ *
+ * 另外必须去掉 Obsidian wikilink 语法字符（[ ] # | ^），
+ * 否则文件名出现在 [[...]] 里会把链接语法本身破坏掉——
+ * 例如标题含 # 会被当成指向标题的锚点。
+ */
 export function sanitizeFileName(title: string): string {
-	return title.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, ' ').slice(0, 80);
+	return title
+		.replace(/[\\/:*?"<>|]/g, '')
+		.replace(/[[\]#^]/g, '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		// Windows 不允许文件名以点或空格结尾
+		.replace(/[. ]+$/, '')
+		.slice(0, 80)
+		.trim();
+}
+
+/**
+ * 从卡片标题或正文推导文件名主体。
+ * 优先用标题；无标题则取正文首行（去掉 Markdown 标题符号与列表符号）。
+ * 全部为空时返回空字符串，调用方需回落到时间戳。
+ */
+export function deriveFileBase(title: string | undefined, body: string): string {
+	const fromTitle = sanitizeFileName(title ?? '');
+	if (fromTitle) return fromTitle;
+	const firstLine = body
+		.split('\n')
+		.map((l) => l.trim())
+		.find((l) => l.length > 0);
+	if (!firstLine) return '';
+	// 去掉行首的Markdown 标记：# 标题、- * + 列表、> 引用、任务框
+	const cleaned = firstLine
+		.replace(/^#{1,6}\s*/, '')
+		.replace(/^[-*+]\s+(\[[ xX]\]\s*)?/, '')
+		.replace(/^>\s*/, '');
+	return sanitizeFileName(cleaned);
 }
 
 /** 归一化标签：去 #、去空格、合并斜杠、去首尾斜杠 */
