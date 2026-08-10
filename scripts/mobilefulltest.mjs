@@ -247,7 +247,29 @@ const probe = window.__PROBE || (window.__PROBE = {});
 		const list = document.querySelector('.cardbox-list');
 		const gridCS = list ? getComputedStyle(list) : null;
 		const gridInfo = gridCS ? { cols: gridCS.gridTemplateColumns, rows: gridCS.gridTemplateRows, autoRows: gridCS.gridAutoRows, autoFlow: gridCS.gridAutoFlow, align: gridCS.alignContent, height: gridCS.height, display: gridCS.display } : null;
-		const gridCols = list ? gridCS.gridTemplateColumns.split(' ').length : 0;
+		// 瀑布流列数 = 实际渲染出的列容器个数（不再看 grid-template-columns，
+		// 布局已从 grid 改为 flex 列组 + JS 分配）
+		const gridCols = document.querySelectorAll('.cardbox-masonry-group:first-of-type .cardbox-masonry-col').length;
+
+		// 瀑布流质量断言：同一列内相邻卡片的竖向间隙应恒定，且不应出现大片空白
+		const colGaps = [...document.querySelectorAll('.cardbox-masonry-col')].map((col) => {
+			const tiles = [...col.children];
+			const gaps = [];
+			for (let i = 1; i < tiles.length; i++) {
+				const prev = tiles[i - 1].getBoundingClientRect();
+				const cur = tiles[i].getBoundingClientRect();
+				gaps.push(Math.round(cur.top - prev.bottom));
+			}
+			return gaps;
+		});
+		const allGaps = colGaps.flat();
+		const gapStats = {
+			count: allGaps.length,
+			min: allGaps.length ? Math.min(...allGaps) : null,
+			max: allGaps.length ? Math.max(...allGaps) : null,
+			distinct: [...new Set(allGaps)],
+		};
+
 		const isMobileHeader = !!document.querySelector('.cardbox-mobile-header');
 		const isBoxBar = !!document.querySelector('.cardbox-boxbar');
 		const modeText = mobileModeBtn ? mobileModeBtn.textContent : 'N/A';
@@ -265,6 +287,7 @@ const probe = window.__PROBE || (window.__PROBE = {});
 			indexCount: plugin.index ? plugin.index.all().length : null,
 			tileCount: tiles.length,
 			gridCols,
+			gapStats,
 			headerActions,
 			actionsInContent,
 			infoHeight,

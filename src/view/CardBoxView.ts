@@ -184,11 +184,30 @@ export class CardBoxView extends ItemView {
 
 		this.placeholderEl = root.createDiv({ cls: 'cardbox-placeholder' });
 		this.listEl = root.createDiv({ cls: 'cardbox-list' });
-		this.list = new IncrementalList<RenderItem>(this.listEl, (item) => this.renderItem(item));
+		this.list = new IncrementalList<RenderItem>(
+			this.listEl,
+			(item) => this.renderItem(item),
+			// 瀑布流下必须独占整行的元素：
+			// 日期分组是横跨全宽的标题；展开的子卡片要保持「主卡在上、子卡在下」的
+			// 层级关系，塞进某一列会看不出父子从属
+			(item) => item.kind === 'day' || (item.kind === 'card' && item.depth > 0),
+		);
 
 		this.ctx.index.onChanged(this.indexChangedCb);
 		this.filterBar.refreshTags?.();
 		this.scheduleRender();
+	}
+
+	/**
+	 * 视图尺寸变化（窗口缩放、侧栏拖宽等）时重算瀑布流列数。
+	 * 只有列数真的变了才重排——setColumnCount 内部已做相等判断。
+	 */
+	onResize(): void {
+		if (this.filterBar?.getMode() !== 'masonry') return;
+		const next = this.masonryColumns();
+		if (next !== this.list.getColumnCount()) {
+			this.list.setColumnCount(next);
+		}
 	}
 
 	onClose(): Promise<void> {
@@ -330,6 +349,21 @@ export class CardBoxView extends ItemView {
 		});
 	}
 
+	/**
+	 * 瀑布流列数。
+	 * 手机端固定双列（屏幕窄，再多列每张卡就没法读了）；
+	 * PC 端按容器实际宽度除以设置的最小列宽，至少 1 列。
+	 */
+	private masonryColumns(): number {
+		if (Platform.isMobile) return 2;
+		const width = this.listEl.clientWidth;
+		const min = Math.max(160, this.ctx.settings.masonryMinColumnWidth);
+		// clientWidth 为 0 说明还没布局完（首次渲染），先给 2 列，
+		// 后续 resize 会纠正
+		if (!width) return 2;
+		return Math.max(1, Math.floor(width / min));
+	}
+
 	private render(): void {
 		if (this.ctx.index.isIndexing && !this.ctx.index.ready) {
 			this.showPlaceholder(i18n.indexing);
@@ -344,9 +378,10 @@ export class CardBoxView extends ItemView {
 		// 否则筛选到0 条时数量会停留在上一次的值）
 		this.mobileHeader?.setInfo(box ? box.name || i18n.boxUnnamed : i18n.boxAll, filtered.length);
 
-		// 平铺模式用CSS 多列，列宽由设置决定
+		// 平铺模式走真瀑布流：按容器宽度算列数，交给 IncrementalList 分配到最短列
 		this.listEl.toggleClass('is-masonry', mode === 'masonry');
 		this.listEl.style.setProperty('--cardbox-col-min', `${this.ctx.settings.masonryMinColumnWidth}px`);
+		this.list.setColumnCount(mode === 'masonry' ? this.masonryColumns() : 0);
 
 		if (filtered.length === 0) {
 			const hasFilters =

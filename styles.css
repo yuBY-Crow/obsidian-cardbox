@@ -767,20 +767,37 @@ body.is-mobile .cardbox-color-dot {
    导致卡片向右溢出而不是向下滚动。grid 始终纵向增长，滚动行为正确。 */
 
 .cardbox-list.is-masonry {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(var(--cardbox-col-min, 260px), 1fr));
-	/* 卡片之间不留缝隙，靠边框区分（用户明确要求紧密排布） */
-	gap: 0;
-	align-content: start;
+	/* 真瀑布流：容器纵向堆叠若干「列组」，每个列组内横向排 N 列，
+	   卡片由 JS 分配到组内当前最短的列。这样短卡片下方不留大片空白、
+	   同列上下间距恒定。
+	   为什么不用 grid：grid 行高由该行最高卡片决定，矮卡片下方必然留白。
+	   为什么不用 CSS columns：columns 在固定高度的滚动容器里会横向分页，
+	   卡片向右溢出而不是向下滚动（曾踩坑）。
+	   整行元素（日期分组 / 展开的子卡片）会打断列组，其后卡片另起一组。 */
+	display: flex;
+	flex-direction: column;
+	gap: var(--cardbox-masonry-gap, 10px);
+}
+
+/* 列组：横向排列各列 */
+.cardbox-masonry-group {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--cardbox-masonry-gap, 10px);
+}
+
+/* 单列容器：纵向堆叠卡片，卡片间距与列间距一致 */
+.cardbox-masonry-col {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--cardbox-masonry-gap, 10px);
 }
 
 .cardbox-list.is-masonry .cardbox-tile {
 	margin-left: 0;
 	margin-bottom: 0;
-	align-self: start;
-	/* 无缝排布下用细边框划分卡片边界，否则相邻卡片会糊成一片 */
-	border-right: 1px solid var(--background-modifier-border);
-	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 /* 平铺标题用黑体，与正文摘要形成层级对比 */
@@ -791,14 +808,15 @@ body.is-mobile .cardbox-color-dot {
 	-webkit-line-clamp: 3;
 }
 
-/* 底部哨兵占满一行，保证增量加载的 IntersectionObserver 正常触发 */
-.cardbox-list.is-masonry .cardbox-sentinel {
-	grid-column: 1 / -1;
+/* 哨兵与整行元素占满宽度 */
+.cardbox-list.is-masonry .cardbox-sentinel,
+.cardbox-list.is-masonry .cardbox-masonry-full {
+	width: 100%;
 }
 
-/* 时间轴分组在平铺模式下也占满整行 */
+/* 时间轴分组在平铺模式下占满整行（由 JS 挂 .cardbox-masonry-full） */
 .cardbox-list.is-masonry .cardbox-day-group {
-	grid-column: 1 / -1;
+	width: 100%;
 }
 
 .cardbox-tile.is-rich .cardbox-tile-snippet {
@@ -806,17 +824,14 @@ body.is-mobile .cardbox-color-dot {
 	font-size: 12px;
 }
 
-/* 窄屏（含手机）双列平铺：
-   顶层卡片双列；展开的子卡片占满整行并保留缩进，层级依然清晰。
-   每张卡片随内容自适应高度，最长约 400px，超出部分在 main 内部渐隐截断 */
+/* 窄屏（含手机）平铺：
+   卡片随内容自适应高度，最长约 400px，超出部分在 main 内部渐隐截断。
+   列数由 JS 按容器宽度计算（手机端固定 2 列），CSS 不再指定列数。 */
 @media (max-width: 520px) {
-	.cardbox-list.is-masonry {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
 	/* 注意：不能在 .cardbox-tile 上加 max-height + overflow:hidden，
-	   chromium 会把 grid item 的 max-content 当 0，导致所有卡片
-	   塞进几像素行里重叠（曾踩坑，见 mobilefulltest）。
-	   改为在内部 .cardbox-tile-main 截断，让卡片本身高度由内容撑开。 */
+	   chromium 会把 flex/grid item 的 max-content 当 0，导致卡片高度塌缩
+	   （曾踩坑，见 mobilefulltest）。改为在内部 .cardbox-tile-main 截断，
+	   让卡片本身高度由内容撑开。 */
 	.cardbox-list.is-masonry .cardbox-tile {
 		margin-left: 0;
 	}
@@ -824,16 +839,11 @@ body.is-mobile .cardbox-color-dot {
 		max-height: 360px;
 		overflow: hidden;
 	}
-	/* 子卡片占满整行 + 层级缩进 + 左侧竖线 */
+	/* 展开的子卡片独占整行（JS 判定为整行元素）+ 层级缩进 + 左侧竖线 */
 	.cardbox-list.is-masonry .cardbox-tile.is-child {
-		grid-column: 1 / -1;
 		margin-left: calc(var(--depth, 0) * 18px);
 		border-left: 3px solid var(--background-modifier-border-hover);
 	}
-}
-
-body.is-mobile .cardbox-list.is-masonry {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile {
@@ -846,7 +856,6 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-main {
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-child {
-	grid-column: 1 / -1;
 	margin-left: calc(var(--depth, 0) * 18px);
 	border-left: 3px solid var(--background-modifier-border-hover);
 }
@@ -1487,20 +1496,15 @@ body.is-mobile .cardbox-section-header {
 /* ===== 手机端平铺：Flomo 风格卡面（参考用户提供的设计图） ===== */
 
 body.is-mobile .cardbox-list.is-masonry {
-	/* 无缝紧密排布 */
-	gap: 0;
-	padding: 0 0 12px;
-	align-content: start;
+	padding: 0 10px 12px;
 }
 
-/* 卡面无缝时不能再用圆角+投影（会露出背景缝隙），改用细分隔边框区分卡片 */
+/* 卡面：圆角块 + 与背景区分的填充色 + 轻投影 */
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile {
-	background: var(--background-primary);
+	background: var(--background-secondary);
 	border: none;
-	border-right: 1px solid var(--background-modifier-border);
-	border-bottom: 1px solid var(--background-modifier-border);
-	border-radius: 0;
-	box-shadow: none;
+	border-radius: 10px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile-main {
@@ -1599,15 +1603,4 @@ body.is-mobile .cardbox-list {
 
 body.is-mobile .cardbox-list.is-masonry {
 	padding-bottom: 80px;
-}
-
-/* 无缝平铺：最右列与最后一行的边框会形成悬空线条，用负外边距容器裁掉更简单——
-   这里改为让列表容器自身裁切溢出的1px 边框 */
-.cardbox-list.is-masonry {
-	overflow-x: hidden;
-}
-
-/* 无缝下卡片内容需要自己的内边距，否则文字会贴到边框上 */
-body.is-mobile .cardbox-list.is-masonry .cardbox-tile-main {
-	padding: 12px 12px 10px;
 }

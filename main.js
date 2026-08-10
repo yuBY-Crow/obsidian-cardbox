@@ -2145,13 +2145,19 @@ var MobileHeader = class {
 
 // src/view/IncrementalList.ts
 var IncrementalList = class {
-  constructor(container, renderItem) {
+  constructor(container, renderItem, isFullRow = () => false) {
     this.container = container;
     this.renderItem = renderItem;
+    this.isFullRow = isFullRow;
     this.observer = null;
     this.items = [];
     this.rendered = 0;
     this.chunk = 50;
+    /** 瀑布流列数；0 表示不启用瀑布流 */
+    this.columnCount = 0;
+    this.columns = [];
+    /** 当前瀑布流下正在使用的「整行组」，整行元素之后的卡片要放进新的一组列 */
+    this.groupEl = null;
     this.sentinel = container.createDiv({ cls: "cardbox-sentinel" });
     if (typeof IntersectionObserver !== "undefined") {
       this.observer = new IntersectionObserver((entries) => {
@@ -2160,10 +2166,25 @@ var IncrementalList = class {
       this.observer.observe(this.sentinel);
     }
   }
+  /**
+   * 设置瀑布流列数。传 0 关闭瀑布流（回到普通顺序追加）。
+   * 列数变化会触发重排，所以调用方应在列数确实改变时才调用。
+   */
+  setColumnCount(n) {
+    const next = Math.max(0, Math.floor(n));
+    if (next === this.columnCount) return;
+    this.columnCount = next;
+    if (this.items.length) this.setItems(this.items);
+  }
+  getColumnCount() {
+    return this.columnCount;
+  }
   setItems(items) {
     this.items = items;
     this.rendered = 0;
     this.container.empty();
+    this.columns = [];
+    this.groupEl = null;
     this.container.appendChild(this.sentinel);
     if (this.observer) {
       this.observer.disconnect();
@@ -2173,13 +2194,52 @@ var IncrementalList = class {
   }
   appendNext() {
     if (this.rendered >= this.items.length) return;
-    const frag = document.createDocumentFragment();
     const end = Math.min(this.rendered + this.chunk, this.items.length);
-    for (let i = this.rendered; i < end; i++) {
-      frag.appendChild(this.renderItem(this.items[i], i));
+    if (this.columnCount > 1) {
+      for (let i = this.rendered; i < end; i++) {
+        const item = this.items[i];
+        const el = this.renderItem(item, i);
+        if (this.isFullRow(item)) {
+          this.container.insertBefore(el, this.sentinel);
+          el.addClass("cardbox-masonry-full");
+          this.groupEl = null;
+        } else {
+          this.ensureGroup().appendChild(el);
+        }
+      }
+    } else {
+      const frag = document.createDocumentFragment();
+      for (let i = this.rendered; i < end; i++) {
+        frag.appendChild(this.renderItem(this.items[i], i));
+      }
+      this.container.insertBefore(frag, this.sentinel);
     }
     this.rendered = end;
-    this.container.insertBefore(frag, this.sentinel);
+  }
+  /** 取当前列组里最短的列；没有列组则新建一组 */
+  ensureGroup() {
+    if (!this.groupEl) {
+      this.groupEl = this.container.createDiv({ cls: "cardbox-masonry-group" });
+      this.container.insertBefore(this.groupEl, this.sentinel);
+      this.columns = [];
+      for (let i = 0; i < this.columnCount; i++) {
+        this.columns.push(this.groupEl.createDiv({ cls: "cardbox-masonry-col" }));
+      }
+    }
+    return this.shortestColumn();
+  }
+  /** 找当前内容高度最小的列；等高时取最左，保证阅读顺序自然 */
+  shortestColumn() {
+    let best = this.columns[0];
+    let bestH = best.getBoundingClientRect().height;
+    for (let i = 1; i < this.columns.length; i++) {
+      const h = this.columns[i].getBoundingClientRect().height;
+      if (h < bestH) {
+        best = this.columns[i];
+        bestH = h;
+      }
+    }
+    return best;
   }
   destroy() {
     var _a;
@@ -2729,10 +2789,29 @@ var CardBoxView = class extends import_obsidian14.ItemView {
     this.selectionBarEl = root.createDiv({ cls: "cardbox-selectionbar" });
     this.placeholderEl = root.createDiv({ cls: "cardbox-placeholder" });
     this.listEl = root.createDiv({ cls: "cardbox-list" });
-    this.list = new IncrementalList(this.listEl, (item) => this.renderItem(item));
+    this.list = new IncrementalList(
+      this.listEl,
+      (item) => this.renderItem(item),
+      // 瀑布流下必须独占整行的元素：
+      // 日期分组是横跨全宽的标题；展开的子卡片要保持「主卡在上、子卡在下」的
+      // 层级关系，塞进某一列会看不出父子从属
+      (item) => item.kind === "day" || item.kind === "card" && item.depth > 0
+    );
     this.ctx.index.onChanged(this.indexChangedCb);
     (_b = (_a = this.filterBar).refreshTags) == null ? void 0 : _b.call(_a);
     this.scheduleRender();
+  }
+  /**
+   * 视图尺寸变化（窗口缩放、侧栏拖宽等）时重算瀑布流列数。
+   * 只有列数真的变了才重排——setColumnCount 内部已做相等判断。
+   */
+  onResize() {
+    var _a;
+    if (((_a = this.filterBar) == null ? void 0 : _a.getMode()) !== "masonry") return;
+    const next = this.masonryColumns();
+    if (next !== this.list.getColumnCount()) {
+      this.list.setColumnCount(next);
+    }
   }
   onClose() {
     var _a;
@@ -2853,6 +2932,18 @@ var CardBoxView = class extends import_obsidian14.ItemView {
       this.render();
     });
   }
+  /**
+   * 瀑布流列数。
+   * 手机端固定双列（屏幕窄，再多列每张卡就没法读了）；
+   * PC 端按容器实际宽度除以设置的最小列宽，至少 1 列。
+   */
+  masonryColumns() {
+    if (import_obsidian14.Platform.isMobile) return 2;
+    const width = this.listEl.clientWidth;
+    const min = Math.max(160, this.ctx.settings.masonryMinColumnWidth);
+    if (!width) return 2;
+    return Math.max(1, Math.floor(width / min));
+  }
   render() {
     var _a, _b;
     if (this.ctx.index.isIndexing && !this.ctx.index.ready) {
@@ -2866,6 +2957,7 @@ var CardBoxView = class extends import_obsidian14.ItemView {
     (_a = this.mobileHeader) == null ? void 0 : _a.setInfo(box ? box.name || i18n.boxUnnamed : i18n.boxAll, filtered.length);
     this.listEl.toggleClass("is-masonry", mode === "masonry");
     this.listEl.style.setProperty("--cardbox-col-min", `${this.ctx.settings.masonryMinColumnWidth}px`);
+    this.list.setColumnCount(mode === "masonry" ? this.masonryColumns() : 0);
     if (filtered.length === 0) {
       const hasFilters = this.filter.query.trim() !== "" || this.filter.selectedTags.size > 0 || this.filter.selectedColors.size > 0 || this.filter.hasTag || this.filter.noTag || this.filter.emptyContent || this.filter.hasTaskList || this.filter.pinnedOnly || box !== void 0;
       this.showPlaceholder(hasFilters ? i18n.noMatch : i18n.empty);

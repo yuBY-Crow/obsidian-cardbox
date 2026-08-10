@@ -105,7 +105,12 @@ await page.evaluate((code) => {
 	list.className = 'cardbox-list is-masonry';
 	document.getElementById('host').appendChild(list);
 
-	const cardA = mkCard('a', '主卡A', { color: 'blue', pinned: true });
+	// A 故意写长正文：瀑布流下右列应能容纳 B+C 两张短卡
+	const cardA = mkCard('a', '主卡A', {
+		color: 'blue',
+		pinned: true,
+		snippet: '这是一段很长的正文内容。'.repeat(12),
+	});
 	const cardB = mkCard('b', '主卡B');
 	const cardC = mkCard('c', '主卡C', { color: 'green' });
 	const ext1 = mkCard('ext1', '扩展卡片一', { children: ['ext2'] });
@@ -132,7 +137,26 @@ await page.evaluate((code) => {
 		card: ext2, depth: 2, selected: false, expanded: false, hasVisibleChildren: false,
 		childCount: 0, rich: true, parentTitle: '扩展卡片一', onClick: noop, onLongPress: noop, onToggleExpand: noop, onKebab: noop,
 	});
-	list.append(tileA, tileB, tileC, tileExt1, tileExt2);
+	// 按 IncrementalList 的真实瀑布流结构组装：
+	//列组（.cardbox-masonry-group）内含 N 个列（.cardbox-masonry-col），
+	// 顶层卡片分配到最短列；整行元素（子卡片）直接挂容器并打断列组。
+	const group = document.createElement('div');
+	group.className = 'cardbox-masonry-group';
+	const col1 = document.createElement('div');
+	col1.className = 'cardbox-masonry-col';
+	const col2 = document.createElement('div');
+	col2.className = 'cardbox-masonry-col';
+	group.append(col1, col2);
+	list.appendChild(group);
+
+	// A 是长卡（内容多）→ 落左列；B、C 落右列（模拟最短列分配的结果）
+	col1.appendChild(tileA);
+	col2.append(tileB, tileC);
+
+	// 子卡片独占整行
+	tileExt1.classList.add('cardbox-masonry-full');
+	tileExt2.classList.add('cardbox-masonry-full');
+	list.append(tileExt1, tileExt2);
 }, tileCode);
 
 // 几何断言（手机视口 390px → 双列平铺；子卡片占整行）
@@ -145,6 +169,7 @@ const metrics = await page.evaluate(() => {
 			depth: t.style.getPropertyValue('--depth'),
 			left: r.left,
 			top: r.top,
+			bottom: r.bottom,
 			width: r.width,
 			isChild: t.classList.contains('is-child'),
 			borderLeft: getComputedStyle(t).borderLeftWidth,
@@ -174,8 +199,29 @@ const metrics = await page.evaluate(() => {
 		expandInRelated: !!(relatedRow && relatedRow.querySelector('.cardbox-expand-wrap')),
 		expandAtTileLeft: !!document.querySelector('.cardbox-tile.is-rich > .cardbox-tile-main > .cardbox-expand-wrap'),
 		kebabPosition: kebab ? getComputedStyle(kebab).position : null,
-		// 无缝排布：grid gap 必须为 0
-		gridGap: getComputedStyle(list).gap,
+		// 瀑布流：卡片装在列容器里，同列相邻卡片间距应恒定（用户要求「上下间距相同」）
+		colCount: document.querySelectorAll('.cardbox-masonry-group .cardbox-masonry-col').length,
+		colGaps: (() => {
+			const gaps = [];
+			for (const col of document.querySelectorAll('.cardbox-masonry-col')) {
+				const items = [...col.children];
+				for (let i = 1; i < items.length; i++) {
+					gaps.push(Math.round(
+						items[i].getBoundingClientRect().top - items[i - 1].getBoundingClientRect().bottom,
+					));
+				}
+			}
+			return [...new Set(gaps)];
+		})(),
+		// 卡面还原：圆角 + 投影 + 次级底色
+		tileRadius: (() => {
+			const t = document.querySelector('.cardbox-tile.is-rich');
+			return t ? getComputedStyle(t).borderTopLeftRadius : null;
+		})(),
+		tileShadow: (() => {
+			const t = document.querySelector('.cardbox-tile.is-rich');
+			return t ? getComputedStyle(t).boxShadow : null;
+		})(),
 		// 平铺标题用黑体
 		titleWeight: (() => {
 			const t = document.querySelector('.cardbox-tile.is-rich .cardbox-tile-title');
@@ -203,10 +249,12 @@ const tileC = metrics.rects[2];
 const tileExt1 = metrics.rects[3];
 const tileExt2 = metrics.rects[4];
 
-check('手机视口平铺为双列', metrics.gridCols === 2, metrics.gridCols);
-// 双列布局：顶层 3 张主卡应排成 2 行 2 列（即至少有一行含 2 张）
-const topRow = metrics.rects.slice(0, 3).filter((t) => t.top === tileA.top);
-check('顶层主卡至少 2 张排在同一行（双列）', topRow.length >= 2, topRow.map((t) => t.top));
+check('手机视口平铺为双列', metrics.structure.colCount === 2, metrics.structure.colCount);
+// 瀑布流：A 落左列、B/C 落右列，B与 A顶部对齐（同为各列首张）
+check('两列首张卡片顶部对齐', Math.abs(tileB.top - tileA.top) <= 1, { a: tileA.top, b: tileB.top });
+// 关键：C 在右列紧跟 B，而不是被 A 的高度顶到 A 下方（grid 的行高问题）
+check('短卡片紧跟同列上一张，不受邻列长卡影响', tileC.top < tileA.bottom - 20,
+	{ cTop: tileC.top, aBottom: tileA.bottom });
 check('顶层主卡按行排列，子卡在主卡下方（不混在顶层行）', (() => {
 	const topTop = Math.min(...metrics.rects.slice(0, 3).map((t) => t.top));
 	return tileExt1.top > topTop;
@@ -230,7 +278,10 @@ check('展开按钮在关联行内', metrics.structure.expandInRelated, metrics.
 check('展开按钮不再占卡片左侧', !metrics.structure.expandAtTileLeft, metrics.structure);
 check('kebab 绝对定位（右上角）', metrics.structure.kebabPosition === 'absolute', metrics.structure.kebabPosition);
 // 用户明确要求：卡片之间无缝隙、标题黑体、平铺不显示图钉
-check('平铺卡片之间无缝隙', metrics.structure.gridGap === '0px', metrics.structure.gridGap);
+check('同列相邻卡片间距恒定（上下间距相同）',
+	metrics.structure.colGaps.length === 1, metrics.structure.colGaps);
+check('卡面还原圆角', metrics.structure.tileRadius === '10px', metrics.structure.tileRadius);
+check('卡面还原投影', metrics.structure.tileShadow !== 'none', metrics.structure.tileShadow);
 check('平铺标题为黑体（font-weight 700）', metrics.structure.titleWeight === '700', metrics.structure.titleWeight);
 check('平铺不显示图钉图标', !metrics.structure.pinIconInRich, metrics.structure.pinIconInRich);
 check('平铺 kebab 用竖三点图标', metrics.structure.kebabIcon === 'more-vertical', metrics.structure.kebabIcon);
