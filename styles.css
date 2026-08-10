@@ -801,10 +801,27 @@ body.is-mobile .cardbox-color-dot {
 	.cardbox-list.is-masonry {
 		grid-template-columns: 1fr;
 	}
+	/* 单列平铺下恢复层级缩进：
+	   主卡片首层 → 扩展卡片下一层（缩进 + 左侧竖线）→ 扩展的扩展再下一层 */
+	.cardbox-list.is-masonry .cardbox-tile {
+		margin-left: calc(var(--depth, 0) * 18px);
+	}
+	.cardbox-list.is-masonry .cardbox-tile.is-child {
+		border-left: 3px solid var(--background-modifier-border-hover);
+	}
 }
 
 body.is-mobile .cardbox-list.is-masonry {
 	grid-template-columns: 1fr;
+}
+
+/* 手机端平铺：与窄屏一致，子卡片保留层级缩进与左侧竖线 */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile {
+	margin-left: calc(var(--depth, 0) * 18px);
+}
+
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-child {
+	border-left: 3px solid var(--background-modifier-border-hover);
 }
 
 /* ===== 卡片盒设置弹窗 ===== */

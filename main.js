@@ -1558,7 +1558,7 @@ function buildCardTile(opts) {
     }
   };
   el.addEventListener("pointerdown", (e) => {
-    if (e.target.closest("button")) return;
+    if (e.target.closest("button, .cardbox-expand-wrap")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pressed = true;
     startX = e.clientX;

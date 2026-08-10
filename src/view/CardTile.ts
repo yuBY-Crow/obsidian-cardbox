@@ -157,7 +157,11 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		}
 	};
 	el.addEventListener('pointerdown', (e) => {
-		if ((e.target as HTMLElement).closest('button')) return;
+		// 按钮与「展开按钮区域」都不启动长按：
+		// 展开区域包含数字与留白，手机触摸手指稍停就可能超过 500ms 触发长按进入多选，
+		// 表现就是「点收起按钮没反应」（其实误触发了多选）。PC 鼠标点击快所以几乎不触发，
+		// 这是两端表现差异的根源之一。
+		if ((e.target as HTMLElement).closest('button, .cardbox-expand-wrap')) return;
 		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		pressed = true;
 		startX = e.clientX;
