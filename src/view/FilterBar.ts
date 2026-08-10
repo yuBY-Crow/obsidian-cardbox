@@ -1,6 +1,7 @@
 import { i18n } from '../i18n';
 import type { CardIndex } from '../index';
-import type { CardBoxSettings, FilterState, SortMode, ViewMode } from '../types';
+import type { CardBoxSettings, CardColor, FilterState, SortMode, ViewMode } from '../types';
+import { CARD_COLORS } from '../types';
 import { debounce } from '../utils/dom';
 
 export interface FilterBarCallbacks {
@@ -15,15 +16,17 @@ const TOGGLE_DEFS: { key: keyof FilterState; label: string }[] = [
 	{ key: 'noTag', label: i18n.noTag },
 	{ key: 'emptyContent', label: i18n.emptyContent },
 	{ key: 'hasTaskList', label: i18n.hasTask },
+	{ key: 'pinnedOnly', label: i18n.pinnedOnly },
 	{ key: 'showArchived', label: i18n.showArchived },
 ];
 
-/** 顶部筛选栏：模式切换 + 搜索 + 标签 chips + 快速开关 + 排序 */
+/** 顶部筛选栏：模式切换 + 搜索 + 标签 chips + 颜色 + 快速开关 + 排序 */
 export class FilterBar {
 	private filter: FilterState;
 	private mode: ViewMode;
 	private sort: SortMode;
 	private chipsRow!: HTMLElement;
+	private colorRow!: HTMLElement;
 	private modeBtns = new Map<ViewMode, HTMLButtonElement>();
 	private toggleEls = new Map<keyof FilterState, HTMLElement>();
 	private searchInput!: HTMLInputElement;
@@ -55,7 +58,7 @@ export class FilterBar {
 	build(container: HTMLElement): HTMLElement {
 		const el = container.createDiv({ cls: 'cardbox-filterbar' });
 
-		// 模式切换
+		// 模式切换：列表 / 平铺 / 时间线
 		const modeRow = el.createDiv({ cls: 'cardbox-mode-toggle' });
 		const mkModeBtn = (mode: ViewMode, label: string) => {
 			const btn = modeRow.createEl('button', { cls: 'cardbox-mode-btn', text: label });
@@ -68,6 +71,7 @@ export class FilterBar {
 			this.modeBtns.set(mode, btn);
 		};
 		mkModeBtn('card', i18n.cardMode);
+		mkModeBtn('masonry', i18n.masonryMode);
 		mkModeBtn('timeline', i18n.timelineMode);
 
 		// 搜索
@@ -87,6 +91,10 @@ export class FilterBar {
 		// 标签 chips（横滑）
 		const scroll = el.createDiv({ cls: 'cardbox-chips-scroll' });
 		this.chipsRow = scroll.createDiv({ cls: 'cardbox-chips' });
+
+		// 颜色筛选
+		this.colorRow = el.createDiv({ cls: 'cardbox-color-row cardbox-color-filter' });
+		this.renderColors();
 
 		// 快速开关
 		const toggles = el.createDiv({ cls: 'cardbox-toggles' });
@@ -143,6 +151,22 @@ export class FilterBar {
 		}
 		const add = this.chipsRow.createSpan({ cls: 'cardbox-chip cardbox-chip-add', text: i18n.moreTags });
 		add.addEventListener('click', () => this.cb.onAddTag());
+	}
+
+	private renderColors(): void {
+		this.colorRow.empty();
+		for (const color of CARD_COLORS) {
+			const dot = this.colorRow.createDiv({ cls: `cardbox-color-dot cardbox-color-${color}` });
+			dot.setAttribute('aria-label', i18n.colorNames[color] ?? color);
+			dot.toggleClass('is-selected', this.filter.selectedColors.has(color as CardColor));
+			dot.addEventListener('click', () => {
+				const c = color as CardColor;
+				if (this.filter.selectedColors.has(c)) this.filter.selectedColors.delete(c);
+				else this.filter.selectedColors.add(c);
+				this.renderColors();
+				this.cb.onFilterChange();
+			});
+		}
 	}
 
 	private updateModeUI(): void {

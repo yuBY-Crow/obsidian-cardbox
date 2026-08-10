@@ -9,6 +9,7 @@ const folder = process.argv[4] ?? 'Cards';
 
 const topics = ['灵感', '待办', '读书笔记', '金句', '方法论', '项目想法', '生活碎片'];
 const nestedTags = ['', '读书/笔记', '工作/会议', '写作/卡片', '工具/obsidian', '思考/哲学', '生活/旅行'];
+const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'];
 const bodies = [
 	'今天读到一篇好文章，关于如何建立知识管理系统。\n\n核心观点：输入 → 整理 → 输出 的闭环要足够轻。',
 	'- [ ] 整理这周的卡片\n- [x] 写周报',
@@ -55,6 +56,10 @@ for (let i = 0; i < count; i++) {
 	if (i % 5 === 0) {
 		fm.tags = [...(fm.tags ?? []), 'no-child'];
 	}
+	// 色彩卡片：约1/4 带眉头颜色，覆盖全部色值
+	if (i % 4 === 0) fm.color = colors[(i / 4) % colors.length];
+	// 置顶卡片：少量，验证悬浮在列表顶部
+	if (i % 37 === 0) fm.pinned = true;
 
 	// 少量子卡片关系（每 50 张里，第 1 张是父卡，2~4 张是其子卡）
 	if (i % 50 === 0 && i + 3 < count) {

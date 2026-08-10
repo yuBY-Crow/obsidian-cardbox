@@ -5,6 +5,7 @@ import { i18n } from './i18n';
 export const DEFAULT_SETTINGS: CardBoxSettings = {
 	cardsFolder: 'Cards',
 	mergeOutputFolder: 'Cards',
+	canvasOutputFolder: 'Cards',
 	filenameFormat: 'datetime',
 	defaultTags: [],
 	defaultViewMode: 'card',
@@ -12,6 +13,9 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	continuousCaptureDefault: true,
 	showArchived: false,
 	archiveMethod: 'flag',
+	boxes: [],
+	activeBoxId: '',
+	masonryMinColumnWidth: 260,
 };
 
 /** main.ts 的 CardBoxPlugin 需实现此接口，避免设置页与主模块循环依赖 */
@@ -55,6 +59,16 @@ export class CardBoxSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl)
+			.setName(i18n.canvasFolderName)
+			.setDesc(i18n.canvasFolderDesc)
+			.addText((text) => {
+				text.setPlaceholder(i18n.folderPlaceholder).setValue(s.canvasOutputFolder).onChange(async (value) => {
+					s.canvasOutputFolder = value.trim().replace(/^\/+|\/+$/g, '');
+					await this.access.saveSettings();
+				});
+			});
+
 		new Setting(containerEl).setName(i18n.defaultTagsName).addText((text) => {
 			text.setPlaceholder(i18n.tagInputPlaceholder);
 			text.inputEl.addEventListener('keydown', (e) => {
@@ -74,8 +88,25 @@ export class CardBoxSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName(i18n.viewModeName)
 			.addDropdown((dd) => {
-				dd.addOption('card', i18n.cardMode).addOption('timeline', i18n.timelineMode).setValue(s.defaultViewMode).onChange(async (v) => {
-					s.defaultViewMode = v as ViewMode;
+				dd.addOption('card', i18n.cardMode)
+					.addOption('masonry', i18n.masonryMode)
+					.addOption('timeline', i18n.timelineMode)
+					.setValue(s.defaultViewMode)
+					.onChange(async (v) => {
+						s.defaultViewMode = v as ViewMode;
+						await this.access.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(i18n.masonryWidthName)
+			.setDesc(i18n.masonryWidthDesc)
+			.addText((text) => {
+				text.inputEl.type = 'number';
+				text.inputEl.min = '160';
+				text.setValue(String(s.masonryMinColumnWidth)).onChange(async (v) => {
+					const n = Number(v);
+					s.masonryMinColumnWidth = isFinite(n) && n >= 160 ? Math.floor(n) : 260;
 					await this.access.saveSettings();
 				});
 			});

@@ -1,9 +1,9 @@
 {
 	"id": "cardbox",
 	"name": "CardBox 卡片盒",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"minAppVersion": "1.5.0",
-	"description": "Writeathon 风格卡片盒：闪念卡片快速捕获、卡片盒/时间轴视图、筛选、批量标签、子卡片、合并成文。移动端友好。",
+	"description": "Writeathon 风格卡片盒：条件抓取卡片盒、色彩卡片、卡片置顶、PC 端瀑布流平铺、卡片扩展同屏视图、Canvas 白板打通、合并成文。移动端友好。",
 	"author": "CardBox",
 	"isDesktopOnly": false
 }

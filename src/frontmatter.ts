@@ -1,8 +1,10 @@
 import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
-import type { Card } from './types';
+import type { Card, CardColor } from './types';
+import { CARD_COLORS } from './types';
 import { generateId, normalizeTags } from './utils/format';
 
 const SNIPPET_LENGTH = 200;
+const SEARCH_TEXT_LENGTH = 4000;
 
 /** 拆分 frontmatter 与正文；无 frontmatter 时 data 为 null */
 export function splitFrontmatter(content: string): { data: Record<string, unknown> | null; body: string } {
@@ -39,6 +41,12 @@ function numOr(v: unknown, fallback: number, now: number): number {
 		if (isFinite(num)) return num;
 	}
 	return isFinite(fallback) ? fallback : now;
+}
+
+function parseColor(v: unknown): CardColor | undefined {
+	if (typeof v !== 'string') return undefined;
+	const c = v.trim().toLowerCase();
+	return (CARD_COLORS as string[]).includes(c) ? (c as CardColor) : undefined;
 }
 
 /**
@@ -88,17 +96,22 @@ export class CardService {
 
 	private buildCard(file: TFile, data: Record<string, unknown> | null, body: string): Card {
 		const trimmed = body.trim();
+		const title = data && typeof data.title === 'string' && data.title.trim() ? data.title.trim() : undefined;
+		const tags = normalizeTags(data?.tags);
 		return {
 			id: deriveId(data, file.name),
 			path: file.path,
-			title: data && typeof data.title === 'string' && data.title.trim() ? data.title.trim() : undefined,
-			tags: normalizeTags(data?.tags),
+			title,
+			tags,
 			created: numOr(data?.created, file.stat.ctime, Date.now()),
 			updated: numOr(data?.updated, file.stat.mtime, Date.now()),
 			parent: data && typeof data.parent === 'string' && data.parent.trim() ? data.parent.trim() : undefined,
 			children: Array.isArray(data?.children) ? data.children.filter((c): c is string => typeof c === 'string') : [],
 			archived: data?.archived === true,
+			color: parseColor(data?.color),
+			pinned: data?.pinned === true,
 			snippet: trimmed.slice(0, SNIPPET_LENGTH),
+			searchText: `${title ?? ''} ${tags.join(' ')} ${trimmed}`.slice(0, SEARCH_TEXT_LENGTH).toLowerCase(),
 			hasTaskList: /^\s*[-*] \[[ xX]\]/m.test(body),
 			mtime: file.stat.mtime,
 		};
@@ -154,7 +167,33 @@ export class CardService {
 		}
 	}
 
-	/** 在父卡片 frontmatter 中登记子卡片 */
+	/** 批量设置眉头颜色；color 传 null 表示清除标记 */
+	async setColor(cards: Card[], color: CardColor | null): Promise<void> {
+		for (const card of cards) {
+			const file = this.getFile(card.path);
+			if (!file) continue;
+			await this.app.fileManager.processFrontMatter(file, (fm) => {
+				if (color === null) delete fm.color;
+				else fm.color = color;
+				fm.updated = Date.now();
+			});
+		}
+	}
+
+	/** 批量置顶 / 取消置顶 */
+	async setPinned(cards: Card[], pinned: boolean): Promise<void> {
+		for (const card of cards) {
+			const file = this.getFile(card.path);
+			if (!file) continue;
+			await this.app.fileManager.processFrontMatter(file, (fm) => {
+				if (pinned) fm.pinned = true;
+				else delete fm.pinned;
+				fm.updated = Date.now();
+			});
+		}
+	}
+
+	/** 在父卡片frontmatter 中登记子卡片 */
 	async addChild(parent: Card, child: Card): Promise<void> {
 		const file = this.getFile(parent.path);
 		if (!file) return;
@@ -164,6 +203,52 @@ export class CardService {
 				: [];
 			if (!children.includes(child.id)) children.push(child.id);
 			fm.children = children;
+			fm.updated = Date.now();
+		});
+	}
+
+	/**
+	 * 关联一张已存在的卡片为扩展卡片：
+	 * 双向写入（父登记 children，子登记 parent），保证列表与扩展视图一致。
+	 */
+	async linkChild(parent: Card, child: Card): Promise<void> {
+		if (parent.id === child.id) return;
+		await this.addChild(parent, child);
+		const childFile = this.getFile(child.path);
+		if (!childFile) return;
+		await this.app.fileManager.processFrontMatter(childFile, (fm) => {
+			fm.parent = parent.id;
+			fm.updated = Date.now();
+		});
+	}
+
+	/** 解除关联：父移除 children 项，子清空 parent */
+	async unlinkChild(parent: Card, child: Card): Promise<void> {
+		const parentFile = this.getFile(parent.path);
+		if (parentFile) {
+			await this.app.fileManager.processFrontMatter(parentFile, (fm) => {
+				const children = Array.isArray(fm.children)
+					? (fm.children as Array<unknown>).filter((c): c is string => typeof c === 'string')
+					: [];
+				fm.children = children.filter((id) => id !== child.id);
+				fm.updated = Date.now();
+			});
+		}
+		const childFile = this.getFile(child.path);
+		if (childFile) {
+			await this.app.fileManager.processFrontMatter(childFile, (fm) => {
+				delete fm.parent;
+				fm.updated = Date.now();
+			});
+		}
+	}
+
+	/** 覆写父卡片的 children 顺序（扩展视图拖拽排序用） */
+	async reorderChildren(parent: Card, orderedIds: string[]): Promise<void> {
+		const file = this.getFile(parent.path);
+		if (!file) return;
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			fm.children = orderedIds;
 			fm.updated = Date.now();
 		});
 	}

@@ -1,8 +1,9 @@
 import { App, EventRef, TFile } from 'obsidian';
 
 type EventEmitter = { offref(ref: EventRef): void };
-import type { Card, FilterState, SortMode } from './types';
+import type { Card, CardBoxDef, FilterState, SortMode } from './types';
 import { CardService } from './frontmatter';
+import { cardMatchesBox } from './boxes';
 
 const SCAN_CONCURRENCY = 10;
 const UPDATE_BUMP_THRESHOLD_MS = 1000; // mtime 比 updated 新超过此值才回写 updated
@@ -221,18 +222,38 @@ export class CardIndex {
 		return out;
 	}
 
-	search(query: string, filter: FilterState, sort: SortMode): Card[] {
+	/**
+	 * 主查询：卡片盒条件 → 筛选条件 → 关键字 → 排序。
+	 * 置顶卡片恒定悬浮在结果最前（Writeathon 的「卡片置顶」语义）。
+	 */
+	search(query: string, filter: FilterState, sort: SortMode, box?: CardBoxDef): Card[] {
 		const qs = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+		const now = Date.now();
 		const result = this.all().filter((card) => {
+			if (box && !cardMatchesBox(card, box, now)) return false;
 			if (!this.matchesFilter(card, filter)) return false;
-			if (qs.length) {
-				const hay = `${card.title ?? ''} ${card.tags.join(' ')} ${card.snippet}`.toLowerCase();
-				if (!qs.every((p) => hay.includes(p))) return false;
-			}
+			if (qs.length && !qs.every((p) => card.searchText.includes(p))) return false;
 			return true;
 		});
-		if (sort !== 'created-desc') result.sort(sortCards(sort));
+		const cmp = sortCards(sort);
+		// 置顶优先，其余按选定排序
+		result.sort((a, b) => {
+			if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+			return cmp(a, b);
+		});
 		return result;
+	}
+
+	/** 统计某个卡片盒当前抓取到的卡片数（用于盒切换器角标） */
+	countBox(box: CardBoxDef, showArchived: boolean): number {
+		const now = Date.now();
+		let n = 0;
+		for (const card of this.all()) {
+			if (!showArchived && card.archived) continue;
+			if (!cardMatchesBox(card, box, now)) continue;
+			n++;
+		}
+		return n;
 	}
 
 	/** 批量操作后手动刷新（事件可能漏掉时兜底） */
@@ -255,7 +276,9 @@ export class CardIndex {
 		if (f.noTag && card.tags.length > 0) return false;
 		if (f.emptyContent && card.snippet.trim() !== '') return false;
 		if (f.hasTaskList && !card.hasTaskList) return false;
+		if (f.pinnedOnly && !card.pinned) return false;
 		if (!f.showArchived && card.archived) return false;
+		if (f.selectedColors.size && (card.color === undefined || !f.selectedColors.has(card.color))) return false;
 		if (f.selectedTags.size) {
 			let ok = false;
 			for (const sel of f.selectedTags) {

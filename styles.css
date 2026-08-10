@@ -579,3 +579,526 @@ body.is-mobile .cardbox-selectionbar .btn {
 body.is-mobile .cardbox-capture-input {
 	font-size: 16px;
 }
+
+/* ===== 卡片盒切换栏 ===== */
+
+.cardbox-boxbar {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.cardbox-boxbar-scroll {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+}
+
+.cardbox-boxbar-scroll::-webkit-scrollbar {
+	display: none;
+}
+
+.cardbox-boxtab {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: none;
+	padding: 5px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	user-select: none;
+	-webkit-touch-callout: none;
+	white-space: nowrap;
+	min-height: 30px;
+}
+
+.cardbox-boxtab.is-active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.cardbox-boxtab-count {
+	font-size: 11px;
+	padding: 0 5px;
+	border-radius: 999px;
+	background: var(--background-modifier-hover);
+	color: var(--text-faint);
+}
+
+.cardbox-boxtab.is-active .cardbox-boxtab-count {
+	background: rgba(255, 255, 255, 0.25);
+	color: var(--text-on-accent);
+}
+
+.cardbox-boxbar-add {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: 30px;
+	height: 30px;
+	border-radius: var(--radius-s);
+	border: 1px dashed var(--background-modifier-border-hover);
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.cardbox-boxbar-add:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+body.is-mobile .cardbox-boxtab,
+body.is-mobile .cardbox-boxbar-add {
+	min-height: 40px;
+	font-size: 13px;
+}
+
+/* ===== 卡片颜色（眉头颜色） ===== */
+
+.cardbox-color-red {
+	--cardbox-color: var(--color-red, #e05252);
+}
+.cardbox-color-orange {
+	--cardbox-color: var(--color-orange, #e0892f);
+}
+.cardbox-color-yellow {
+	--cardbox-color: var(--color-yellow, #d9b42c);
+}
+.cardbox-color-green {
+	--cardbox-color: var(--color-green, #3fa653);
+}
+.cardbox-color-blue {
+	--cardbox-color: var(--color-blue, #3a7fd5);
+}
+.cardbox-color-purple {
+	--cardbox-color: var(--color-purple, #8a5cd9);
+}
+.cardbox-color-gray {
+	--cardbox-color: var(--text-faint, #8d8d8d);
+}
+
+/* 卡片顶部颜色条 */
+.cardbox-tile-colorbar {
+	height: 4px;
+	border-radius: var(--radius-m) var(--radius-m) 0 0;
+	background: var(--cardbox-color);
+}
+
+.cardbox-tile.is-pinned {
+	border-color: var(--interactive-accent);
+}
+
+.cardbox-tile-icon.is-pin {
+	color: var(--interactive-accent);
+}
+
+/* 颜色选择点 */
+.cardbox-color-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+}
+
+.cardbox-color-dot {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: var(--cardbox-color);
+	border: 2px solid transparent;
+	cursor: pointer;
+	flex: none;
+}
+
+.cardbox-color-dot.is-selected {
+	border-color: var(--text-normal);
+	transform: scale(1.12);
+}
+
+body.is-mobile .cardbox-color-dot {
+	width: 30px;
+	height: 30px;
+}
+
+/* 扩展卡片数量角标 */
+.cardbox-child-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	border-radius: 999px;
+	background: var(--color-red, #e05252);
+	color: #fff;
+	font-size: 11px;
+	line-height: 1;
+}
+
+/* 扩展卡片指向主卡的箭头 */
+.cardbox-tile-parent {
+	font-size: 11px;
+	color: var(--text-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ===== 瀑布流平铺（PC 端多列） =====
+   用 grid 而非 CSS columns：columns 在固定高度的滚动容器内会横向分页，
+   导致卡片向右溢出而不是向下滚动。grid 始终纵向增长，滚动行为正确。 */
+
+.cardbox-list.is-masonry {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(var(--cardbox-col-min, 260px), 1fr));
+	gap: 10px;
+	align-content: start;
+}
+
+.cardbox-list.is-masonry .cardbox-tile {
+	margin-left: 0;
+	margin-bottom: 0;
+	align-self: start;
+}
+
+/* 底部哨兵占满一行，保证增量加载的 IntersectionObserver 正常触发 */
+.cardbox-list.is-masonry .cardbox-sentinel {
+	grid-column: 1 / -1;
+}
+
+/* 时间轴分组在平铺模式下也占满整行 */
+.cardbox-list.is-masonry .cardbox-day-group {
+	grid-column: 1 / -1;
+}
+
+.cardbox-tile.is-rich .cardbox-tile-title {
+	-webkit-line-clamp: 3;
+}
+
+.cardbox-tile.is-rich .cardbox-tile-snippet {
+	-webkit-line-clamp: 8;
+	font-size: 12px;
+}
+
+/* 窄屏（含手机）强制单列 */
+@media (max-width: 520px) {
+	.cardbox-list.is-masonry {
+		grid-template-columns: 1fr;
+	}
+}
+
+body.is-mobile .cardbox-list.is-masonry {
+	grid-template-columns: 1fr;
+}
+
+/* ===== 卡片盒设置弹窗 ===== */
+
+.cardbox-box-modal .cardbox-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 0 10px;
+}
+
+.cardbox-box-timedetail {
+	margin-bottom: 4px;
+}
+
+.cardbox-box-hint {
+	margin: 8px 0 0;
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+.cardbox-box-empty-hint {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+/* ===== 卡片选择器 ===== */
+
+.cardbox-card-picker {
+	max-height: 50vh;
+	overflow-y: auto;
+	margin-top: 8px;
+}
+
+.cardbox-picker-row {
+	padding: 8px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	margin-bottom: 6px;
+	cursor: pointer;
+}
+
+.cardbox-picker-row.has-color {
+	border-left: 3px solid var(--cardbox-color);
+}
+
+@media (hover: hover) {
+	.cardbox-picker-row:hover {
+		background: var(--background-modifier-hover);
+	}
+}
+
+.cardbox-picker-title {
+	font-size: 13px;
+	color: var(--text-normal);
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.cardbox-picker-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+/* ===== 卡片扩展同屏视图 ===== */
+
+.cardbox-extend-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+	padding: 0;
+}
+
+.cardbox-extend-bar {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.cardbox-extend-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	min-height: 32px;
+	padding: 4px 10px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.cardbox-extend-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.cardbox-extend-btn.mod-cta {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.cardbox-extend-btn-icon {
+	display: inline-flex;
+}
+
+.cardbox-extend-btn-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* 同屏布局：主卡片 + 扩展卡片 */
+.cardbox-extend-wrap {
+	flex: 1;
+	display: flex;
+	gap: 12px;
+	overflow: hidden;
+	padding: 10px;
+}
+
+.cardbox-extend-main {
+	flex: 0 0 300px;
+	min-width: 0;
+	overflow-y: auto;
+}
+
+.cardbox-extend-children {
+	flex: 1;
+	min-width: 0;
+	overflow-y: auto;
+}
+
+.cardbox-extend-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-muted);
+	margin-bottom: 6px;
+}
+
+.cardbox-extend-hint {
+	font-size: 11px;
+	color: var(--text-faint);
+	margin-bottom: 8px;
+}
+
+.cardbox-extend-panel {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	margin-bottom: 8px;
+	overflow: hidden;
+}
+
+.cardbox-extend-panel.has-color {
+	border-left: 3px solid var(--cardbox-color);
+}
+
+.cardbox-extend-panel.is-root {
+	border-color: var(--interactive-accent);
+	background: var(--background-secondary);
+}
+
+.cardbox-extend-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 4px;
+	padding: 8px;
+}
+
+.cardbox-extend-head.is-draggable {
+	cursor: grab;
+	touch-action: none;
+}
+
+.cardbox-extend-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	flex: none;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.cardbox-extend-toggle:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.cardbox-extend-titlewrap {
+	flex: 1;
+	min-width: 0;
+}
+
+.cardbox-extend-title {
+	font-size: 13px;
+	color: var(--text-normal);
+	line-height: 1.4;
+	word-break: break-word;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.cardbox-extend-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+.cardbox-extend-body {
+	padding: 8px 10px 10px 38px;
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--text-muted);
+	white-space: pre-wrap;
+	word-break: break-word;
+	border-top: 1px solid var(--background-modifier-border);
+	cursor: text;
+	max-height: 40vh;
+	overflow-y: auto;
+}
+
+/* 分支缩进与连线*/
+.cardbox-extend-branch {
+	position: relative;
+	padding-left: calc(var(--depth, 0) * 16px);
+}
+
+.cardbox-extend-sublist {
+	padding-left: 16px;
+	border-left: 1px dashed var(--background-modifier-border-hover);
+	margin-left: 12px;
+}
+
+.cardbox-extend-branch.is-dragging {
+	opacity: 0.6;
+}
+
+.cardbox-extend-list.is-sorting .cardbox-extend-panel {
+	transition: transform 0.12s ease;
+}
+
+/* 移动端：主卡与扩展卡上下堆叠 */
+@media (max-width: 720px) {
+	.cardbox-extend-wrap {
+		flex-direction: column;
+		overflow-y: auto;
+	}
+
+	.cardbox-extend-main {
+		flex: none;
+		overflow: visible;
+	}
+
+	.cardbox-extend-children {
+		overflow: visible;
+	}
+}
+
+body.is-mobile .cardbox-extend-wrap {
+	flex-direction: column;
+	overflow-y: auto;
+}
+
+body.is-mobile .cardbox-extend-main,
+body.is-mobile .cardbox-extend-children {
+	flex: none;
+	overflow: visible;
+}
+
+body.is-mobile .cardbox-extend-btn,
+body.is-mobile .cardbox-extend-toggle {
+	min-height: 40px;
+}
+

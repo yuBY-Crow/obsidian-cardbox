@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => CardBoxPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -47,13 +47,15 @@ var i18n = {
   indexing: "\u7D22\u5F15\u4E2D\u2026",
   empty: "\u8FD8\u6CA1\u6709\u5361\u7247\u3002\u70B9\u51FB\u300C+\u300D\u6216\u4F7F\u7528\u300C\u5FEB\u901F\u8BB0\u5F55\u5361\u7247\u300D\u547D\u4EE4\u5F00\u59CB\u6536\u96C6\u7075\u611F\u3002",
   noMatch: "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u5361\u7247",
-  cardMode: "\u5361\u7247",
+  cardMode: "\u5217\u8868",
+  masonryMode: "\u5E73\u94FA",
   timelineMode: "\u65F6\u95F4\u7EBF",
   searchPlaceholder: "\u641C\u7D22\u5361\u7247\u2026",
   hasTag: "\u6709\u6807\u7B7E",
   noTag: "\u65E0\u6807\u7B7E",
   emptyContent: "\u7A7A\u5185\u5BB9",
   hasTask: "\u542B\u4EFB\u52A1",
+  pinnedOnly: "\u4EC5\u7F6E\u9876",
   showArchived: "\u542B\u5F52\u6863",
   moreTags: "\uFF0B\u6807\u7B7E",
   selectedCount: (n) => `\u5DF2\u9009 ${n}`,
@@ -66,14 +68,84 @@ var i18n = {
   more: "\u66F4\u591A\u64CD\u4F5C",
   // 卡片操作菜单
   edit: "\u7F16\u8F91",
-  addChild: "\u521B\u5EFA\u5B50\u5361\u7247",
+  addChild: "\u521B\u5EFA\u6269\u5C55\u5361\u7247",
+  linkExisting: "\u5173\u8054\u5DF2\u6709\u5361\u7247",
   tag: "\u6253\u6807\u7B7E",
   archive: "\u5F52\u6863",
   unarchive: "\u53D6\u6D88\u5F52\u6863",
   delete: "\u5220\u9664",
-  expandChildren: "\u5C55\u5F00\u5B50\u5361\u7247",
-  collapseChildren: "\u6536\u8D77\u5B50\u5361\u7247",
-  childCount: (n) => `${n} \u5F20\u5B50\u5361\u7247`,
+  expandChildren: "\u5C55\u5F00\u6269\u5C55\u5361\u7247",
+  collapseChildren: "\u6536\u8D77\u6269\u5C55\u5361\u7247",
+  childCount: (n) => `${n} \u5F20\u6269\u5C55\u5361\u7247`,
+  colorLabel: "\u7709\u5934\u989C\u8272",
+  colorClear: "\u6E05\u9664\u989C\u8272",
+  pin: "\u7F6E\u9876",
+  unpin: "\u53D6\u6D88\u7F6E\u9876",
+  openExtendView: "\u5728\u6269\u5C55\u89C6\u56FE\u4E2D\u6253\u5F00",
+  sendToCanvas: "\u6295\u653E\u5230\u767D\u677F\uFF08Canvas\uFF09",
+  // 颜色名
+  colorNames: {
+    red: "\u7EA2",
+    orange: "\u6A59",
+    yellow: "\u9EC4",
+    green: "\u7EFF",
+    blue: "\u84DD",
+    purple: "\u7D2B",
+    gray: "\u7070"
+  },
+  // 卡片盒
+  boxAll: "\u5168\u90E8\u5361\u7247",
+  boxNew: "\u65B0\u5EFA\u5361\u7247\u76D2",
+  boxEditTitle: "\u5361\u7247\u76D2\u8BBE\u7F6E",
+  boxNameLabel: "\u5361\u7247\u76D2\u540D\u79F0",
+  boxNamePlaceholder: "\u4F8B\u5982 \u8BFB\u4E66\u7B14\u8BB0",
+  boxTimeLabel: "\u5361\u7247\u65F6\u95F4",
+  boxTimeAny: "\u4E0D\u9650",
+  boxTimeDynamic: "\u52A8\u6001\uFF08\u6700\u8FD1 N \u5929\uFF09",
+  boxTimeStatic: "\u9759\u6001\uFF08\u56FA\u5B9A\u533A\u95F4\uFF09",
+  boxLastDaysLabel: "\u6700\u8FD1\u5929\u6570",
+  boxFromLabel: "\u8D77\u59CB\u65E5\u671F",
+  boxToLabel: "\u7ED3\u675F\u65E5\u671F",
+  boxDatePlaceholder: "YYYY-MM-DD",
+  boxTagsLabel: "\u6807\u7B7E\uFF08\u547D\u4E2D\u4EFB\u4E00\uFF09",
+  boxKeywordsLabel: "\u5173\u952E\u5B57",
+  boxKeywordsPlaceholder: "\u8F93\u5165\u5173\u952E\u5B57\u540E\u56DE\u8F66",
+  boxKeywordMatchLabel: "\u5173\u952E\u5B57\u5173\u7CFB",
+  boxKeywordAny: "\u547D\u4E2D\u4EFB\u4E00",
+  boxKeywordAll: "\u5168\u90E8\u547D\u4E2D",
+  boxColorsLabel: "\u8272\u5F69\u5361\u7247",
+  boxPinnedOnlyLabel: "\u4EC5\u6536\u5F55\u7F6E\u9876\u5361\u7247",
+  boxSave: "\u4FDD\u5B58",
+  boxDelete: "\u5220\u9664\u6B64\u5361\u7247\u76D2",
+  boxRename: "\u7F16\u8F91\u5361\u7247\u76D2",
+  boxHintAllEmpty: "\u672A\u8BBE\u7F6E\u4EFB\u4F55\u6761\u4EF6\u65F6\uFF0C\u6B64\u76D2\u7B49\u540C\u4E8E\u5168\u90E8\u5361\u7247\u3002",
+  boxDeleted: (name) => `\u5DF2\u5220\u9664\u5361\u7247\u76D2\uFF1A${name}`,
+  boxSaved: (name) => `\u5DF2\u4FDD\u5B58\u5361\u7247\u76D2\uFF1A${name}`,
+  boxNameRequired: "\u8BF7\u586B\u5199\u5361\u7247\u76D2\u540D\u79F0",
+  boxCount: (n) => `${n}`,
+  confirmDeleteBox: (name) => `\u786E\u5B9A\u5220\u9664\u5361\u7247\u76D2\u300C${name}\u300D\u5417\uFF1F\u5361\u7247\u672C\u8EAB\u4E0D\u4F1A\u88AB\u5220\u9664\u3002`,
+  // 扩展视图
+  extendViewTitle: "\u5361\u7247\u6269\u5C55",
+  extendNoParent: "\u8BF7\u4ECE\u5361\u7247\u76D2\u4E2D\u9009\u62E9\u4E00\u5F20\u4E3B\u5361\u7247\uFF0C\u8FDB\u5165\u6269\u5C55\u89C6\u56FE\u3002",
+  extendMainCard: "\u4E3B\u5361\u7247",
+  extendChildren: "\u6269\u5C55\u5361\u7247",
+  extendEmpty: "\u8FD9\u5F20\u4E3B\u5361\u7247\u8FD8\u6CA1\u6709\u6269\u5C55\u5361\u7247\u3002",
+  extendAddChild: "\u65B0\u5EFA\u6269\u5C55\u5361\u7247",
+  extendLink: "\u5173\u8054\u5DF2\u6709\u5361\u7247",
+  extendUnlink: "\u89E3\u9664\u5173\u8054",
+  extendGenerate: "\u751F\u6210\u6587\u7AE0",
+  extendBackToBox: "\u8FD4\u56DE\u5361\u7247\u76D2",
+  extendDragHint: "\u62D6\u62FD\u5361\u7247\u6807\u9898\u53EF\u8C03\u6574\u987A\u5E8F",
+  extendUnlinked: "\u5DF2\u89E3\u9664\u5173\u8054",
+  extendReordered: "\u987A\u5E8F\u5DF2\u4FDD\u5B58",
+  extendToggleFull: "\u5C55\u5F00/\u6536\u8D77\u5168\u6587",
+  extendParentArrow: (title) => `\u2191 ${title}`,
+  // Canvas
+  canvasCreated: (name) => `\u5DF2\u751F\u6210\u767D\u677F\uFF1A${name}`,
+  canvasNoCards: "\u8BF7\u5148\u9009\u62E9\u5361\u7247",
+  canvasMergeFromCanvas: "\u5C06\u5F53\u524D\u767D\u677F\u5361\u7247\u5408\u5E76\u4E3A\u6587\u7AE0",
+  canvasNotCanvasView: "\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A Canvas \u767D\u677F",
+  canvasNoCardNodes: "\u5F53\u524D\u767D\u677F\u4E2D\u6CA1\u6709\u5361\u7247\u8282\u70B9",
   // 时间
   today: "\u4ECA\u5929",
   yesterday: "\u6628\u5929",
@@ -86,7 +158,7 @@ var i18n = {
   save: "\u4FDD\u5B58",
   cancel: "\u53D6\u6D88",
   emptyCaptureHint: "\u5185\u5BB9\u4E3A\u7A7A\uFF0C\u672A\u4FDD\u5B58",
-  childCapturePlaceholder: "\u8F93\u5165\u5B50\u5361\u7247\u5185\u5BB9\u2026",
+  childCapturePlaceholder: "\u8F93\u5165\u6269\u5C55\u5361\u7247\u5185\u5BB9\u2026",
   // 合并成文
   mergeTitle: "\u5408\u5E76\u4E3A\u6587\u7AE0",
   articleTitleLabel: "\u6587\u7AE0\u6807\u9898",
@@ -113,6 +185,10 @@ var i18n = {
   cardsFolderDesc: "\u5361\u7247\u7B14\u8BB0\u5B58\u653E\u7684\u6587\u4EF6\u5939\uFF08\u76F8\u5BF9 Vault \u6839\uFF0C\u65E0\u9700\u9996\u5C3E\u659C\u6760\uFF09\u3002\u6539\u52A8\u540E\u81EA\u52A8\u91CD\u5EFA\u7D22\u5F15\u3002",
   mergeFolderName: "\u5408\u5E76\u8F93\u51FA\u6587\u4EF6\u5939",
   mergeFolderDesc: "\u300C\u5408\u5E76\u4E3A\u6587\u7AE0\u300D\u751F\u6210\u7684\u65B0\u7B14\u8BB0\u5B58\u653E\u4F4D\u7F6E\u3002",
+  canvasFolderName: "\u767D\u677F\u8F93\u51FA\u6587\u4EF6\u5939",
+  canvasFolderDesc: "\u300C\u6295\u653E\u5230\u767D\u677F\u300D\u751F\u6210\u7684 .canvas \u6587\u4EF6\u5B58\u653E\u4F4D\u7F6E\u3002",
+  masonryWidthName: "\u5E73\u94FA\u6700\u5C0F\u5217\u5BBD",
+  masonryWidthDesc: "PC \u7AEF\u5E73\u94FA\u89C6\u56FE\u7684\u6BCF\u5217\u6700\u5C0F\u5BBD\u5EA6\uFF08px\uFF09\uFF0C\u8D8A\u5C0F\u5217\u6570\u8D8A\u591A\u3002\u7A84\u5C4F\u4F1A\u81EA\u52A8\u964D\u4E3A\u5355\u5217\u3002",
   defaultTagsName: "\u65B0\u5EFA\u5361\u7247\u9ED8\u8BA4\u6807\u7B7E",
   viewModeName: "\u9ED8\u8BA4\u89C6\u56FE",
   sortName: "\u9ED8\u8BA4\u6392\u5E8F",
@@ -138,13 +214,17 @@ var i18n = {
 var DEFAULT_SETTINGS = {
   cardsFolder: "Cards",
   mergeOutputFolder: "Cards",
+  canvasOutputFolder: "Cards",
   filenameFormat: "datetime",
   defaultTags: [],
   defaultViewMode: "card",
   defaultSort: "created-desc",
   continuousCaptureDefault: true,
   showArchived: false,
-  archiveMethod: "flag"
+  archiveMethod: "flag",
+  boxes: [],
+  activeBoxId: "",
+  masonryMinColumnWidth: 260
 };
 var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, access) {
@@ -169,6 +249,12 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.access.saveSettings();
       });
     });
+    new import_obsidian.Setting(containerEl).setName(i18n.canvasFolderName).setDesc(i18n.canvasFolderDesc).addText((text) => {
+      text.setPlaceholder(i18n.folderPlaceholder).setValue(s.canvasOutputFolder).onChange(async (value) => {
+        s.canvasOutputFolder = value.trim().replace(/^\/+|\/+$/g, "");
+        await this.access.saveSettings();
+      });
+    });
     new import_obsidian.Setting(containerEl).setName(i18n.defaultTagsName).addText((text) => {
       text.setPlaceholder(i18n.tagInputPlaceholder);
       text.inputEl.addEventListener("keydown", (e) => {
@@ -185,8 +271,17 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
     this.tagsEl = containerEl.createDiv({ cls: "cardbox-setting-tags" });
     this.renderTags();
     new import_obsidian.Setting(containerEl).setName(i18n.viewModeName).addDropdown((dd) => {
-      dd.addOption("card", i18n.cardMode).addOption("timeline", i18n.timelineMode).setValue(s.defaultViewMode).onChange(async (v) => {
+      dd.addOption("card", i18n.cardMode).addOption("masonry", i18n.masonryMode).addOption("timeline", i18n.timelineMode).setValue(s.defaultViewMode).onChange(async (v) => {
         s.defaultViewMode = v;
+        await this.access.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName(i18n.masonryWidthName).setDesc(i18n.masonryWidthDesc).addText((text) => {
+      text.inputEl.type = "number";
+      text.inputEl.min = "160";
+      text.setValue(String(s.masonryMinColumnWidth)).onChange(async (v) => {
+        const n = Number(v);
+        s.masonryMinColumnWidth = isFinite(n) && n >= 160 ? Math.floor(n) : 260;
         await this.access.saveSettings();
       });
     });
@@ -227,6 +322,34 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
 
 // src/frontmatter.ts
 var import_obsidian2 = require("obsidian");
+
+// src/types.ts
+var CARD_COLORS = ["red", "orange", "yellow", "green", "blue", "purple", "gray"];
+function defaultBoxDef(id, name) {
+  return {
+    id,
+    name,
+    time: { mode: "any" },
+    tags: [],
+    keywords: [],
+    keywordMatch: "any",
+    colors: [],
+    pinnedOnly: false
+  };
+}
+function defaultFilterState(settings) {
+  return {
+    query: "",
+    selectedTags: /* @__PURE__ */ new Set(),
+    selectedColors: /* @__PURE__ */ new Set(),
+    hasTag: false,
+    noTag: false,
+    emptyContent: false,
+    hasTaskList: false,
+    pinnedOnly: false,
+    showArchived: settings.showArchived
+  };
+}
 
 // src/utils/format.ts
 function pad2(n) {
@@ -293,6 +416,7 @@ function normalizeTags(tags) {
 
 // src/frontmatter.ts
 var SNIPPET_LENGTH = 200;
+var SEARCH_TEXT_LENGTH = 4e3;
 function splitFrontmatter(content) {
   const m = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(content);
   if (m) {
@@ -325,6 +449,11 @@ function numOr(v, fallback, now) {
     if (isFinite(num)) return num;
   }
   return isFinite(fallback) ? fallback : now;
+}
+function parseColor(v) {
+  if (typeof v !== "string") return void 0;
+  const c = v.trim().toLowerCase();
+  return CARD_COLORS.includes(c) ? c : void 0;
 }
 var CardService = class {
   constructor(app, getCardsFolder) {
@@ -361,17 +490,22 @@ var CardService = class {
   }
   buildCard(file, data, body) {
     const trimmed = body.trim();
+    const title = data && typeof data.title === "string" && data.title.trim() ? data.title.trim() : void 0;
+    const tags = normalizeTags(data == null ? void 0 : data.tags);
     return {
       id: deriveId(data, file.name),
       path: file.path,
-      title: data && typeof data.title === "string" && data.title.trim() ? data.title.trim() : void 0,
-      tags: normalizeTags(data == null ? void 0 : data.tags),
+      title,
+      tags,
       created: numOr(data == null ? void 0 : data.created, file.stat.ctime, Date.now()),
       updated: numOr(data == null ? void 0 : data.updated, file.stat.mtime, Date.now()),
       parent: data && typeof data.parent === "string" && data.parent.trim() ? data.parent.trim() : void 0,
       children: Array.isArray(data == null ? void 0 : data.children) ? data.children.filter((c) => typeof c === "string") : [],
       archived: (data == null ? void 0 : data.archived) === true,
+      color: parseColor(data == null ? void 0 : data.color),
+      pinned: (data == null ? void 0 : data.pinned) === true,
       snippet: trimmed.slice(0, SNIPPET_LENGTH),
+      searchText: `${title != null ? title : ""} ${tags.join(" ")} ${trimmed}`.slice(0, SEARCH_TEXT_LENGTH).toLowerCase(),
       hasTaskList: /^\s*[-*] \[[ xX]\]/m.test(body),
       mtime: file.stat.mtime
     };
@@ -422,7 +556,31 @@ var CardService = class {
       if (file) await this.app.vault.trash(file, false);
     }
   }
-  /** 在父卡片 frontmatter 中登记子卡片 */
+  /** 批量设置眉头颜色；color 传 null 表示清除标记 */
+  async setColor(cards, color) {
+    for (const card of cards) {
+      const file = this.getFile(card.path);
+      if (!file) continue;
+      await this.app.fileManager.processFrontMatter(file, (fm) => {
+        if (color === null) delete fm.color;
+        else fm.color = color;
+        fm.updated = Date.now();
+      });
+    }
+  }
+  /** 批量置顶 / 取消置顶 */
+  async setPinned(cards, pinned) {
+    for (const card of cards) {
+      const file = this.getFile(card.path);
+      if (!file) continue;
+      await this.app.fileManager.processFrontMatter(file, (fm) => {
+        if (pinned) fm.pinned = true;
+        else delete fm.pinned;
+        fm.updated = Date.now();
+      });
+    }
+  }
+  /** 在父卡片frontmatter 中登记子卡片 */
   async addChild(parent, child) {
     const file = this.getFile(parent.path);
     if (!file) return;
@@ -430,6 +588,47 @@ var CardService = class {
       const children = Array.isArray(fm.children) ? fm.children.filter((c) => typeof c === "string") : [];
       if (!children.includes(child.id)) children.push(child.id);
       fm.children = children;
+      fm.updated = Date.now();
+    });
+  }
+  /**
+   * 关联一张已存在的卡片为扩展卡片：
+   * 双向写入（父登记 children，子登记 parent），保证列表与扩展视图一致。
+   */
+  async linkChild(parent, child) {
+    if (parent.id === child.id) return;
+    await this.addChild(parent, child);
+    const childFile = this.getFile(child.path);
+    if (!childFile) return;
+    await this.app.fileManager.processFrontMatter(childFile, (fm) => {
+      fm.parent = parent.id;
+      fm.updated = Date.now();
+    });
+  }
+  /** 解除关联：父移除 children 项，子清空 parent */
+  async unlinkChild(parent, child) {
+    const parentFile = this.getFile(parent.path);
+    if (parentFile) {
+      await this.app.fileManager.processFrontMatter(parentFile, (fm) => {
+        const children = Array.isArray(fm.children) ? fm.children.filter((c) => typeof c === "string") : [];
+        fm.children = children.filter((id) => id !== child.id);
+        fm.updated = Date.now();
+      });
+    }
+    const childFile = this.getFile(child.path);
+    if (childFile) {
+      await this.app.fileManager.processFrontMatter(childFile, (fm) => {
+        delete fm.parent;
+        fm.updated = Date.now();
+      });
+    }
+  }
+  /** 覆写父卡片的 children 顺序（扩展视图拖拽排序用） */
+  async reorderChildren(parent, orderedIds) {
+    const file = this.getFile(parent.path);
+    if (!file) return;
+    await this.app.fileManager.processFrontMatter(file, (fm) => {
+      fm.children = orderedIds;
       fm.updated = Date.now();
     });
   }
@@ -453,6 +652,60 @@ var CardService = class {
 
 // src/index.ts
 var import_obsidian3 = require("obsidian");
+
+// src/boxes.ts
+function newBoxId() {
+  return `box-${generateId()}`;
+}
+function parseDayStart(s) {
+  if (!s) return void 0;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+  if (!m) return void 0;
+  const ts = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0).getTime();
+  return isFinite(ts) ? ts : void 0;
+}
+function parseDayEnd(s) {
+  const start = parseDayStart(s);
+  return start === void 0 ? void 0 : start + 864e5 - 1;
+}
+function resolveTimeWindow(def, now = Date.now()) {
+  var _a, _b;
+  const t = def.time;
+  if (t.mode === "dynamic") {
+    const days = Math.max(1, Math.floor((_a = t.lastDays) != null ? _a : 7));
+    const todayStart = (_b = parseDayStart(toDayKey(now))) != null ? _b : now;
+    return { from: todayStart - (days - 1) * 864e5 };
+  }
+  if (t.mode === "static") {
+    return { from: parseDayStart(t.from), to: parseDayEnd(t.to) };
+  }
+  return {};
+}
+function matchesTags(card, tags) {
+  if (!tags.length) return true;
+  return tags.some((sel) => card.tags.some((t) => t === sel || t.startsWith(sel + "/")));
+}
+function matchesKeywords(card, keywords, mode) {
+  const kws = keywords.map((k) => k.trim().toLowerCase()).filter(Boolean);
+  if (!kws.length) return true;
+  return mode === "all" ? kws.every((k) => card.searchText.includes(k)) : kws.some((k) => card.searchText.includes(k));
+}
+function matchesColors(card, colors) {
+  if (!colors.length) return true;
+  return card.color !== void 0 && colors.includes(card.color);
+}
+function cardMatchesBox(card, def, now = Date.now()) {
+  if (def.pinnedOnly && !card.pinned) return false;
+  const { from, to } = resolveTimeWindow(def, now);
+  if (from !== void 0 && card.created < from) return false;
+  if (to !== void 0 && card.created > to) return false;
+  if (!matchesTags(card, def.tags)) return false;
+  if (!matchesKeywords(card, def.keywords, def.keywordMatch)) return false;
+  if (!matchesColors(card, def.colors)) return false;
+  return true;
+}
+
+// src/index.ts
 var SCAN_CONCURRENCY = 10;
 var UPDATE_BUMP_THRESHOLD_MS = 1e3;
 var UPDATE_BUMP_COOLDOWN_MS = 1500;
@@ -644,19 +897,36 @@ var CardIndex = class {
     out.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "zh"));
     return out;
   }
-  search(query, filter, sort) {
+  /**
+   * 主查询：卡片盒条件 → 筛选条件 → 关键字 → 排序。
+   * 置顶卡片恒定悬浮在结果最前（Writeathon 的「卡片置顶」语义）。
+   */
+  search(query, filter, sort, box) {
     const qs = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const now = Date.now();
     const result = this.all().filter((card) => {
-      var _a;
+      if (box && !cardMatchesBox(card, box, now)) return false;
       if (!this.matchesFilter(card, filter)) return false;
-      if (qs.length) {
-        const hay = `${(_a = card.title) != null ? _a : ""} ${card.tags.join(" ")} ${card.snippet}`.toLowerCase();
-        if (!qs.every((p) => hay.includes(p))) return false;
-      }
+      if (qs.length && !qs.every((p) => card.searchText.includes(p))) return false;
       return true;
     });
-    if (sort !== "created-desc") result.sort(sortCards(sort));
+    const cmp = sortCards(sort);
+    result.sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return cmp(a, b);
+    });
     return result;
+  }
+  /** 统计某个卡片盒当前抓取到的卡片数（用于盒切换器角标） */
+  countBox(box, showArchived) {
+    const now = Date.now();
+    let n = 0;
+    for (const card of this.all()) {
+      if (!showArchived && card.archived) continue;
+      if (!cardMatchesBox(card, box, now)) continue;
+      n++;
+    }
+    return n;
   }
   /** 批量操作后手动刷新（事件可能漏掉时兜底） */
   refreshPaths(paths) {
@@ -675,7 +945,9 @@ var CardIndex = class {
     if (f.noTag && card.tags.length > 0) return false;
     if (f.emptyContent && card.snippet.trim() !== "") return false;
     if (f.hasTaskList && !card.hasTaskList) return false;
+    if (f.pinnedOnly && !card.pinned) return false;
     if (!f.showArchived && card.archived) return false;
+    if (f.selectedColors.size && (card.color === void 0 || !f.selectedColors.has(card.color))) return false;
     if (f.selectedTags.size) {
       let ok = false;
       for (const sel of f.selectedTags) {
@@ -718,29 +990,16 @@ function sortCards(sort) {
 }
 
 // src/view/CardBoxView.ts
-var import_obsidian9 = require("obsidian");
-
-// src/types.ts
-function defaultFilterState(settings) {
-  return {
-    query: "",
-    selectedTags: /* @__PURE__ */ new Set(),
-    hasTag: false,
-    noTag: false,
-    emptyContent: false,
-    hasTaskList: false,
-    showArchived: settings.showArchived
-  };
-}
+var import_obsidian12 = require("obsidian");
 
 // src/view/CardTile.ts
 var import_obsidian4 = require("obsidian");
 var HOLD_MS = 500;
 function firstLine(s) {
-  const line = s.split("\n")[0].trim();
-  return line;
+  return s.split("\n")[0].trim();
 }
 function buildCardTile(opts) {
+  var _a;
   const { card } = opts;
   const el = createDiv({ cls: "cardbox-tile" });
   el.setAttribute("data-card-id", card.id);
@@ -748,6 +1007,10 @@ function buildCardTile(opts) {
   if (card.archived) el.addClass("is-archived");
   if (opts.depth > 0) el.addClass("is-child");
   if (opts.selected) el.addClass("is-selected");
+  if (opts.rich) el.addClass("is-rich");
+  if (card.pinned) el.addClass("is-pinned");
+  if (card.color) el.addClass(`has-color cardbox-color-${card.color}`);
+  if (card.color) el.createDiv({ cls: "cardbox-tile-colorbar" });
   const main = el.createDiv({ cls: "cardbox-tile-main" });
   if (opts.hasVisibleChildren) {
     const expand = main.createEl("button", {
@@ -763,15 +1026,26 @@ function buildCardTile(opts) {
   const check = main.createDiv({ cls: "cardbox-check" });
   if (opts.selected) check.addClass("is-checked");
   const body = main.createDiv({ cls: "cardbox-tile-body" });
+  if (opts.parentTitle) {
+    body.createDiv({ cls: "cardbox-tile-parent", text: i18n.extendParentArrow(opts.parentTitle) });
+  }
   const textRow = body.createDiv({ cls: "cardbox-tile-text" });
   const line = firstLine(card.snippet);
   const titleEl = textRow.createSpan({ cls: "cardbox-tile-title" });
   titleEl.setText(card.title ? card.title : line || i18n.emptyContent);
   if (!card.title && !line) titleEl.addClass("is-empty");
-  if (card.title && card.snippet.trim()) {
+  if (opts.rich) {
+    const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(line.length).trim();
+    if (rest) body.createDiv({ cls: "cardbox-tile-snippet" }).setText(rest);
+  } else if (card.title && card.snippet.trim()) {
     body.createSpan({ cls: "cardbox-tile-snippet" }).setText(card.snippet.trim());
   }
   const iconRow = textRow.createSpan({ cls: "cardbox-tile-icons" });
+  if (card.pinned) {
+    const ic = iconRow.createSpan({ cls: "cardbox-tile-icon is-pin" });
+    (0, import_obsidian4.setIcon)(ic, "pin");
+    ic.setAttribute("aria-label", i18n.pin);
+  }
   if (card.hasTaskList) {
     const ic = iconRow.createSpan({ cls: "cardbox-tile-icon" });
     (0, import_obsidian4.setIcon)(ic, "list-checks");
@@ -787,6 +1061,11 @@ function buildCardTile(opts) {
     meta.createSpan({ cls: "cardbox-chip cardbox-chip-sm", text: `#${tag}` });
   }
   meta.createSpan({ cls: "cardbox-tile-time", text: formatRelativeTime(card.created) });
+  const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
+  if (childCount > 0) {
+    const badge = meta.createSpan({ cls: "cardbox-child-badge", text: String(childCount) });
+    badge.setAttribute("aria-label", i18n.childCount(childCount));
+  }
   const more = main.createEl("button", {
     cls: "cardbox-more-btn",
     attr: { "aria-label": i18n.more }
@@ -834,7 +1113,10 @@ function buildCardTile(opts) {
   });
   el.addEventListener("pointerup", clearPress);
   el.addEventListener("pointercancel", clearPress);
-  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    opts.onKebab(card, more);
+  });
   return el;
 }
 function updateTileSelection(el, selected) {
@@ -861,6 +1143,7 @@ var TOGGLE_DEFS = [
   { key: "noTag", label: i18n.noTag },
   { key: "emptyContent", label: i18n.emptyContent },
   { key: "hasTaskList", label: i18n.hasTask },
+  { key: "pinnedOnly", label: i18n.pinnedOnly },
   { key: "showArchived", label: i18n.showArchived }
 ];
 var FilterBar = class {
@@ -898,6 +1181,7 @@ var FilterBar = class {
       this.modeBtns.set(mode, btn);
     };
     mkModeBtn("card", i18n.cardMode);
+    mkModeBtn("masonry", i18n.masonryMode);
     mkModeBtn("timeline", i18n.timelineMode);
     const searchRow = el.createDiv({ cls: "cardbox-search-row" });
     this.searchInput = searchRow.createEl("input", {
@@ -913,6 +1197,8 @@ var FilterBar = class {
     });
     const scroll = el.createDiv({ cls: "cardbox-chips-scroll" });
     this.chipsRow = scroll.createDiv({ cls: "cardbox-chips" });
+    this.colorRow = el.createDiv({ cls: "cardbox-color-row cardbox-color-filter" });
+    this.renderColors();
     const toggles = el.createDiv({ cls: "cardbox-toggles" });
     for (const def of TOGGLE_DEFS) {
       const pill = toggles.createEl("button", { cls: "cardbox-pill", text: def.label });
@@ -964,11 +1250,99 @@ var FilterBar = class {
     const add = this.chipsRow.createSpan({ cls: "cardbox-chip cardbox-chip-add", text: i18n.moreTags });
     add.addEventListener("click", () => this.cb.onAddTag());
   }
+  renderColors() {
+    var _a;
+    this.colorRow.empty();
+    for (const color of CARD_COLORS) {
+      const dot = this.colorRow.createDiv({ cls: `cardbox-color-dot cardbox-color-${color}` });
+      dot.setAttribute("aria-label", (_a = i18n.colorNames[color]) != null ? _a : color);
+      dot.toggleClass("is-selected", this.filter.selectedColors.has(color));
+      dot.addEventListener("click", () => {
+        const c = color;
+        if (this.filter.selectedColors.has(c)) this.filter.selectedColors.delete(c);
+        else this.filter.selectedColors.add(c);
+        this.renderColors();
+        this.cb.onFilterChange();
+      });
+    }
+  }
   updateModeUI() {
     for (const [mode, btn] of this.modeBtns) btn.toggleClass("is-active", this.mode === mode);
   }
   updateToggleUI() {
     for (const [key, el] of this.toggleEls) el.toggleClass("is-active", this.filter[key]);
+  }
+};
+
+// src/view/BoxBar.ts
+var import_obsidian5 = require("obsidian");
+var BoxBar = class {
+  constructor(index, getBoxes, getActiveId, getShowArchived, cb) {
+    this.index = index;
+    this.getBoxes = getBoxes;
+    this.getActiveId = getActiveId;
+    this.getShowArchived = getShowArchived;
+    this.cb = cb;
+  }
+  build(container) {
+    this.el = container.createDiv({ cls: "cardbox-boxbar" });
+    this.scrollEl = this.el.createDiv({ cls: "cardbox-boxbar-scroll" });
+    const addBtn = this.el.createEl("button", {
+      cls: "cardbox-boxbar-add",
+      attr: { "aria-label": i18n.boxNew }
+    });
+    (0, import_obsidian5.setIcon)(addBtn, "plus");
+    addBtn.addEventListener("click", () => this.cb.onCreate());
+    this.refresh();
+    return this.el;
+  }
+  /** 重建盒标签（盒定义或索引变化后调用） */
+  refresh() {
+    if (!this.scrollEl) return;
+    this.scrollEl.empty();
+    const activeId = this.getActiveId();
+    const showArchived = this.getShowArchived();
+    const allTab = this.scrollEl.createDiv({ cls: "cardbox-boxtab" });
+    allTab.toggleClass("is-active", activeId === "");
+    allTab.createSpan({ cls: "cardbox-boxtab-name", text: i18n.boxAll });
+    const allCount = this.index.all().filter((c) => showArchived || !c.archived).length;
+    allTab.createSpan({ cls: "cardbox-boxtab-count", text: String(allCount) });
+    allTab.addEventListener("click", () => this.cb.onSelect(""));
+    for (const def of this.getBoxes()) {
+      const tab = this.scrollEl.createDiv({ cls: "cardbox-boxtab" });
+      const isActive = def.id === activeId;
+      tab.toggleClass("is-active", isActive);
+      tab.createSpan({ cls: "cardbox-boxtab-name", text: def.name });
+      tab.createSpan({
+        cls: "cardbox-boxtab-count",
+        text: String(this.index.countBox(def, showArchived))
+      });
+      tab.addEventListener("click", () => {
+        if (isActive) this.cb.onEdit(def);
+        else this.cb.onSelect(def.id);
+      });
+      let timer;
+      const clear = () => {
+        if (timer !== void 0) {
+          window.clearTimeout(timer);
+          timer = void 0;
+        }
+      };
+      tab.addEventListener("pointerdown", () => {
+        clear();
+        timer = window.setTimeout(() => {
+          timer = void 0;
+          this.cb.onEdit(def);
+        }, 500);
+      });
+      tab.addEventListener("pointerup", clear);
+      tab.addEventListener("pointercancel", clear);
+      tab.addEventListener("pointerleave", clear);
+      tab.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.cb.onEdit(def);
+      });
+    }
   }
 };
 
@@ -1018,8 +1392,8 @@ var IncrementalList = class {
 };
 
 // src/modals/ConfirmModal.ts
-var import_obsidian5 = require("obsidian");
-var ConfirmModal = class extends import_obsidian5.Modal {
+var import_obsidian6 = require("obsidian");
+var ConfirmModal = class extends import_obsidian6.Modal {
   constructor(app, opts) {
     super(app);
     this.opts = opts;
@@ -1032,8 +1406,8 @@ var ConfirmModal = class extends import_obsidian5.Modal {
     contentEl.addClass("cardbox-confirm");
     contentEl.createEl("p", { text: this.opts.message });
     const row = contentEl.createDiv({ cls: "cardbox-modal-actions" });
-    new import_obsidian5.ButtonComponent(row).setButtonText(i18n.cancel).onClick(() => this.close());
-    new import_obsidian5.ButtonComponent(row).setButtonText((_a = this.opts.confirmText) != null ? _a : i18n.confirm).setWarning().onClick(async () => {
+    new import_obsidian6.ButtonComponent(row).setButtonText(i18n.cancel).onClick(() => this.close());
+    new import_obsidian6.ButtonComponent(row).setButtonText((_a = this.opts.confirmText) != null ? _a : i18n.confirm).setWarning().onClick(async () => {
       await this.opts.onConfirm();
       this.close();
     });
@@ -1041,8 +1415,8 @@ var ConfirmModal = class extends import_obsidian5.Modal {
 };
 
 // src/modals/MergeModal.ts
-var import_obsidian6 = require("obsidian");
-var MergeModal = class extends import_obsidian6.Modal {
+var import_obsidian7 = require("obsidian");
+var MergeModal = class extends import_obsidian7.Modal {
   constructor(app, ctx, cards) {
     super(app);
     this.ctx = ctx;
@@ -1053,7 +1427,7 @@ var MergeModal = class extends import_obsidian6.Modal {
     this.setTitle(i18n.mergeTitle);
     const { contentEl } = this;
     contentEl.empty();
-    const titleInput = new import_obsidian6.TextComponent(contentEl);
+    const titleInput = new import_obsidian7.TextComponent(contentEl);
     titleInput.setPlaceholder(i18n.articleTitlePlaceholder).setValue(`\u5361\u7247\u5408\u96C6 ${toDayKey(Date.now())}`);
     titleInput.inputEl.addClass("cardbox-modal-search");
     titleInput.inputEl.addEventListener("keydown", (e) => {
@@ -1064,13 +1438,13 @@ var MergeModal = class extends import_obsidian6.Modal {
     });
     const modeRow = contentEl.createDiv({ cls: "cardbox-setting-row" });
     modeRow.createSpan({ cls: "cardbox-muted", text: i18n.mergeModeLabel });
-    new import_obsidian6.DropdownComponent(modeRow).addOption("simple", i18n.mergeModeSimple).addOption("headings", i18n.mergeModeHeadings).setValue(this.mode).onChange((v) => {
+    new import_obsidian7.DropdownComponent(modeRow).addOption("simple", i18n.mergeModeSimple).addOption("headings", i18n.mergeModeHeadings).setValue(this.mode).onChange((v) => {
       this.mode = v;
     });
     contentEl.createEl("p", { cls: "cardbox-muted", text: i18n.selectedCount(this.cards.length) });
     const actions = contentEl.createDiv({ cls: "cardbox-modal-actions" });
-    new import_obsidian6.ButtonComponent(actions).setButtonText(i18n.cancel).onClick(() => this.close());
-    new import_obsidian6.ButtonComponent(actions).setButtonText(i18n.mergeButton).setCta().onClick(() => void this.merge(titleInput.getValue()));
+    new import_obsidian7.ButtonComponent(actions).setButtonText(i18n.cancel).onClick(() => this.close());
+    new import_obsidian7.ButtonComponent(actions).setButtonText(i18n.mergeButton).setCta().onClick(() => void this.merge(titleInput.getValue()));
   }
   async merge(rawTitle) {
     const title = rawTitle.trim() || `\u5361\u7247\u5408\u96C6 ${toDayKey(Date.now())}`;
@@ -1082,11 +1456,11 @@ var MergeModal = class extends import_obsidian6.Modal {
     try {
       await this.ctx.service.ensureFolder(folder);
       const file = await this.app.vault.create(path, content);
-      new import_obsidian6.Notice(i18n.mergedNotice(title), 2e3);
+      new import_obsidian7.Notice(i18n.mergedNotice(title), 2e3);
       await this.ctx.openFile(file);
       this.close();
     } catch (err) {
-      new import_obsidian6.Notice(String(err));
+      new import_obsidian7.Notice(String(err));
     }
   }
   buildArticle(title, bodies) {
@@ -1115,8 +1489,8 @@ ${body}`)}`;
 };
 
 // src/modals/TagModal.ts
-var import_obsidian7 = require("obsidian");
-var TagModal = class extends import_obsidian7.Modal {
+var import_obsidian8 = require("obsidian");
+var TagModal = class extends import_obsidian8.Modal {
   constructor(app, ctx, cards) {
     super(app);
     this.ctx = ctx;
@@ -1126,7 +1500,7 @@ var TagModal = class extends import_obsidian7.Modal {
     this.setTitle(i18n.tagTitle);
     const { contentEl } = this;
     contentEl.empty();
-    const input = new import_obsidian7.TextComponent(contentEl);
+    const input = new import_obsidian8.TextComponent(contentEl);
     input.setPlaceholder(i18n.tagPlaceholder).inputEl.addClass("cardbox-modal-search");
     input.inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -1143,26 +1517,26 @@ var TagModal = class extends import_obsidian7.Modal {
     }
     if (!chipRow.children.length) existing.detach();
     const actions = contentEl.createDiv({ cls: "cardbox-modal-actions" });
-    new import_obsidian7.ButtonComponent(actions).setButtonText(i18n.cancel).onClick(() => this.close());
-    new import_obsidian7.ButtonComponent(actions).setButtonText(i18n.apply).setCta().onClick(() => void this.apply(input.getValue()));
+    new import_obsidian8.ButtonComponent(actions).setButtonText(i18n.cancel).onClick(() => this.close());
+    new import_obsidian8.ButtonComponent(actions).setButtonText(i18n.apply).setCta().onClick(() => void this.apply(input.getValue()));
     input.inputEl.focus();
   }
   async apply(raw) {
     const tag = normalizeTag(raw);
     if (!tag) {
-      new import_obsidian7.Notice(i18n.emptyCaptureHint, 1500);
+      new import_obsidian8.Notice(i18n.emptyCaptureHint, 1500);
       return;
     }
     await this.ctx.service.setTags(this.cards, [tag]);
     this.ctx.index.refreshPaths(this.cards.map((c) => c.path));
-    new import_obsidian7.Notice(i18n.tagApplied(this.cards.length, tag), 2e3);
+    new import_obsidian8.Notice(i18n.tagApplied(this.cards.length, tag), 2e3);
     this.close();
   }
 };
 
 // src/modals/TagPickerModal.ts
-var import_obsidian8 = require("obsidian");
-var TagPickerModal = class extends import_obsidian8.Modal {
+var import_obsidian9 = require("obsidian");
+var TagPickerModal = class extends import_obsidian9.Modal {
   constructor(app, index) {
     super(app);
     this.index = index;
@@ -1175,7 +1549,7 @@ var TagPickerModal = class extends import_obsidian8.Modal {
     this.setTitle(i18n.batchTag);
     const { contentEl } = this;
     contentEl.empty();
-    const search = new import_obsidian8.TextComponent(contentEl);
+    const search = new import_obsidian9.TextComponent(contentEl);
     search.setPlaceholder(i18n.searchPlaceholder).inputEl.addClass("cardbox-modal-search");
     const listEl = contentEl.createDiv({ cls: "cardbox-tag-picker" });
     this.render(listEl, "");
@@ -1200,9 +1574,244 @@ var TagPickerModal = class extends import_obsidian8.Modal {
   }
 };
 
+// src/modals/BoxEditModal.ts
+var import_obsidian10 = require("obsidian");
+var BoxEditModal = class extends import_obsidian10.Modal {
+  constructor(app, index, def, opts) {
+    super(app);
+    this.index = index;
+    this.draft = {
+      ...def,
+      time: { ...def.time },
+      tags: [...def.tags],
+      keywords: [...def.keywords],
+      colors: [...def.colors]
+    };
+    this.onSave = opts.onSave;
+    this.onDelete = opts.onDelete;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("cardbox-box-modal");
+    contentEl.createEl("h3", { text: i18n.boxEditTitle });
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxNameLabel).addText((t) => {
+      t.setPlaceholder(i18n.boxNamePlaceholder).setValue(this.draft.name).onChange((v) => {
+        this.draft.name = v;
+      });
+      t.inputEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void this.save();
+        }
+      });
+    });
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxTimeLabel).addDropdown((dd) => {
+      dd.addOption("any", i18n.boxTimeAny).addOption("dynamic", i18n.boxTimeDynamic).addOption("static", i18n.boxTimeStatic).setValue(this.draft.time.mode).onChange((v) => {
+        this.draft.time.mode = v;
+        this.renderTimeDetail();
+      });
+    });
+    this.timeDetailEl = contentEl.createDiv({ cls: "cardbox-box-timedetail" });
+    this.renderTimeDetail();
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxTagsLabel).addButton((b) => {
+      b.setButtonText(i18n.moreTags).onClick(() => {
+        new TagPickerModal(this.app, this.index).setOnPick((tag) => {
+          if (!this.draft.tags.includes(tag)) this.draft.tags.push(tag);
+          this.renderTags();
+        }).open();
+      });
+    });
+    this.tagsEl = contentEl.createDiv({ cls: "cardbox-chip-row" });
+    this.renderTags();
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxKeywordsLabel).addText((t) => {
+      t.setPlaceholder(i18n.boxKeywordsPlaceholder);
+      t.inputEl.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const kw = t.getValue().trim();
+        if (!kw) return;
+        if (!this.draft.keywords.includes(kw)) this.draft.keywords.push(kw);
+        t.setValue("");
+        this.renderKeywords();
+      });
+    });
+    this.keywordsEl = contentEl.createDiv({ cls: "cardbox-chip-row" });
+    this.renderKeywords();
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxKeywordMatchLabel).addDropdown((dd) => {
+      dd.addOption("any", i18n.boxKeywordAny).addOption("all", i18n.boxKeywordAll).setValue(this.draft.keywordMatch).onChange((v) => {
+        this.draft.keywordMatch = v === "all" ? "all" : "any";
+      });
+    });
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxColorsLabel);
+    this.colorsEl = contentEl.createDiv({ cls: "cardbox-color-row" });
+    this.renderColors();
+    new import_obsidian10.Setting(contentEl).setName(i18n.boxPinnedOnlyLabel).addToggle((t) => {
+      t.setValue(this.draft.pinnedOnly).onChange((v) => {
+        this.draft.pinnedOnly = v;
+      });
+    });
+    contentEl.createDiv({ cls: "cardbox-box-hint", text: i18n.boxHintAllEmpty });
+    const footer = contentEl.createDiv({ cls: "cardbox-modal-footer" });
+    if (this.onDelete) {
+      const del = footer.createEl("button", { cls: "mod-warning", text: i18n.boxDelete });
+      del.addEventListener("click", () => {
+        void (async () => {
+          var _a;
+          await ((_a = this.onDelete) == null ? void 0 : _a.call(this));
+          this.close();
+        })();
+      });
+    }
+    const spacer = footer.createDiv();
+    spacer.style.flex = "1";
+    const cancel = footer.createEl("button", { text: i18n.cancel });
+    cancel.addEventListener("click", () => this.close());
+    const save = footer.createEl("button", { cls: "mod-cta", text: i18n.boxSave });
+    save.addEventListener("click", () => void this.save());
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+  async save() {
+    const name = this.draft.name.trim();
+    if (!name) {
+      new import_obsidian10.Notice(i18n.boxNameRequired);
+      return;
+    }
+    this.draft.name = name;
+    await this.onSave(this.draft);
+    this.close();
+  }
+  renderTimeDetail() {
+    this.timeDetailEl.empty();
+    const t = this.draft.time;
+    if (t.mode === "dynamic") {
+      new import_obsidian10.Setting(this.timeDetailEl).setName(i18n.boxLastDaysLabel).addText((tx) => {
+        var _a;
+        tx.inputEl.type = "number";
+        tx.inputEl.min = "1";
+        tx.setValue(String((_a = t.lastDays) != null ? _a : 7)).onChange((v) => {
+          const n = Number(v);
+          t.lastDays = isFinite(n) && n >= 1 ? Math.floor(n) : 7;
+        });
+      });
+    } else if (t.mode === "static") {
+      new import_obsidian10.Setting(this.timeDetailEl).setName(i18n.boxFromLabel).addText((tx) => {
+        var _a;
+        tx.inputEl.type = "date";
+        tx.setValue((_a = t.from) != null ? _a : "").onChange((v) => {
+          t.from = v || void 0;
+        });
+      });
+      new import_obsidian10.Setting(this.timeDetailEl).setName(i18n.boxToLabel).addText((tx) => {
+        var _a;
+        tx.inputEl.type = "date";
+        tx.setValue((_a = t.to) != null ? _a : "").onChange((v) => {
+          t.to = v || void 0;
+        });
+      });
+    }
+  }
+  renderTags() {
+    this.tagsEl.empty();
+    if (!this.draft.tags.length) {
+      this.tagsEl.createSpan({ cls: "cardbox-box-empty-hint", text: "\u2014" });
+      return;
+    }
+    for (const tag of this.draft.tags) {
+      const chip = this.tagsEl.createSpan({ cls: "cardbox-chip is-active" });
+      chip.setText(`#${tag}`);
+      const rm = chip.createSpan({ cls: "cardbox-chip-remove", text: "\xD7" });
+      rm.addEventListener("click", () => {
+        this.draft.tags = this.draft.tags.filter((t) => t !== tag);
+        this.renderTags();
+      });
+    }
+  }
+  renderKeywords() {
+    this.keywordsEl.empty();
+    if (!this.draft.keywords.length) {
+      this.keywordsEl.createSpan({ cls: "cardbox-box-empty-hint", text: "\u2014" });
+      return;
+    }
+    for (const kw of this.draft.keywords) {
+      const chip = this.keywordsEl.createSpan({ cls: "cardbox-chip is-active" });
+      chip.setText(kw);
+      const rm = chip.createSpan({ cls: "cardbox-chip-remove", text: "\xD7" });
+      rm.addEventListener("click", () => {
+        this.draft.keywords = this.draft.keywords.filter((k) => k !== kw);
+        this.renderKeywords();
+      });
+    }
+  }
+  renderColors() {
+    var _a;
+    this.colorsEl.empty();
+    for (const color of CARD_COLORS) {
+      const dot = this.colorsEl.createDiv({ cls: `cardbox-color-dot cardbox-color-${color}` });
+      dot.setAttribute("aria-label", (_a = i18n.colorNames[color]) != null ? _a : color);
+      dot.toggleClass("is-selected", this.draft.colors.includes(color));
+      dot.addEventListener("click", () => {
+        const has = this.draft.colors.includes(color);
+        this.draft.colors = has ? this.draft.colors.filter((c) => c !== color) : [...this.draft.colors, color];
+        this.renderColors();
+      });
+    }
+  }
+};
+
+// src/modals/CardPickerModal.ts
+var import_obsidian11 = require("obsidian");
+var MAX_RESULTS = 80;
+var CardPickerModal = class extends import_obsidian11.Modal {
+  constructor(app, index, opts) {
+    super(app);
+    this.index = index;
+    this.opts = opts;
+  }
+  onOpen() {
+    this.setTitle(i18n.linkExisting);
+    const { contentEl } = this;
+    contentEl.empty();
+    const search = new import_obsidian11.TextComponent(contentEl);
+    search.setPlaceholder(i18n.searchPlaceholder).inputEl.addClass("cardbox-modal-search");
+    const listEl = contentEl.createDiv({ cls: "cardbox-card-picker" });
+    this.render(listEl, "");
+    search.onChange((q) => this.render(listEl, q));
+    window.setTimeout(() => search.inputEl.focus(), 0);
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+  render(listEl, query) {
+    var _a;
+    listEl.empty();
+    const q = query.trim().toLowerCase();
+    const exclude = (_a = this.opts.excludeIds) != null ? _a : /* @__PURE__ */ new Set();
+    const cards = this.index.all().filter((c) => !exclude.has(c.id)).filter((c) => !q || c.searchText.includes(q)).slice(0, MAX_RESULTS);
+    for (const card of cards) {
+      const row = listEl.createDiv({ cls: "cardbox-picker-row" });
+      if (card.color) row.addClass(`cardbox-color-${card.color}`, "has-color");
+      const title = card.title || card.snippet.split("\n")[0].trim() || i18n.emptyContent;
+      row.createDiv({ cls: "cardbox-picker-title", text: title });
+      const meta = row.createDiv({ cls: "cardbox-picker-meta" });
+      for (const tag of card.tags.slice(0, 3)) {
+        meta.createSpan({ cls: "cardbox-chip cardbox-chip-sm", text: `#${tag}` });
+      }
+      meta.createSpan({ cls: "cardbox-tile-time", text: formatRelativeTime(card.created) });
+      row.addEventListener("click", () => {
+        void this.opts.onPick(card);
+        this.close();
+      });
+    }
+    if (!cards.length) listEl.createEl("p", { cls: "cardbox-muted", text: i18n.noMatch });
+  }
+};
+
 // src/view/CardBoxView.ts
 var CARD_BOX_VIEW_TYPE = "cardbox-main";
-var CardBoxView = class extends import_obsidian9.ItemView {
+var CardBoxView = class extends import_obsidian12.ItemView {
   constructor(leaf, ctx) {
     super(leaf);
     this.selectionMode = false;
@@ -1210,7 +1819,11 @@ var CardBoxView = class extends import_obsidian9.ItemView {
     this.expandedIds = /* @__PURE__ */ new Set();
     this.renderKey = "";
     this.raf = 0;
-    this.indexChangedCb = () => this.scheduleRender();
+    this.indexChangedCb = () => {
+      var _a;
+      (_a = this.boxBar) == null ? void 0 : _a.refresh();
+      this.scheduleRender();
+    };
     this.ctx = ctx;
     this.filter = defaultFilterState(ctx.settings);
   }
@@ -1228,30 +1841,54 @@ var CardBoxView = class extends import_obsidian9.ItemView {
     root.empty();
     root.addClass("cardbox-root");
     this.content = root;
-    this.filterBar = new FilterBar(
-      this.filter,
-      this.ctx.settings,
+    this.boxBar = new BoxBar(
       this.ctx.index,
+      () => this.ctx.boxes.list(),
+      () => this.ctx.boxes.activeId(),
+      () => this.filter.showArchived,
       {
-        onFilterChange: () => this.scheduleRender(),
-        onModeChange: () => this.scheduleRender(),
-        onSortChange: () => this.scheduleRender(),
-        onAddTag: () => {
-          new TagPickerModal(this.app, this.ctx.index).setOnPick((tag) => {
-            this.filter.selectedTags.add(tag);
-            this.filterBar.refreshTags();
-            this.scheduleRender();
-          }).open();
-        }
+        onSelect: (id) => {
+          void this.ctx.boxes.setActiveId(id);
+          this.boxBar.refresh();
+          this.renderKey = "";
+          this.scheduleRender();
+        },
+        onCreate: () => this.createBox(),
+        onEdit: (def) => this.editBox(def)
       }
     );
+    this.boxBar.build(root);
+    this.filterBar = new FilterBar(this.filter, this.ctx.settings, this.ctx.index, {
+      onFilterChange: () => {
+        this.boxBar.refresh();
+        this.scheduleRender();
+      },
+      onModeChange: () => {
+        this.renderKey = "";
+        this.scheduleRender();
+      },
+      onSortChange: () => {
+        this.renderKey = "";
+        this.scheduleRender();
+      },
+      onAddTag: () => {
+        new TagPickerModal(this.app, this.ctx.index).setOnPick((tag) => {
+          this.filter.selectedTags.add(tag);
+          this.filterBar.refreshTags();
+          this.scheduleRender();
+        }).open();
+      }
+    });
     this.filterBar.build(root);
     const actionRow = root.createDiv({ cls: "cardbox-actionbar" });
     const newBtn = actionRow.createEl("button", { cls: "cardbox-action-btn", attr: { "aria-label": i18n.newCard } });
-    (0, import_obsidian9.setIcon)(newBtn, "plus");
+    (0, import_obsidian12.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => this.ctx.openCapture());
-    const selectBtn = actionRow.createEl("button", { cls: "cardbox-action-btn", attr: { "aria-label": i18n.toggleSelect } });
-    (0, import_obsidian9.setIcon)(selectBtn, "check-square");
+    const selectBtn = actionRow.createEl("button", {
+      cls: "cardbox-action-btn",
+      attr: { "aria-label": i18n.toggleSelect }
+    });
+    (0, import_obsidian12.setIcon)(selectBtn, "check-square");
     selectBtn.addEventListener("click", () => this.toggleSelectionMode());
     this.selectionBarEl = root.createDiv({ cls: "cardbox-selectionbar" });
     this.placeholderEl = root.createDiv({ cls: "cardbox-placeholder" });
@@ -1299,6 +1936,43 @@ var CardBoxView = class extends import_obsidian9.ItemView {
   deleteSelected() {
     this.deleteCards(this.getSelectedCards());
   }
+  sendSelectedToCanvas() {
+    const cards = this.getSelectedCards();
+    if (cards.length) void this.ctx.sendToCanvas(cards);
+  }
+  // ---------- 卡片盒管理 ----------
+  activeBox() {
+    const id = this.ctx.boxes.activeId();
+    return id ? this.ctx.boxes.get(id) : void 0;
+  }
+  createBox() {
+    const def = defaultBoxDef(newBoxId(), "");
+    new BoxEditModal(this.app, this.ctx.index, def, {
+      onSave: async (saved) => {
+        await this.ctx.boxes.upsert(saved);
+        await this.ctx.boxes.setActiveId(saved.id);
+        this.boxBar.refresh();
+        this.renderKey = "";
+        this.scheduleRender();
+      }
+    }).open();
+  }
+  editBox(def) {
+    new BoxEditModal(this.app, this.ctx.index, def, {
+      onSave: async (saved) => {
+        await this.ctx.boxes.upsert(saved);
+        this.boxBar.refresh();
+        this.renderKey = "";
+        this.scheduleRender();
+      },
+      onDelete: async () => {
+        await this.ctx.boxes.remove(def.id);
+        this.boxBar.refresh();
+        this.renderKey = "";
+        this.scheduleRender();
+      }
+    }).open();
+  }
   // ---------- 渲染 ----------
   scheduleRender() {
     if (this.raf) window.cancelAnimationFrame(this.raf);
@@ -1308,25 +1982,39 @@ var CardBoxView = class extends import_obsidian9.ItemView {
     });
   }
   render() {
+    var _a;
     if (this.ctx.index.isIndexing && !this.ctx.index.ready) {
       this.showPlaceholder(i18n.indexing);
       return;
     }
     const mode = this.filterBar.getMode();
     const sort = this.filterBar.getSort();
-    const filtered = this.ctx.index.search(this.filter.query, this.filter, sort);
+    const box = this.activeBox();
+    const filtered = this.ctx.index.search(this.filter.query, this.filter, sort, box);
+    this.listEl.toggleClass("is-masonry", mode === "masonry");
+    this.listEl.style.setProperty("--cardbox-col-min", `${this.ctx.settings.masonryMinColumnWidth}px`);
     if (filtered.length === 0) {
-      const hasFilters = this.filter.query.trim() !== "" || this.filter.selectedTags.size > 0 || this.filter.hasTag || this.filter.noTag || this.filter.emptyContent || this.filter.hasTaskList;
+      const hasFilters = this.filter.query.trim() !== "" || this.filter.selectedTags.size > 0 || this.filter.selectedColors.size > 0 || this.filter.hasTag || this.filter.noTag || this.filter.emptyContent || this.filter.hasTaskList || this.filter.pinnedOnly || box !== void 0;
       this.showPlaceholder(hasFilters ? i18n.noMatch : i18n.empty);
       return;
     }
     this.placeholderEl.empty();
     this.placeholderEl.addClass("is-hidden");
     this.listEl.removeClass("is-hidden");
-    const key = mode + "|" + sort + "|" + this.filter.query + "|" + [...this.filter.selectedTags].sort().join(",") + "|" + [this.filter.hasTag, this.filter.noTag, this.filter.emptyContent, this.filter.hasTaskList, this.filter.showArchived].map(String).join(",") + "|" + filtered.map((c) => c.id).join(",");
+    const key = mode + "|" + sort + "|" + ((_a = box == null ? void 0 : box.id) != null ? _a : "") + "|" + this.filter.query + "|" + [...this.filter.selectedTags].sort().join(",") + "|" + [...this.filter.selectedColors].sort().join(",") + "|" + [
+      this.filter.hasTag,
+      this.filter.noTag,
+      this.filter.emptyContent,
+      this.filter.hasTaskList,
+      this.filter.pinnedOnly,
+      this.filter.showArchived
+    ].map(String).join(",") + "|" + filtered.map((c) => {
+      var _a2;
+      return `${c.id}:${(_a2 = c.color) != null ? _a2 : ""}:${c.pinned ? 1 : 0}:${c.updated}`;
+    }).join(",");
     if (key === this.renderKey) return;
     this.renderKey = key;
-    const items = mode === "card" ? this.buildCardItems(filtered) : this.buildDayItems(filtered);
+    const items = mode === "timeline" ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
     this.list.setItems(items);
   }
   showPlaceholder(text) {
@@ -1376,12 +2064,15 @@ var CardBoxView = class extends import_obsidian9.ItemView {
     return group;
   }
   buildTile(card, depth, expanded, hasVisibleChildren) {
+    const parent = card.parent ? this.ctx.index.getById(card.parent) : void 0;
     return buildCardTile({
       card,
       depth,
       selected: this.selectedIds.has(card.id),
       expanded,
       hasVisibleChildren,
+      rich: this.filterBar.getMode() === "masonry",
+      parentTitle: parent ? parent.title || parent.snippet.split("\n")[0].trim() || parent.id : void 0,
       onClick: (c) => this.onTileClick(c),
       onLongPress: (c) => this.onTileLongPress(c),
       onToggleExpand: (c) => {
@@ -1442,29 +2133,54 @@ var CardBoxView = class extends import_obsidian9.ItemView {
     const n = this.selectedIds.size;
     this.selectionBarEl.createSpan({ cls: "cardbox-selection-count", text: i18n.selectedCount(n) });
     const mkBtn = (label, icon, disabled, cb) => {
-      const b = new import_obsidian9.ButtonComponent(this.selectionBarEl).setButtonText(label).setIcon(icon);
+      const b = new import_obsidian12.ButtonComponent(this.selectionBarEl).setButtonText(label).setIcon(icon);
       if (disabled) b.setDisabled(true);
       b.onClick(cb);
     };
     mkBtn(i18n.tagSelected, "tag", n === 0, () => this.batchTagSelected());
     mkBtn(i18n.mergeSelectedAction, "file-text", n === 0, () => this.mergeSelected());
+    mkBtn(i18n.sendToCanvas, "layout-dashboard", n === 0, () => this.sendSelectedToCanvas());
     mkBtn(i18n.archiveSelectedAction, "archive", n === 0, () => this.archiveSelected());
     mkBtn(i18n.deleteSelectedAction, "trash", n === 0, () => this.deleteSelected());
-    const cancel = new import_obsidian9.ButtonComponent(this.selectionBarEl).setButtonText(i18n.cancelSelect);
+    const cancel = new import_obsidian12.ButtonComponent(this.selectionBarEl).setButtonText(i18n.cancelSelect);
     cancel.onClick(() => this.toggleSelectionMode());
   }
   async openCard(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
-    if (file instanceof import_obsidian9.TFile) await this.ctx.openFile(file);
+    if (file instanceof import_obsidian12.TFile) await this.ctx.openFile(file);
   }
   showCardMenu(card, anchor) {
-    const menu = new import_obsidian9.Menu();
+    const menu = new import_obsidian12.Menu();
     menu.addItem((item) => item.setTitle(i18n.edit).setIcon("pencil").onClick(() => void this.openCard(card)));
     menu.addItem(
       (item) => item.setTitle(i18n.addChild).setIcon("file-plus").onClick(() => this.ctx.openCapture("", card))
     );
     menu.addItem(
-      (item) => item.setTitle(i18n.tag).setIcon("tag").onClick(() => new TagModal(this.app, this.ctx, [card]).open())
+      (item) => item.setTitle(i18n.linkExisting).setIcon("link").onClick(() => this.linkExistingChild(card))
+    );
+    menu.addItem(
+      (item) => item.setTitle(i18n.openExtendView).setIcon("git-branch").onClick(() => void this.ctx.openExtendView(card.id))
+    );
+    menu.addItem((item) => item.setTitle(i18n.tag).setIcon("tag").onClick(() => new TagModal(this.app, this.ctx, [card]).open()));
+    menu.addItem((item) => {
+      item.setTitle(i18n.colorLabel).setIcon("palette");
+      const sub = item.setSubmenu();
+      for (const color of CARD_COLORS) {
+        sub.addItem(
+          (si) => {
+            var _a;
+            return si.setTitle((_a = i18n.colorNames[color]) != null ? _a : color).setChecked(card.color === color).onClick(() => void this.ctx.service.setColor([card], color));
+          }
+        );
+      }
+      sub.addSeparator();
+      sub.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => void this.ctx.service.setColor([card], null)));
+    });
+    menu.addItem(
+      (item) => item.setTitle(card.pinned ? i18n.unpin : i18n.pin).setIcon("pin").onClick(() => void this.ctx.service.setPinned([card], !card.pinned))
+    );
+    menu.addItem(
+      (item) => item.setTitle(i18n.sendToCanvas).setIcon("layout-dashboard").onClick(() => void this.ctx.sendToCanvas([card]))
     );
     if (card.children.length > 0) {
       const expanded = this.expandedIds.has(card.id);
@@ -1480,11 +2196,20 @@ var CardBoxView = class extends import_obsidian9.ItemView {
     menu.addItem(
       (item) => item.setTitle(card.archived ? i18n.unarchive : i18n.archive).setIcon("archive").onClick(() => this.archiveCards([card], !card.archived))
     );
-    menu.addItem(
-      (item) => item.setTitle(i18n.delete).setIcon("trash").onClick(() => this.deleteCards([card]))
-    );
+    menu.addItem((item) => item.setTitle(i18n.delete).setIcon("trash").onClick(() => this.deleteCards([card])));
     const rect = anchor.getBoundingClientRect();
     menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  }
+  linkExistingChild(parent) {
+    new CardPickerModal(this.app, this.ctx.index, {
+      excludeIds: /* @__PURE__ */ new Set([parent.id, ...parent.children]),
+      onPick: async (child) => {
+        await this.ctx.service.linkChild(parent, child);
+        this.expandedIds.add(parent.id);
+        this.renderKey = "";
+        this.scheduleRender();
+      }
+    }).open();
   }
   // ---------- 批量操作 ----------
   archiveCards(cards, archived) {
@@ -1525,9 +2250,347 @@ var CardBoxView = class extends import_obsidian9.ItemView {
 };
 CardBoxView.VIEW_TYPE = CARD_BOX_VIEW_TYPE;
 
+// src/view/CardExtendView.ts
+var import_obsidian14 = require("obsidian");
+
+// src/utils/article.ts
+var import_obsidian13 = require("obsidian");
+function buildHierarchicalArticle(title, nodes) {
+  const fm = {
+    created: Date.now(),
+    source: "cardbox-extend",
+    sourceCards: nodes.map((n) => n.card.id)
+  };
+  const sections = nodes.map((n) => {
+    const level = "#".repeat(Math.min(6, n.depth + 2));
+    const heading = n.card.title || n.body.split("\n")[0].trim().slice(0, 40) || "\u5361\u7247\u7247\u6BB5";
+    const rest = n.card.title ? n.body.trim() : n.body.trim().split("\n").slice(1).join("\n").trim();
+    return rest ? `${level} ${heading}
+
+${rest}` : `${level} ${heading}`;
+  });
+  return buildCardContent(fm, `# ${title}
+
+${sections.join("\n\n")}`);
+}
+async function createArticleFile(app, ctx, title, content) {
+  const folder = ctx.settings.mergeOutputFolder.trim().replace(/^\/+|\/+$/g, "");
+  const fileName = sanitizeFileName(title) || toDayKey(Date.now());
+  await ctx.service.ensureFolder(folder);
+  let path = `${folder}/${fileName}.md`;
+  if (app.vault.getAbstractFileByPath(path)) {
+    path = `${folder}/${fileName}-${Date.now()}.md`;
+  }
+  try {
+    const file = await app.vault.create(path, content);
+    new import_obsidian13.Notice(i18n.mergedNotice(title), 2e3);
+    await ctx.openFile(file);
+    return file;
+  } catch (err) {
+    new import_obsidian13.Notice(String(err));
+    return null;
+  }
+}
+
+// src/view/CardExtendView.ts
+var CARD_EXTEND_VIEW_TYPE = "cardbox-extend";
+var CardExtendView = class extends import_obsidian14.ItemView {
+  constructor(leaf, ctx) {
+    super(leaf);
+    this.rootId = "";
+    this.expandedIds = /* @__PURE__ */ new Set();
+    this.raf = 0;
+    this.bodyCache = /* @__PURE__ */ new Map();
+    this.indexChangedCb = () => this.scheduleRender();
+    this.ctx = ctx;
+  }
+  getViewType() {
+    return CARD_EXTEND_VIEW_TYPE;
+  }
+  getDisplayText() {
+    const root = this.root();
+    const name = root ? root.title || root.snippet.split("\n")[0].trim() : "";
+    return name ? `${i18n.extendViewTitle}\uFF1A${name}` : i18n.extendViewTitle;
+  }
+  getIcon() {
+    return "git-branch";
+  }
+  getState() {
+    return { rootId: this.rootId };
+  }
+  async setState(state) {
+    const s = state;
+    if (s && typeof s.rootId === "string") this.rootId = s.rootId;
+    this.scheduleRender();
+  }
+  setRoot(rootId) {
+    this.rootId = rootId;
+    this.expandedIds.clear();
+    this.bodyCache.clear();
+    this.scheduleRender();
+  }
+  async onOpen() {
+    this.contentEl.addClass("cardbox-extend-root");
+    this.ctx.index.onChanged(this.indexChangedCb);
+    this.scheduleRender();
+  }
+  onClose() {
+    this.ctx.index.offChanged(this.indexChangedCb);
+    if (this.raf) window.cancelAnimationFrame(this.raf);
+    return Promise.resolve();
+  }
+  root() {
+    return this.rootId ? this.ctx.index.getById(this.rootId) : void 0;
+  }
+  scheduleRender() {
+    if (this.raf) window.cancelAnimationFrame(this.raf);
+    this.raf = window.requestAnimationFrame(() => {
+      this.raf = 0;
+      this.render();
+    });
+  }
+  // ---------- 渲染 ----------
+  render() {
+    const el = this.contentEl;
+    el.empty();
+    const root = this.root();
+    if (!root) {
+      el.createDiv({ cls: "cardbox-placeholder", text: i18n.extendNoParent });
+      return;
+    }
+    const bar = el.createDiv({ cls: "cardbox-extend-bar" });
+    const mkBtn = (label, icon, cb, cta = false) => {
+      const b = bar.createEl("button", { cls: `cardbox-extend-btn${cta ? " mod-cta" : ""}` });
+      (0, import_obsidian14.setIcon)(b.createSpan({ cls: "cardbox-extend-btn-icon" }), icon);
+      b.createSpan({ text: label });
+      b.addEventListener("click", cb);
+      return b;
+    };
+    mkBtn(i18n.extendAddChild, "file-plus", () => this.ctx.openCapture("", root));
+    mkBtn(i18n.extendLink, "link", () => this.linkExisting(root));
+    mkBtn(i18n.extendGenerate, "file-text", () => void this.generateArticle(root), true);
+    mkBtn(i18n.sendToCanvas, "layout-dashboard", () => void this.ctx.sendToCanvas(this.collectCards(root)));
+    const wrap = el.createDiv({ cls: "cardbox-extend-wrap" });
+    const mainCol = wrap.createDiv({ cls: "cardbox-extend-main" });
+    mainCol.createDiv({ cls: "cardbox-extend-label", text: i18n.extendMainCard });
+    mainCol.appendChild(this.buildPanel(root, true));
+    const childCol = wrap.createDiv({ cls: "cardbox-extend-children" });
+    const header = childCol.createDiv({ cls: "cardbox-extend-label" });
+    header.setText(`${i18n.extendChildren}\uFF08${root.children.length}\uFF09`);
+    childCol.createDiv({ cls: "cardbox-extend-hint", text: i18n.extendDragHint });
+    const children = this.childrenOf(root);
+    if (!children.length) {
+      childCol.createDiv({ cls: "cardbox-placeholder", text: i18n.extendEmpty });
+      return;
+    }
+    const listEl = childCol.createDiv({ cls: "cardbox-extend-list" });
+    for (const child of children) {
+      listEl.appendChild(this.buildBranch(root, child, 0));
+    }
+    this.enableDragSort(listEl, root);
+  }
+  childrenOf(card) {
+    return card.children.map((id) => this.ctx.index.getById(id)).filter((c) => !!c);
+  }
+  /** 递归构建分支（扩展卡片也可以有自己的扩展卡片） */
+  buildBranch(parent, card, depth) {
+    const branch = createDiv({ cls: "cardbox-extend-branch" });
+    branch.setAttribute("data-card-id", card.id);
+    branch.style.setProperty("--depth", String(depth));
+    branch.appendChild(this.buildPanel(card, false, parent));
+    const subs = this.childrenOf(card);
+    if (subs.length && this.expandedIds.has(card.id)) {
+      const subList = branch.createDiv({ cls: "cardbox-extend-sublist" });
+      for (const sub of subs) subList.appendChild(this.buildBranch(card, sub, depth + 1));
+      this.enableDragSort(subList, card);
+    }
+    return branch;
+  }
+  /** 单张卡片面板：标题行（可拖拽） + 可展开全文 */
+  buildPanel(card, isRoot, parent) {
+    var _a;
+    const panel = createDiv({ cls: "cardbox-extend-panel" });
+    if (isRoot) panel.addClass("is-root");
+    if (card.color) panel.addClass("has-color", `cardbox-color-${card.color}`);
+    panel.setAttribute("data-card-id", card.id);
+    const head = panel.createDiv({ cls: "cardbox-extend-head" });
+    if (!isRoot) head.addClass("is-draggable");
+    const toggle = head.createEl("button", {
+      cls: "cardbox-extend-toggle",
+      attr: { "aria-label": i18n.extendToggleFull }
+    });
+    const isOpen = this.expandedIds.has(card.id);
+    (0, import_obsidian14.setIcon)(toggle, isOpen ? "chevron-down" : "chevron-right");
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (isOpen) this.expandedIds.delete(card.id);
+      else this.expandedIds.add(card.id);
+      this.scheduleRender();
+    });
+    const titleWrap = head.createDiv({ cls: "cardbox-extend-titlewrap" });
+    const title = card.title || card.snippet.split("\n")[0].trim() || i18n.emptyContent;
+    titleWrap.createDiv({ cls: "cardbox-extend-title", text: title });
+    const meta = titleWrap.createDiv({ cls: "cardbox-extend-meta" });
+    for (const tag of card.tags.slice(0, 3)) {
+      meta.createSpan({ cls: "cardbox-chip cardbox-chip-sm", text: `#${tag}` });
+    }
+    meta.createSpan({ cls: "cardbox-tile-time", text: formatRelativeTime(card.created) });
+    const subCount = card.children.length;
+    if (subCount) meta.createSpan({ cls: "cardbox-child-badge", text: String(subCount) });
+    const more = head.createEl("button", { cls: "cardbox-more-btn", attr: { "aria-label": i18n.more } });
+    (0, import_obsidian14.setIcon)(more, "more-horizontal");
+    more.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.showPanelMenu(card, more, parent);
+    });
+    if (isOpen) {
+      const bodyEl = panel.createDiv({ cls: "cardbox-extend-body" });
+      bodyEl.setText((_a = this.bodyCache.get(card.id)) != null ? _a : "\u2026");
+      if (!this.bodyCache.has(card.id)) {
+        void this.ctx.service.readBody(card).then((body) => {
+          this.bodyCache.set(card.id, body.trim());
+          bodyEl.setText(body.trim());
+        });
+      }
+      bodyEl.addEventListener("click", () => void this.openCard(card));
+    }
+    return panel;
+  }
+  showPanelMenu(card, anchor, parent) {
+    const menu = new import_obsidian14.Menu();
+    menu.addItem((i) => i.setTitle(i18n.edit).setIcon("pencil").onClick(() => void this.openCard(card)));
+    menu.addItem(
+      (i) => i.setTitle(i18n.extendAddChild).setIcon("file-plus").onClick(() => this.ctx.openCapture("", card))
+    );
+    menu.addItem((i) => i.setTitle(i18n.extendLink).setIcon("link").onClick(() => this.linkExisting(card)));
+    if (parent) {
+      menu.addItem(
+        (i) => i.setTitle(i18n.extendUnlink).setIcon("unlink").onClick(() => {
+          void (async () => {
+            await this.ctx.service.unlinkChild(parent, card);
+            new import_obsidian14.Notice(i18n.extendUnlinked, 1500);
+            this.scheduleRender();
+          })();
+        })
+      );
+    }
+    menu.addItem(
+      (i) => i.setTitle(i18n.openExtendView).setIcon("git-branch").onClick(() => this.setRoot(card.id))
+    );
+    const rect = anchor.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  }
+  async openCard(card) {
+    const file = this.app.vault.getAbstractFileByPath(card.path);
+    if (file instanceof import_obsidian14.TFile) await this.ctx.openFile(file);
+  }
+  linkExisting(parent) {
+    new CardPickerModal(this.app, this.ctx.index, {
+      excludeIds: /* @__PURE__ */ new Set([parent.id, ...parent.children]),
+      onPick: async (child) => {
+        await this.ctx.service.linkChild(parent, child);
+        this.scheduleRender();
+      }
+    }).open();
+  }
+  // ---------- 拖拽排序 ----------
+  /**
+   * 指针拖拽排序：拖动标题行时，按指针位置与各兄弟节点中线比较，
+   * 实时插入占位，松手后把新顺序写回父卡片 frontmatter。
+   * 用Pointer Events 以同时支持鼠标与触屏。
+   */
+  enableDragSort(listEl, parent) {
+    const items = Array.from(listEl.children);
+    for (const item of items) {
+      const handle = item.querySelector(".cardbox-extend-head.is-draggable");
+      if (!handle) continue;
+      let dragging = false;
+      let startY = 0;
+      let pointerId = -1;
+      const onMove = (e) => {
+        if (!dragging) {
+          if (Math.abs(e.clientY - startY) < 8) return;
+          dragging = true;
+          item.addClass("is-dragging");
+          listEl.addClass("is-sorting");
+        }
+        e.preventDefault();
+        const siblings = Array.from(listEl.children).filter((c) => c !== item);
+        let placed = false;
+        for (const sib of siblings) {
+          const rect = sib.getBoundingClientRect();
+          if (e.clientY < rect.top + rect.height / 2) {
+            listEl.insertBefore(item, sib);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) listEl.appendChild(item);
+      };
+      const onUp = () => {
+        var _a;
+        (_a = handle.releasePointerCapture) == null ? void 0 : _a.call(handle, pointerId);
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        handle.removeEventListener("pointercancel", onUp);
+        if (!dragging) return;
+        dragging = false;
+        item.removeClass("is-dragging");
+        listEl.removeClass("is-sorting");
+        const order = Array.from(listEl.children).map((c) => c.getAttribute("data-card-id")).filter((id) => !!id);
+        void (async () => {
+          await this.ctx.service.reorderChildren(parent, order);
+          new import_obsidian14.Notice(i18n.extendReordered, 1200);
+        })();
+      };
+      handle.addEventListener("pointerdown", (e) => {
+        var _a;
+        if (e.target.closest("button")) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        pointerId = e.pointerId;
+        startY = e.clientY;
+        (_a = handle.setPointerCapture) == null ? void 0 : _a.call(handle, pointerId);
+        handle.addEventListener("pointermove", onMove);
+        handle.addEventListener("pointerup", onUp);
+        handle.addEventListener("pointercancel", onUp);
+      });
+    }
+  }
+  // ---------- 生成文章 ----------
+  /** 深度优先收集主卡片及其所有层级的扩展卡片 */
+  collectCards(root) {
+    const out = [];
+    const seen = /* @__PURE__ */ new Set();
+    const walk = (card) => {
+      if (seen.has(card.id)) return;
+      seen.add(card.id);
+      out.push(card);
+      for (const child of this.childrenOf(card)) walk(child);
+    };
+    walk(root);
+    return out;
+  }
+  async generateArticle(root) {
+    const nodes = [];
+    const seen = /* @__PURE__ */ new Set();
+    const walk = async (card, depth) => {
+      if (seen.has(card.id)) return;
+      seen.add(card.id);
+      const body = await this.ctx.service.readBody(card);
+      nodes.push({ card, depth, body });
+      for (const child of this.childrenOf(card)) await walk(child, depth + 1);
+    };
+    await walk(root, 0);
+    const title = root.title || root.snippet.split("\n")[0].trim().slice(0, 40) || i18n.extendViewTitle;
+    const content = buildHierarchicalArticle(title, nodes.slice(1));
+    await createArticleFile(this.app, this.ctx, title, content);
+  }
+};
+CardExtendView.VIEW_TYPE = CARD_EXTEND_VIEW_TYPE;
+
 // src/modals/CaptureModal.ts
-var import_obsidian10 = require("obsidian");
-var CaptureModal = class extends import_obsidian10.Modal {
+var import_obsidian15 = require("obsidian");
+var CaptureModal = class extends import_obsidian15.Modal {
   constructor(app, ctx, opts = {}) {
     super(app);
     this.ctx = ctx;
@@ -1555,14 +2618,14 @@ var CaptureModal = class extends import_obsidian10.Modal {
     if (this.opts.parent || this.opts.singleShot) {
       this.continuous = false;
     } else {
-      new import_obsidian10.ToggleComponent(footer).setValue(this.continuous).setTooltip(i18n.continuousMode).onChange((v) => {
+      new import_obsidian15.ToggleComponent(footer).setValue(this.continuous).setTooltip(i18n.continuousMode).onChange((v) => {
         this.continuous = v;
       });
       footer.createSpan({ cls: "cardbox-muted", text: i18n.continuousMode });
     }
     footer.createDiv({ cls: "cardbox-spacer" });
-    new import_obsidian10.ButtonComponent(footer).setButtonText(i18n.cancel).onClick(() => this.close());
-    const saveBtn = new import_obsidian10.ButtonComponent(footer).setButtonText(i18n.save).setCta();
+    new import_obsidian15.ButtonComponent(footer).setButtonText(i18n.cancel).onClick(() => this.close());
+    const saveBtn = new import_obsidian15.ButtonComponent(footer).setButtonText(i18n.save).setCta();
     saveBtn.onClick(() => void this.save());
     this.textarea.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -1574,7 +2637,7 @@ var CaptureModal = class extends import_obsidian10.Modal {
   async save() {
     const body = this.textarea.value.trim();
     if (!body) {
-      new import_obsidian10.Notice(i18n.emptyCaptureHint, 1500);
+      new import_obsidian15.Notice(i18n.emptyCaptureHint, 1500);
       return;
     }
     const file = await this.ctx.service.createCard({
@@ -1603,8 +2666,117 @@ var CaptureModal = class extends import_obsidian10.Modal {
   }
 };
 
+// src/utils/canvas.ts
+var import_obsidian16 = require("obsidian");
+var NODE_W = 300;
+var NODE_H = 220;
+var GAP = 40;
+var COLOR_MAP = {
+  red: "1",
+  orange: "2",
+  yellow: "3",
+  green: "4",
+  blue: "5",
+  purple: "6",
+  gray: ""
+};
+function randomNodeId() {
+  let s = "";
+  for (let i = 0; i < 16; i++) s += Math.floor(Math.random() * 16).toString(16);
+  return s;
+}
+function parseCanvas(raw) {
+  try {
+    const data = JSON.parse(raw);
+    return {
+      nodes: Array.isArray(data.nodes) ? data.nodes : [],
+      edges: Array.isArray(data.edges) ? data.edges : []
+    };
+  } catch (e) {
+    return { nodes: [], edges: [] };
+  }
+}
+function nextOrigin(nodes) {
+  var _a, _b, _c;
+  if (!nodes.length) return { x: 0, y: 0 };
+  let maxBottom = -Infinity;
+  let minX = Infinity;
+  for (const n of nodes) {
+    maxBottom = Math.max(maxBottom, ((_a = n.y) != null ? _a : 0) + ((_b = n.height) != null ? _b : 0));
+    minX = Math.min(minX, (_c = n.x) != null ? _c : 0);
+  }
+  if (!isFinite(maxBottom)) return { x: 0, y: 0 };
+  return { x: isFinite(minX) ? minX : 0, y: maxBottom + GAP * 2 };
+}
+function buildNodes(cards, origin) {
+  const columns = Math.max(1, Math.ceil(Math.sqrt(cards.length)));
+  return cards.map((card, i) => {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    const node = {
+      id: randomNodeId(),
+      type: "file",
+      file: card.path,
+      x: origin.x + col * (NODE_W + GAP),
+      y: origin.y + row * (NODE_H + GAP),
+      width: NODE_W,
+      height: NODE_H
+    };
+    if (card.color) {
+      const c = COLOR_MAP[card.color];
+      if (c) node.color = c;
+    }
+    return node;
+  });
+}
+async function sendCardsToCanvas(app, cards, opts) {
+  if (!cards.length) {
+    new import_obsidian16.Notice(i18n.canvasNoCards);
+    return null;
+  }
+  if (opts.activeCanvas) {
+    const raw = await app.vault.read(opts.activeCanvas);
+    const data2 = parseCanvas(raw);
+    const existing = new Set(data2.nodes.filter((n) => n.type === "file").map((n) => n.file));
+    const fresh = cards.filter((c) => !existing.has(c.path));
+    if (!fresh.length) {
+      new import_obsidian16.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
+      return opts.activeCanvas;
+    }
+    data2.nodes.push(...buildNodes(fresh, nextOrigin(data2.nodes)));
+    await app.vault.modify(opts.activeCanvas, JSON.stringify(data2, null, 2));
+    new import_obsidian16.Notice(i18n.canvasCreated(opts.activeCanvas.basename));
+    return opts.activeCanvas;
+  }
+  const folder = opts.folder.trim().replace(/^\/+|\/+$/g, "");
+  await opts.ensureFolder(folder);
+  const base = sanitizeFileName(`\u767D\u677F ${toDayKey(Date.now())}`);
+  let path = folder ? `${folder}/${base}.canvas` : `${base}.canvas`;
+  if (app.vault.getAbstractFileByPath(path)) {
+    const suffix = Date.now();
+    path = folder ? `${folder}/${base}-${suffix}.canvas` : `${base}-${suffix}.canvas`;
+  }
+  const data = { nodes: buildNodes(cards, { x: 0, y: 0 }), edges: [] };
+  try {
+    const file = await app.vault.create(path, JSON.stringify(data, null, 2));
+    new import_obsidian16.Notice(i18n.canvasCreated(file.basename));
+    return file;
+  } catch (err) {
+    new import_obsidian16.Notice(String(err));
+    return null;
+  }
+}
+async function readCanvasCardPaths(app, file) {
+  const raw = await app.vault.read(file);
+  const data = parseCanvas(raw);
+  return data.nodes.filter((n) => n.type === "file" && typeof n.file === "string" && n.file.endsWith(".md")).sort((a, b) => {
+    var _a, _b, _c, _d;
+    return ((_a = a.y) != null ? _a : 0) - ((_b = b.y) != null ? _b : 0) || ((_c = a.x) != null ? _c : 0) - ((_d = b.x) != null ? _d : 0);
+  }).map((n) => n.file);
+}
+
 // src/main.ts
-var CardBoxPlugin = class extends import_obsidian11.Plugin {
+var CardBoxPlugin = class extends import_obsidian17.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -1620,10 +2792,36 @@ var CardBoxPlugin = class extends import_obsidian11.Plugin {
       service: this.service,
       openFile: (file) => this.openFile(file),
       openCapture: (prefill, parent) => this.openCapture(prefill, parent),
-      saveSettings: () => this.saveSettings()
+      saveSettings: () => this.saveSettings(),
+      openExtendView: (rootId) => this.openExtendView(rootId),
+      sendToCanvas: (cards) => this.sendToCanvas(cards),
+      boxes: {
+        list: () => this.settings.boxes,
+        get: (id) => this.settings.boxes.find((b) => b.id === id),
+        upsert: async (def) => {
+          const i = this.settings.boxes.findIndex((b) => b.id === def.id);
+          if (i >= 0) this.settings.boxes[i] = def;
+          else this.settings.boxes.push(def);
+          await this.saveSettings();
+          new import_obsidian17.Notice(i18n.boxSaved(def.name), 1500);
+        },
+        remove: async (id) => {
+          const def = this.settings.boxes.find((b) => b.id === id);
+          this.settings.boxes = this.settings.boxes.filter((b) => b.id !== id);
+          if (this.settings.activeBoxId === id) this.settings.activeBoxId = "";
+          await this.saveSettings();
+          if (def) new import_obsidian17.Notice(i18n.boxDeleted(def.name), 1500);
+        },
+        activeId: () => this.settings.activeBoxId,
+        setActiveId: async (id) => {
+          this.settings.activeBoxId = id;
+          await this.saveSettings();
+        }
+      }
     };
     await this.ensureCardsFolder();
     this.registerView(CARD_BOX_VIEW_TYPE, (leaf) => new CardBoxView(leaf, this.ctx));
+    this.registerView(CARD_EXTEND_VIEW_TYPE, (leaf) => new CardExtendView(leaf, this.ctx));
     this.addRibbonIcon("boxes", i18n.openMain, () => void this.openCardBoxView());
     this.registerCaptureCommands();
     this.addSettingTab(
@@ -1663,6 +2861,19 @@ var CardBoxPlugin = class extends import_obsidian11.Plugin {
     this.addSelectionCommand("cardbox:batch-tag", i18n.batchTag, (view) => view.batchTagSelected());
     this.addSelectionCommand("cardbox:archive-selected", i18n.archiveSelected, (view) => view.archiveSelected());
     this.addSelectionCommand("cardbox:delete-selected", i18n.deleteSelected, (view) => view.deleteSelected());
+    this.addSelectionCommand("cardbox:send-canvas", i18n.sendToCanvas, (view) => view.sendSelectedToCanvas());
+    this.addCommand({
+      id: "cardbox:merge-from-canvas",
+      name: i18n.canvasMergeFromCanvas,
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        const isCanvas = (file == null ? void 0 : file.extension) === "canvas";
+        if (!isCanvas) return false;
+        if (checking) return true;
+        void this.mergeFromCanvas(file);
+        return true;
+      }
+    });
   }
   addSelectionCommand(id, name, run) {
     this.addCommand({
@@ -1695,6 +2906,19 @@ var CardBoxPlugin = class extends import_obsidian11.Plugin {
     await leaf.setViewState({ type: CARD_BOX_VIEW_TYPE, active: true });
     this.app.workspace.revealLeaf(leaf);
   }
+  /** 打开卡片扩展同屏视图（复用已存在的扩展视图，只切换主卡片） */
+  async openExtendView(rootId) {
+    const leaves = this.app.workspace.getLeavesOfType(CARD_EXTEND_VIEW_TYPE);
+    if (leaves.length) {
+      const view = leaves[0].view;
+      if (view instanceof CardExtendView) view.setRoot(rootId);
+      this.app.workspace.revealLeaf(leaves[0]);
+      return;
+    }
+    const leaf = this.app.workspace.getLeaf(true);
+    await leaf.setViewState({ type: CARD_EXTEND_VIEW_TYPE, active: true, state: { rootId } });
+    this.app.workspace.revealLeaf(leaf);
+  }
   async openFile(file) {
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.openFile(file);
@@ -1702,20 +2926,55 @@ var CardBoxPlugin = class extends import_obsidian11.Plugin {
   openCapture(prefill = "", parent) {
     new CaptureModal(this.app, this.ctx, { prefill, parent }).open();
   }
+  // ---------- Canvas ----------
+  async sendToCanvas(cards) {
+    const active = this.app.workspace.getActiveFile();
+    const activeCanvas = (active == null ? void 0 : active.extension) === "canvas" ? active : void 0;
+    const file = await sendCardsToCanvas(this.app, cards, {
+      folder: this.settings.canvasOutputFolder,
+      activeCanvas,
+      ensureFolder: (folder) => this.service.ensureFolder(folder)
+    });
+    if (file && !activeCanvas) await this.openFile(file);
+  }
+  async mergeFromCanvas(file) {
+    const paths = await readCanvasCardPaths(this.app, file);
+    const cards = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const p of paths) {
+      const card = this.index.byPath(p);
+      if (card && !seen.has(card.id)) {
+        seen.add(card.id);
+        cards.push(card);
+      }
+    }
+    if (!cards.length) {
+      new import_obsidian17.Notice(i18n.canvasNoCardNodes);
+      return;
+    }
+    new MergeModal(this.app, this.ctx, cards).open();
+  }
   async ensureCardsFolder() {
     const folder = this.settings.cardsFolder.trim().replace(/^\/+|\/+$/g, "");
     if (!folder) return;
     if (!this.app.vault.getAbstractFileByPath(folder)) {
       try {
         await this.app.vault.createFolder(folder);
-        new import_obsidian11.Notice(i18n.noticeFolderCreated(folder));
+        new import_obsidian17.Notice(i18n.noticeFolderCreated(folder));
       } catch (e) {
       }
     }
   }
   // ---------- 设置 ----------
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loaded = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded != null ? loaded : {});
+    if (!Array.isArray(this.settings.boxes)) this.settings.boxes = [];
+    this.settings.boxes = this.settings.boxes.filter((b) => !!b && typeof b.id === "string");
+    if (typeof this.settings.activeBoxId !== "string") this.settings.activeBoxId = "";
+    if (!["card", "masonry", "timeline"].includes(this.settings.defaultViewMode)) {
+      this.settings.defaultViewMode = "card";
+    }
   }
   async saveSettings() {
     await this.saveData(this.settings);

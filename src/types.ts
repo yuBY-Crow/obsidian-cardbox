@@ -1,3 +1,8 @@
+/** 卡片「眉头颜色」。null / undefined 表示未标记*/
+export type CardColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';
+
+export const CARD_COLORS: CardColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'];
+
 /** 卡片（= Vault 中的一张 Markdown 笔记） */
 export interface Card {
 	/** 唯一 id，等于文件名（去掉 .md），frontmatter id 优先 */
@@ -14,29 +19,92 @@ export interface Card {
 	updated: number;
 	/** 父卡片 id（可选） */
 	parent?: string;
-	/** 子卡片 id 数组 */
+	/** 子卡片 / 扩展卡片 id 数组（顺序即展示顺序，可拖拽调整） */
 	children: string[];
 	/** 是否已归档（frontmatter archived: true） */
 	archived: boolean;
-	/** 正文前 ~200 字（列表显示 + 文本搜索） */
+	/** 眉头颜色标记 */
+	color?: CardColor;
+	/** 是否置顶（悬浮于列表顶部） */
+	pinned: boolean;
+	/** 正文前~200 字（列表显示 + 文本搜索） */
 	snippet: string;
+	/** 小写化的可搜索全文（标题 + 标签 + 正文，上限 4000 字），供关键字与搜索匹配 */
+	searchText: string;
 	/** 正文是否包含任务列表 */
 	hasTaskList: boolean;
 	/** 文件系统 mtime（纪元毫秒） */
 	mtime: number;
 }
 
-export type ViewMode = 'card' | 'timeline';
+/** 列表 / 瀑布流平铺 / 时间线 */
+export type ViewMode = 'card' | 'masonry' | 'timeline';
 
 export type SortMode = 'created-desc' | 'created-asc' | 'updated-desc' | 'title';
 
 export type MergeMode = 'simple' | 'headings';
+
+// ---------- 卡片盒 ----------
+
+/**
+ * 卡片盒时间条件：
+ * - any：不限
+ * - dynamic：动态窗口，最近 N 天（卡片盒内容随时间滚动变化）
+ * - static：静态区间，固定起止日期
+ */
+export type BoxTimeMode = 'any' | 'dynamic' | 'static';
+
+export interface BoxTimeRule {
+	mode: BoxTimeMode;
+	/** dynamic：最近 N 天 */
+	lastDays?: number;
+	/** static：起始日期 YYYY-MM-DD（含当天 00:00） */
+	from?: string;
+	/** static：结束日期 YYYY-MM-DD（含当天 23:59:59） */
+	to?: string;
+}
+
+/**
+ * 卡片盒定义：一组抓取条件，卡片自动落入盒中，无需手动归类。
+ * 条件之间是「与」关系，但留空的条件不生效。
+ */
+export interface CardBoxDef {
+	id: string;
+	name: string;
+	/** 时间条件 */
+	time: BoxTimeRule;
+	/** 标签条件（命中任一即可，支持嵌套标签前缀匹配） */
+	tags: string[];
+	/** 关键字条件（匹配标题或正文全文） */
+	keywords: string[];
+	/** 关键字之间的关系：any = 命中任一，all = 全部命中 */
+	keywordMatch: 'any' | 'all';
+	/** 颜色条件（命中任一即可） */
+	colors: CardColor[];
+	/** 是否只看置顶卡片 */
+	pinnedOnly: boolean;
+}
+
+export function defaultBoxDef(id: string, name: string): CardBoxDef {
+	return {
+		id,
+		name,
+		time: { mode: 'any' },
+		tags: [],
+		keywords: [],
+		keywordMatch: 'any',
+		colors: [],
+		pinnedOnly: false,
+	};
+}
 
 export interface CardBoxSettings {
 	/** 卡片存放文件夹（相对 Vault 根，无首尾斜杠） */
 	cardsFolder: string;
 	/** 「合并为文章」输出文件夹 */
 	mergeOutputFolder: string;
+	/** Canvas 文件输出文件夹 */
+	canvasOutputFolder: string;
 	/** 文件名方案（MVP 仅 datetime） */
 	filenameFormat: 'datetime' | 'title';
 	/** 新建卡片默认标签 */
@@ -51,15 +119,23 @@ export interface CardBoxSettings {
 	showArchived: boolean;
 	/** 归档方式（MVP 仅 frontmatter 标记） */
 	archiveMethod: 'flag';
+	/** 用户定义的卡片盒（持久化在插件 data.json） */
+	boxes: CardBoxDef[];
+	/** 上次选中的卡片盒 id；空字符串表示「全部卡片」 */
+	activeBoxId: string;
+	/** 瀑布流最小列宽（px），决定 PC 端平铺列数 */
+	masonryMinColumnWidth: number;
 }
 
 export interface FilterState {
 	query: string;
 	selectedTags: Set<string>;
+	selectedColors: Set<CardColor>;
 	hasTag: boolean;
 	noTag: boolean;
 	emptyContent: boolean;
 	hasTaskList: boolean;
+	pinnedOnly: boolean;
 	showArchived: boolean;
 }
 
@@ -67,10 +143,12 @@ export function defaultFilterState(settings: CardBoxSettings): FilterState {
 	return {
 		query: '',
 		selectedTags: new Set<string>(),
+		selectedColors: new Set<CardColor>(),
 		hasTag: false,
 		noTag: false,
 		emptyContent: false,
 		hasTaskList: false,
+		pinnedOnly: false,
 		showArchived: settings.showArchived,
 	};
 }
