@@ -132,12 +132,13 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	const titleEl = textRow.createSpan({ cls: 'cardbox-tile-title' });
 	titleEl.setText(extractTitle(card));
 	if (titleEl.textContent === i18n.emptyContent) titleEl.addClass('is-empty');
-	// 标题为空是用户反馈的核心问题：必须能出现在日志面板里
-	if (titleEl.textContent === i18n.emptyContent) {
-		log.warn('tile', '标题为空', { id: card.id, hasTitleField: !!card.title, snippetHead: card.snippet?.slice(0, 40) });
-	} else {
-		log.debug('tile', '标题提取', { id: card.id, renderedTitle: titleEl.textContent?.slice(0, 30) });
-	}
+	// 标题提取的输入输出都记 info：真机对照用（snippet 前 40 字 → 渲染出的标题）
+	log.info('tile', '标题提取', {
+		id: card.id,
+		hasTitleField: !!card.title,
+		renderedTitle: titleEl.textContent?.slice(0, 30),
+		snippetHead: card.snippet?.slice(0, 40),
+	});
 
 	// 平铺模式显示更多正文；列表模式仅在有独立标题时显示摘要
 	if (opts.rich) {

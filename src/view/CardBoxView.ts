@@ -434,6 +434,52 @@ export class CardBoxView extends ItemView {
 		const items = mode === 'timeline' ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
 		this.list.setItems(items);
 		log.info('render', '渲染完成', { mode, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
+		// 标题可见性检查：等布局完成后验证标题元素实际渲染状态
+		// （用户反馈「卡片没有显示标题」，需要区分：提取为空 / 渲染不可见 / 正常）
+		window.requestAnimationFrame(() => this.checkTileTitles());
+	}
+
+	/**
+	 * 检查已渲染卡片的标题可见性，写入日志。
+	 * 覆盖三种情况：
+	 * - empty：标题提取结果为空占位（extractTitle 兜底失败）
+	 * - hidden：标题元素存在但渲染不可见（高度 0 / display none）
+	 * - ok：正常显示
+	 * 前若干张抽样，避免日志刷屏；有异常时升级为 warn。
+	 */
+	private checkTileTitles(): void {
+		try {
+			const titles = [...this.listEl.querySelectorAll('.cardbox-tile-title')];
+			if (titles.length === 0) return;
+			const sample: { id?: string; text?: string; h: number; w: number; display: string; color: string }[] = [];
+			let empty = 0;
+			let hidden = 0;
+			let ok = 0;
+			for (const el of titles.slice(0, 12)) {
+				const text = el.textContent ?? '';
+				const r = el.getBoundingClientRect();
+				const cs = getComputedStyle(el);
+				const item = {
+					id: el.closest('.cardbox-tile')?.getAttribute('data-card-id') ?? undefined,
+					text: text.slice(0, 24),
+					h: Math.round(r.height),
+					w: Math.round(r.width),
+					display: cs.display,
+					color: cs.color,
+				};
+				sample.push(item);
+				if (text === i18n.emptyContent) empty++;
+				else if (r.height <= 0 || cs.display === 'none' || cs.visibility === 'hidden') hidden++;
+				else ok++;
+			}
+			if (empty > 0 || hidden > 0) {
+				log.warn('title', '标题检查：存在异常', { total: titles.length, empty, hidden, ok, sample });
+			} else {
+				log.info('title', '标题检查：全部正常', { total: titles.length, ok, sample });
+			}
+		} catch (e) {
+			log.error('title', '标题检查失败', e);
+		}
 	}
 
 	private showPlaceholder(text: string): void {

@@ -1695,11 +1695,12 @@ function buildCardTile(opts) {
   const titleEl = textRow.createSpan({ cls: "cardbox-tile-title" });
   titleEl.setText(extractTitle(card));
   if (titleEl.textContent === i18n.emptyContent) titleEl.addClass("is-empty");
-  if (titleEl.textContent === i18n.emptyContent) {
-    log.warn("tile", "\u6807\u9898\u4E3A\u7A7A", { id: card.id, hasTitleField: !!card.title, snippetHead: (_b = card.snippet) == null ? void 0 : _b.slice(0, 40) });
-  } else {
-    log.debug("tile", "\u6807\u9898\u63D0\u53D6", { id: card.id, renderedTitle: (_c = titleEl.textContent) == null ? void 0 : _c.slice(0, 30) });
-  }
+  log.info("tile", "\u6807\u9898\u63D0\u53D6", {
+    id: card.id,
+    hasTitleField: !!card.title,
+    renderedTitle: (_b = titleEl.textContent) == null ? void 0 : _b.slice(0, 30),
+    snippetHead: (_c = card.snippet) == null ? void 0 : _c.slice(0, 40)
+  });
   if (opts.rich) {
     const rest = card.title ? card.snippet.trim() : card.snippet.split("\n").slice(1).join("\n").trim().replace(/^\s*\n/, "").trim();
     if (rest) body.createDiv({ cls: "cardbox-tile-snippet" }).setText(rest);
@@ -3075,6 +3076,50 @@ var CardBoxView = class extends import_obsidian15.ItemView {
     const items = mode === "timeline" ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
     this.list.setItems(items);
     log.info("render", "\u6E32\u67D3\u5B8C\u6210", { mode, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
+    window.requestAnimationFrame(() => this.checkTileTitles());
+  }
+  /**
+   * 检查已渲染卡片的标题可见性，写入日志。
+   * 覆盖三种情况：
+   * - empty：标题提取结果为空占位（extractTitle 兜底失败）
+   * - hidden：标题元素存在但渲染不可见（高度 0 / display none）
+   * - ok：正常显示
+   * 前若干张抽样，避免日志刷屏；有异常时升级为 warn。
+   */
+  checkTileTitles() {
+    var _a, _b, _c;
+    try {
+      const titles = [...this.listEl.querySelectorAll(".cardbox-tile-title")];
+      if (titles.length === 0) return;
+      const sample = [];
+      let empty = 0;
+      let hidden = 0;
+      let ok = 0;
+      for (const el of titles.slice(0, 12)) {
+        const text = (_a = el.textContent) != null ? _a : "";
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const item = {
+          id: (_c = (_b = el.closest(".cardbox-tile")) == null ? void 0 : _b.getAttribute("data-card-id")) != null ? _c : void 0,
+          text: text.slice(0, 24),
+          h: Math.round(r.height),
+          w: Math.round(r.width),
+          display: cs.display,
+          color: cs.color
+        };
+        sample.push(item);
+        if (text === i18n.emptyContent) empty++;
+        else if (r.height <= 0 || cs.display === "none" || cs.visibility === "hidden") hidden++;
+        else ok++;
+      }
+      if (empty > 0 || hidden > 0) {
+        log.warn("title", "\u6807\u9898\u68C0\u67E5\uFF1A\u5B58\u5728\u5F02\u5E38", { total: titles.length, empty, hidden, ok, sample });
+      } else {
+        log.info("title", "\u6807\u9898\u68C0\u67E5\uFF1A\u5168\u90E8\u6B63\u5E38", { total: titles.length, ok, sample });
+      }
+    } catch (e) {
+      log.error("title", "\u6807\u9898\u68C0\u67E5\u5931\u8D25", e);
+    }
   }
   showPlaceholder(text) {
     this.renderKey = "";
