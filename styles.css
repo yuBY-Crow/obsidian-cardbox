@@ -1274,8 +1274,9 @@ body.is-mobile .cardbox-backlink-btn {
 	font-size: 11px;
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
-	color: var(--text-muted);
-	background: var(--background-modifier-border);
+	/* 默认主题色（醒目：提示可展开） */
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
 	border-radius: 999px;
 	flex: none;
 	user-select: none;
@@ -1283,10 +1284,10 @@ body.is-mobile .cardbox-backlink-btn {
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* 展开状态：数字变主题色 */
+/* 展开状态：数字变灰（弱化：已展开，关联卡片已显示） */
 .cardbox-expand-count.is-expanded {
-	color: var(--text-on-accent);
-	background: var(--interactive-accent);
+	color: var(--text-muted);
+	background: var(--background-modifier-border);
 }
 
 body.is-mobile .cardbox-expand-count {

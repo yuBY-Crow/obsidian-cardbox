@@ -599,9 +599,9 @@ function sanitizeFileName(title) {
 function deriveFileBase(title, body) {
   const fromTitle = sanitizeFileName(title != null ? title : "");
   if (fromTitle) return fromTitle;
-  const firstLine2 = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0);
-  if (!firstLine2) return "";
-  const cleaned = firstLine2.replace(/^#{1,6}\s*/, "").replace(/^[-*+]\s+(\[[ xX]\]\s*)?/, "").replace(/^>\s*/, "");
+  const firstLine = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0);
+  if (!firstLine) return "";
+  const cleaned = firstLine.replace(/^#{1,6}\s*/, "").replace(/^[-*+]\s+(\[[ xX]\]\s*)?/, "").replace(/^>\s*/, "");
   return sanitizeFileName(cleaned);
 }
 function normalizeTag(tag) {
@@ -1575,12 +1575,15 @@ function setKebabIcon(el) {
 
 // src/view/CardTile.ts
 var HOLD_MS = 500;
-function firstLine(s) {
-  return s.split("\n")[0].trim();
+function firstNonEmptyLine(s) {
+  for (const line of s.split("\n")) {
+    if (line.trim()) return line.trim();
+  }
+  return "";
 }
 function extractTitle(card) {
   if (card.title && card.title.trim()) return card.title.trim();
-  const raw = firstLine(card.snippet);
+  const raw = firstNonEmptyLine(card.snippet);
   if (!raw) return i18n.emptyContent;
   let s = raw;
   s = s.replace(/\*\*(.+?)\*\*/g, "$1");
@@ -1630,7 +1633,7 @@ function buildCardTile(opts) {
   titleEl.setText(extractTitle(card));
   if (titleEl.textContent === i18n.emptyContent) titleEl.addClass("is-empty");
   if (opts.rich) {
-    const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(firstLine(card.snippet).length).trim();
+    const rest = card.title ? card.snippet.trim() : card.snippet.split("\n").slice(1).join("\n").trim().replace(/^\s*\n/, "").trim();
     if (rest) body.createDiv({ cls: "cardbox-tile-snippet" }).setText(rest);
   } else if (card.title && card.snippet.trim()) {
     body.createSpan({ cls: "cardbox-tile-snippet" }).setText(card.snippet.trim());

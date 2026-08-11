@@ -28,6 +28,14 @@ function firstLine(s: string): string {
 	return s.split('\n')[0].trim();
 }
 
+/** 取第一个非空行（正文常以空行开头，直接取第一行会得到空标题） */
+function firstNonEmptyLine(s: string): string {
+	for (const line of s.split('\n')) {
+		if (line.trim()) return line.trim();
+	}
+	return '';
+}
+
 /**
  * 从 markdown 文本提取纯文本作为卡片标题。
  *
@@ -39,7 +47,7 @@ function firstLine(s: string): string {
  */
 function extractTitle(card: { title?: string; snippet: string }): string {
 	if (card.title && card.title.trim()) return card.title.trim();
-	const raw = firstLine(card.snippet);
+	const raw = firstNonEmptyLine(card.snippet);
 	if (!raw) return i18n.emptyContent;
 	// 顺序很重要：先剥成对行内 markdown，再处理首部块级前缀。
 	// 不能先贪吃首部 `*`，否则会把成对 `**粗体**` 的第一个 `**` 吃掉，
@@ -119,8 +127,16 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	// 平铺模式显示更多正文；列表模式仅在有独立标题时显示摘要
 	if (opts.rich) {
 		// 有 frontmatter title → snippet 全文作正文
-		// 无 frontmatter title → 跳过首行（首行已作为标题）
-		const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(firstLine(card.snippet).length).trim();
+		// 无 frontmatter title → 跳过标题行，从下一段开始
+		const rest = card.title
+			? card.snippet.trim()
+			: card.snippet
+					.split('\n')
+					.slice(1)
+					.join('\n')
+					.trim()
+					.replace(/^\s*\n/, '')
+					.trim();
 		if (rest) body.createDiv({ cls: 'cardbox-tile-snippet' }).setText(rest);
 	} else if (card.title && card.snippet.trim()) {
 		body.createSpan({ cls: 'cardbox-tile-snippet' }).setText(card.snippet.trim());
