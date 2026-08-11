@@ -1718,7 +1718,14 @@ function buildCardTile(opts) {
     snippetHead: (_c = card.snippet) == null ? void 0 : _c.slice(0, 40)
   });
   if (opts.rich) {
-    const rest = card.title ? card.snippet.trim() : card.snippet.split("\n").slice(1).join("\n").trim().replace(/^\s*\n/, "").trim();
+    let rest;
+    if (card.title) {
+      rest = card.snippet.trim();
+    } else {
+      const lines = card.snippet.split("\n");
+      rest = lines.slice(1).join("\n").trim().replace(/^\s*\n/, "").trim();
+      if (!rest) rest = card.snippet.trim();
+    }
     if (rest) body.createDiv({ cls: "cardbox-tile-snippet" }).setText(rest);
   } else if (card.title && card.snippet.trim()) {
     body.createSpan({ cls: "cardbox-tile-snippet" }).setText(card.snippet.trim());
