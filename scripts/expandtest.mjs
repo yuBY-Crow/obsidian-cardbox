@@ -245,6 +245,7 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 		children: document.querySelectorAll('.cardbox-tile.is-child').length,
 		ready: plugin.index ? plugin.index.ready : null,
 		indexCount: plugin.index ? plugin.index.all().length : null,
+		indexIds: plugin.index ? plugin.index.all().map((c) => c.id).slice(0, 25) : [],
 		rootCls: view.contentEl.className,
 		hostHtml: view.contentEl.innerHTML.slice(0, 200),
 	};
@@ -255,7 +256,10 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 		// 列数取第一个列组（子卡片展开会另起列组，数全部会重复）
 		gridCols: (document.querySelector('.cardbox-masonry-group')?.querySelectorAll('.cardbox-masonry-col').length) ?? 0,
 		tileCount: document.querySelectorAll('.cardbox-tile').length,
+		uniqueIds: new Set([...document.querySelectorAll('.cardbox-tile')].map((t) => t.getAttribute('data-card-id'))).size,
+		listCount: document.querySelectorAll('.cardbox-list').length,
 		childTileCount: document.querySelectorAll('.cardbox-tile.is-child').length,
+		firstIds: [...document.querySelectorAll('.cardbox-tile')].slice(0, 8).map((t) => t.getAttribute('data-card-id')),
 		expandCounts: [...document.querySelectorAll('.cardbox-expand-count')].map((e) => ({
 			text: e.textContent,
 			isExpanded: e.classList.contains('is-expanded'),
@@ -301,7 +305,7 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	// 收起后数字恢复主题色
 	const firstBgCollapsed = getComputedStyle(document.querySelector('.cardbox-expand-count')).backgroundColor;
 
-	return { before, expanded, collapsed, firstBgBefore, firstBgExpanded, firstBgCollapsed, setupError: window.__setupError, debug: window.__beforeDebug };
+	return { before, expanded, collapsed, firstBgBefore, firstBgExpanded, firstBgCollapsed, setupError: window.__setupError, debug: window.__beforeDebug, dbg };
 }, { mainJs, manifest, css });
 
 // 断言
@@ -322,15 +326,19 @@ if (result.noCounts) {
 
 t('平铺双列', result.expanded.gridCols === 2, result.expanded.gridCols);
 t('展开前有 5 个数字', result.before.expandCounts.length === 5, result.before.expandCounts.length);
-t('展开前无子卡片', result.before.childTileCount === 0, result.before.childTileCount);
-t('点击数字后子卡片出现', result.expanded.childTileCount > result.before.childTileCount, { before: result.before.childTileCount, after: result.expanded.childTileCount });
-t('再点数字后子卡片消失', result.collapsed.childTileCount < result.expanded.childTileCount, { exp: result.expanded.childTileCount, coll: result.collapsed.childTileCount });
+// 用户要求：子卡始终出现在列表里（平级，depth 0），展开时才缩进移动
+t('展开前全部卡片可见（30 主卡 + 10 扩展 = 40）', result.before.uniqueIds === 40, result.before.uniqueIds);
+t('展开前子卡平级显示（无缩进）', result.before.childTileCount === 0, result.before.childTileCount);
+t('展开后子卡片缩进出现（is-child）', result.expanded.childTileCount > result.before.childTileCount, { before: result.before.childTileCount, after: result.expanded.childTileCount });
+t('再点数字后子卡恢复平级', result.collapsed.childTileCount < result.expanded.childTileCount, { exp: result.expanded.childTileCount, coll: result.collapsed.childTileCount });
+t('展开后卡片总数不变（子卡始终可见）', result.expanded.uniqueIds === result.before.uniqueIds, { before: result.before.uniqueIds, after: result.expanded.uniqueIds });
 t('展开态数字变灰', result.firstBgExpanded !== result.firstBgBefore, { before: result.firstBgBefore, after: result.firstBgExpanded });
 t('收起后数字恢复主题色', result.firstBgCollapsed === result.firstBgBefore, { before: result.firstBgBefore, after: result.firstBgCollapsed });
 t('默认数字是主题色（非灰）', result.before.expandCounts[0].bg === 'rgb(91, 110, 225)', result.before.expandCounts[0].bg);
 t('标题可见且有内容', result.expanded.titles.length >= 2 && result.expanded.titles.every((x) => x.h > 0 && x.text), result.expanded.titles);
 t('无未捕获异常', (result.pageErrors || []).length === 0, result.pageErrors);
 
+console.log(JSON.stringify({ idx: result.dbg.indexCount, ids: result.dbg.indexIds.slice(0, 40) }, null, 2));
 console.log('--- 颜色变化 ---');
 console.log('默认:', result.firstBgBefore, '→ 展开:', result.firstBgExpanded);
 console.log('--- 标题样本 ---');

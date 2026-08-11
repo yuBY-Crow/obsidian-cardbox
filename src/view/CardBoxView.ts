@@ -466,16 +466,18 @@ export class CardBoxView extends ItemView {
 			result.push({ kind: 'card', card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
 			if (isExpanded) for (const child of children) visit(child, depth + 1);
 		};
+
+		/**
+		 * 子卡始终显示，但位置随父卡展开状态变化：
+		 * - 父卡未展开（或父卡不可见）：子卡按排序平级显示（depth 0，默认位置）
+		 * - 父卡已展开：子卡不在此处平级显示，由父卡的 visit 递归带出
+		 *   （depth +1，缩进 + 层级竖线，跟在父卡下方）
+		 */
 		for (const card of filtered) {
 			const parent = card.parent ? byId.get(card.parent) : undefined;
-			// 子卡不独立显示：父卡可见（在当前结果里）时，子卡只在父卡展开后出现。
-			// 若父卡不可见（被搜索/筛选排除），子卡作为顶层卡显示，避免丢失。
-			if (parent) continue;
-			visit(card, 0);
-		}
-		// 兜底：父卡不在当前结果里的孤立子卡仍需显示（被搜索单独命中等场景）
-		for (const card of filtered) {
-			if (visited.has(card.id)) continue;
+			const parentExpanded = parent !== undefined && expanded.has(parent.id);
+			// 父卡已展开 → 子卡由父卡带出，跳过平级渲染
+			if (parent && parentExpanded) continue;
 			visit(card, 0);
 		}
 		return result;
