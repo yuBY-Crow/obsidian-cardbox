@@ -141,12 +141,12 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		badge.setAttribute('aria-label', i18n.relatedCount(childCount));
 	}
 
-	// kebab 菜单按钮：平铺模式用竖三点（右上角，与参考设计一致），列表模式用横三点
+	// kebab 菜单按钮：统一用竖三点（用户明确要求，各视图保持一致）
 	const more = main.createEl('button', {
 		cls: 'cardbox-more-btn',
 		attr: { 'aria-label': i18n.more },
 	});
-	setIcon(more, opts.rich ? 'more-vertical' : 'more-horizontal');
+	setIcon(more, 'more-vertical');
 	more.addEventListener('click', (e) => {
 		e.stopPropagation();
 		opts.onKebab(card, more);

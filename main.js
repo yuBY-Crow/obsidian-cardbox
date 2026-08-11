@@ -1643,7 +1643,7 @@ function buildCardTile(opts) {
     cls: "cardbox-more-btn",
     attr: { "aria-label": i18n.more }
   });
-  (0, import_obsidian4.setIcon)(more, opts.rich ? "more-vertical" : "more-horizontal");
+  (0, import_obsidian4.setIcon)(more, "more-vertical");
   more.addEventListener("click", (e) => {
     e.stopPropagation();
     opts.onKebab(card, more);
@@ -3504,7 +3504,7 @@ var CardExtendView = class extends import_obsidian16.ItemView {
       });
     }
     const more = head.createEl("button", { cls: "cardbox-more-btn", attr: { "aria-label": i18n.more } });
-    (0, import_obsidian16.setIcon)(more, "more-horizontal");
+    (0, import_obsidian16.setIcon)(more, "more-vertical");
     more.addEventListener("click", (e) => {
       e.stopPropagation();
       this.showPanelMenu(card, more, parent, source);

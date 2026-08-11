@@ -281,9 +281,9 @@ export class CardExtendView extends ItemView {
 			});
 		}
 
-		// kebab
+		// kebab（与卡片列表一致，统一竖三点）
 		const more = head.createEl('button', { cls: 'cardbox-more-btn', attr: { 'aria-label': i18n.more } });
-		setIcon(more, 'more-horizontal');
+		setIcon(more, 'more-vertical');
 		more.addEventListener('click', (e) => {
 			e.stopPropagation();
 			this.showPanelMenu(card, more, parent, source);
