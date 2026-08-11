@@ -3103,8 +3103,12 @@ var CardBoxView = class extends import_obsidian15.ItemView {
     };
     for (const card of filtered) {
       const parent = card.parent ? byId.get(card.parent) : void 0;
-      const parentExpanded = parent !== void 0 && expanded.has(parent.id);
-      if (!parent || !parentExpanded) visit(card, 0);
+      if (parent) continue;
+      visit(card, 0);
+    }
+    for (const card of filtered) {
+      if (visited.has(card.id)) continue;
+      visit(card, 0);
     }
     return result;
   }

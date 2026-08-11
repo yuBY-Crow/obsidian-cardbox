@@ -468,8 +468,15 @@ export class CardBoxView extends ItemView {
 		};
 		for (const card of filtered) {
 			const parent = card.parent ? byId.get(card.parent) : undefined;
-			const parentExpanded = parent !== undefined && expanded.has(parent.id);
-			if (!parent || !parentExpanded) visit(card, 0);
+			// 子卡不独立显示：父卡可见（在当前结果里）时，子卡只在父卡展开后出现。
+			// 若父卡不可见（被搜索/筛选排除），子卡作为顶层卡显示，避免丢失。
+			if (parent) continue;
+			visit(card, 0);
+		}
+		// 兜底：父卡不在当前结果里的孤立子卡仍需显示（被搜索单独命中等场景）
+		for (const card of filtered) {
+			if (visited.has(card.id)) continue;
+			visit(card, 0);
 		}
 		return result;
 	}
