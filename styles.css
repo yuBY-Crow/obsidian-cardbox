@@ -454,6 +454,153 @@
 
 /* ---------- 模态框 ---------- */
 
+/* ===== 沉浸式快速捕获（Writeathon 风格） ===== */
+
+.cardbox-capture {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	padding: 0;
+}
+
+/* 顶部深色引导区（Writeathon「写作就像马拉松」） */
+.cardbox-capture-header {
+	background: var(--background-secondary);
+	padding: 14px 16px 12px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex: none;
+}
+
+.cardbox-capture-hint {
+	color: var(--text-faint);
+	font-size: 14px;
+	letter-spacing: 0.02em;
+}
+
+/* 连续模式轻触切换（右上角小标签：圆点 + 文字） */
+.cardbox-capture-mode {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: var(--radius-s);
+	user-select: none;
+}
+.cardbox-capture-mode:hover { background: var(--background-modifier-hover); }
+.cardbox-capture-mode-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--text-faint);
+	transition: background 0.15s ease;
+}
+.cardbox-capture-mode.is-continuous .cardbox-capture-mode-dot {
+	background: var(--interactive-accent);
+}
+.cardbox-capture-mode.is-continuous { color: var(--interactive-accent); }
+
+/* 编辑区：大 textarea，自适应高度 */
+.cardbox-capture-input {
+	flex: 1 1 auto;
+	min-height: 140px;
+	max-height: 45vh;
+	width: 100%;
+	padding: 18px 16px;
+	border: none;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 16px;
+	line-height: 1.65;
+	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+	outline: none;
+	resize: none;
+	overflow-y: auto;
+}
+.cardbox-capture-input::placeholder { color: var(--text-faint); }
+
+/* 底部工具栏 */
+.cardbox-capture-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+	flex: none;
+	/* 手机端贴住键盘顶部，避开底部安全区 */
+	padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+.cardbox-capture-tools {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.cardbox-capture-tool {
+	width: 38px;
+	height: 38px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 0;
+}
+.cardbox-capture-tool:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.cardbox-capture-tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cardbox-capture-tool svg * { fill: currentColor; stroke: none; }
+
+/* 添加按钮（最右 CTA，胶囊形） */
+.cardbox-capture-add {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 999px;
+	padding: 8px 22px;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.cardbox-capture-add:hover { filter: brightness(1.05); }
+.cardbox-capture-add:active { transform: scale(0.96); }
+
+/* 隐藏 Obsidian modal 默认标题栏（沉浸式全屏） */
+.cardbox-modal-hidden-chrome .modal-title,
+.cardbox-modal-hidden-chrome .modal-close-button { display: none; }
+.cardbox-modal-hidden-chrome .modal-content {
+	border-radius: 16px 16px 0 0;
+	/* 手机端沉浸式全屏：撑满高度，让内容区可滚动 */
+	min-height: 60vh;
+}
+body.is-mobile .cardbox-modal-hidden-chrome .modal-content {
+	min-height: 70vh;
+}
+
+/* 兼容手机端 */
+body.is-mobile .cardbox-capture-toolbar {
+	padding: 6px 12px;
+}
+body.is-mobile .cardbox-capture-tool {
+	width: 40px;
+	height: 40px;
+}
+body.is-mobile .cardbox-capture-add {
+	padding: 10px 24px;
+	min-height: 44px;
+}
+
+/* 旧的 footer 与 input 样式保留兼容（其他模块可能引用），但不再用于 CaptureModal */
 .cardbox-capture-input {
 	width: 100%;
 	resize: vertical;
@@ -1554,7 +1701,8 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-time {
 .cardbox-fab {
 	position: absolute;
 	right: 16px;
-	bottom: 20px;
+	/* 上移一个按钮高度（48px），避免遮挡最后一张卡片的底部操作 */
+	bottom: calc(20px + 48px + 16px);
 	z-index: 10;
 	width: 48px;
 	height: 48px;

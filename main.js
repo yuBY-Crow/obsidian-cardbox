@@ -250,6 +250,17 @@ var i18n = {
   captureTitle: "\u8BB0\u5F55\u5361\u7247",
   capturePlaceholder: "\u8F93\u5165\u5361\u7247\u5185\u5BB9\u2026",
   continuousMode: "\u8FDE\u7EED\u6A21\u5F0F",
+  singleMode: "\u5355\u6B21\u6A21\u5F0F",
+  captureSlogan: "\u5199\u4F5C\u5C31\u50CF\u9A6C\u62C9\u677E",
+  addChildHint: "\u4E3A\u8FD9\u5F20\u5361\u7247\u6DFB\u52A0\u5B50\u5361",
+  toolTag: "\u6807\u7B7E",
+  toolImage: "\u56FE\u7247",
+  toolLink: "\u94FE\u63A5",
+  toolScan: "\u626B\u7801",
+  toolQr: "\u4E8C\u7EF4\u7801",
+  toolImageHint: "\u56FE\u7247\u63D2\u5165\uFF08\u6682\u672A\u5B9E\u73B0\uFF09",
+  toolScanHint: "\u626B\u7801\u8BC6\u522B\uFF08\u6682\u672A\u5B9E\u73B0\uFF09",
+  toolQrHint: "\u4E8C\u7EF4\u7801\u8BC6\u522B\uFF08\u6682\u672A\u5B9E\u73B0\uFF09",
   save: "\u4FDD\u5B58",
   cancel: "\u53D6\u6D88",
   emptyCaptureHint: "\u5185\u5BB9\u4E3A\u7A7A\uFF0C\u672A\u4FDD\u5B58",
@@ -3886,43 +3897,81 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.ctx = ctx;
     this.opts = opts;
     this.continuous = true;
-    this.continuous = ctx.settings.continuousCaptureDefault;
+    this.autosize = () => this.autoSize();
+    this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
-    var _a;
-    this.setTitle(this.opts.parent ? i18n.addChild : i18n.captureTitle);
+    var _a, _b;
+    (_a = this.titleEl.parentElement) == null ? void 0 : _a.addClass("cardbox-modal-hidden-chrome");
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
+    const header = contentEl.createDiv({ cls: "cardbox-capture-header" });
+    header.createDiv({ cls: "cardbox-capture-hint", text: this.opts.parent ? i18n.addChildHint : i18n.captureSlogan });
     this.textarea = contentEl.createEl("textarea", {
       cls: "cardbox-capture-input",
       attr: {
-        rows: "6",
-        placeholder: (_a = this.opts.placeholder) != null ? _a : i18n.capturePlaceholder,
+        rows: "3",
+        placeholder: (_b = this.opts.placeholder) != null ? _b : "",
         "aria-label": this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder
       }
     });
     if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-    this.textarea.focus();
-    const footer = contentEl.createDiv({ cls: "cardbox-modal-footer" });
-    if (this.opts.parent || this.opts.singleShot) {
-      this.continuous = false;
-    } else {
-      new import_obsidian18.ToggleComponent(footer).setValue(this.continuous).setTooltip(i18n.continuousMode).onChange((v) => {
-        this.continuous = v;
+    this.textarea.addEventListener("input", this.autosize);
+    requestAnimationFrame(this.autosize);
+    const toolbar = contentEl.createDiv({ cls: "cardbox-capture-toolbar" });
+    const tools = toolbar.createDiv({ cls: "cardbox-capture-tools" });
+    this.makeTool(tools, "hash", i18n.toolTag, () => this.insertAtCursor("\n# "));
+    this.makeTool(tools, "image", i18n.toolImage, () => new import_obsidian18.Notice(i18n.toolImageHint));
+    this.makeTool(tools, "link", i18n.toolLink, () => this.insertAtCursor("[[", "]]"));
+    this.makeTool(tools, "scan", i18n.toolScan, () => new import_obsidian18.Notice(i18n.toolScanHint));
+    this.makeTool(tools, "qr-code", i18n.toolQr, () => new import_obsidian18.Notice(i18n.toolQrHint));
+    const addBtn = toolbar.createEl("button", { cls: "cardbox-capture-add", attr: { "aria-label": i18n.save } });
+    addBtn.createSpan({ text: i18n.save });
+    addBtn.addEventListener("click", () => void this.save());
+    if (!this.opts.parent && !this.opts.singleShot) {
+      const mode = header.createDiv({ cls: "cardbox-capture-mode" });
+      mode.createSpan({ cls: "cardbox-capture-mode-dot" });
+      mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
+      mode.addEventListener("click", () => {
+        this.continuous = !this.continuous;
+        mode.classList.toggle("is-continuous", this.continuous);
+        mode.querySelector("span:last-child").textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
       });
-      footer.createSpan({ cls: "cardbox-muted", text: i18n.continuousMode });
+      mode.classList.toggle("is-continuous", this.continuous);
     }
-    footer.createDiv({ cls: "cardbox-spacer" });
-    new import_obsidian18.ButtonComponent(footer).setButtonText(i18n.cancel).onClick(() => this.close());
-    const saveBtn = new import_obsidian18.ButtonComponent(footer).setButtonText(i18n.save).setCta();
-    saveBtn.onClick(() => void this.save());
+    this.textarea.focus();
+    this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
     this.textarea.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         void this.save();
       }
     });
+  }
+  makeTool(host, icon, label, onClick) {
+    const btn = host.createEl("button", { cls: "cardbox-capture-tool", attr: { "aria-label": label } });
+    (0, import_obsidian18.setIcon)(btn, icon);
+    btn.addEventListener("click", onClick);
+  }
+  insertAtCursor(left, right = "") {
+    var _a, _b;
+    const el = this.textarea;
+    const start = (_a = el.selectionStart) != null ? _a : el.value.length;
+    const end = (_b = el.selectionEnd) != null ? _b : el.value.length;
+    const before = el.value.slice(0, start);
+    const sel = el.value.slice(start, end);
+    const after = el.value.slice(end);
+    el.value = before + left + sel + right + after;
+    const cursor = start + left.length + sel.length + right.length;
+    el.setSelectionRange(cursor, cursor);
+    el.focus();
+    this.autosize();
+  }
+  autoSize() {
+    const el = this.textarea;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
   }
   async save() {
     const body = this.textarea.value.trim();
@@ -3947,11 +3996,14 @@ var CaptureModal = class extends import_obsidian18.Modal {
     if (this.continuous) {
       this.textarea.value = "";
       this.textarea.focus();
+      this.autosize();
     } else {
       this.close();
     }
   }
   onClose() {
+    var _a;
+    (_a = this.titleEl.parentElement) == null ? void 0 : _a.removeClass("cardbox-modal-hidden-chrome");
     this.contentEl.empty();
   }
 };
