@@ -64,6 +64,7 @@ await page.evaluate(async ({ mainJs, manifest }) => {
 		{ title: null, body: '卡片笔记写作法：核心框架\n卢曼的卡片盒笔记法（Zettelkasten）把写作从线性积累变为网络化生长。\n三大笔记类型中，永久笔记最关键：\n[[永久笔记：原子化、可独立存在]] 延伸阅读：[[非线性写作：从卡片到文章]]' },
 		{ title: null, body: '测试笔记连接链接，内容不知道适合尝试一下为什么会这样呀\n这是第二段内容。' },
 		{ title: null, body: '测试机比长度\n#测试' },
+		{ title: null, body: '这是一个200字的单行卡片内容，整段文字没有换行符，标题取第一行后剩余为空，正文必须回退显示完整内容而不能丢失。' },
 	];
 	for (let i = 0; i < samples.length; i++) {
 		const fm = ['---', `id: "card-${i}"`, `created: ${Date.now() - i * 3600000}`, `updated: ${Date.now()}`];

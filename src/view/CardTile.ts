@@ -143,16 +143,16 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	// 平铺模式显示更多正文；列表模式仅在有独立标题时显示摘要
 	if (opts.rich) {
 		// 有 frontmatter title → snippet 全文作正文
-		// 无 frontmatter title → 跳过标题行，从下一段开始
-		const rest = card.title
-			? card.snippet.trim()
-			: card.snippet
-					.split('\n')
-					.slice(1)
-					.join('\n')
-					.trim()
-					.replace(/^\s*\n/, '')
-					.trim();
+		// 无 frontmatter title → 优先显示标题之后的剩余行；
+		// 若只有一行（剩余为空），直接显示全文——内容不能被丢
+		let rest: string;
+		if (card.title) {
+			rest = card.snippet.trim();
+		} else {
+			const lines = card.snippet.split('\n');
+			rest = lines.slice(1).join('\n').trim().replace(/^\s*\n/, '').trim();
+			if (!rest) rest = card.snippet.trim();
+		}
 		if (rest) body.createDiv({ cls: 'cardbox-tile-snippet' }).setText(rest);
 	} else if (card.title && card.snippet.trim()) {
 		body.createSpan({ cls: 'cardbox-tile-snippet' }).setText(card.snippet.trim());

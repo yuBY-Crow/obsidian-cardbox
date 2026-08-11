@@ -55,6 +55,8 @@ const cards = [
 	{ id: 't8', title: '显式标题', snippet: '首行正文\n第二行。', color: undefined, children: [], bodyLinks: [], archived: false, pinned: false, tags: [], created: Date.now(), updated: Date.now(), searchText: '', hasTaskList: false, mtime: Date.now() },
 	// 9. 纯文本无 markdown 前缀
 	{ id: 't9', title: undefined, snippet: '今天是周三。\n继续记。', color: undefined, children: [], bodyLinks: [], archived: false, pinned: false, tags: [], created: Date.now(), updated: Date.now(), searchText: '', hasTaskList: false, mtime: Date.now() },
+	// 10. 单行内容（用户真机场景：「一个200字的卡片」全在一行）→ 正文不能丢
+	{ id: 't10', title: undefined, snippet: '这是一整行两百字的卡片内容，全部内容都在第一行没有任何换行，因此标题取首行后剩余为空，正文必须回退显示全文而不能丢失。', color: undefined, children: [], bodyLinks: [], archived: false, pinned: false, tags: [], created: Date.now(), updated: Date.now(), searchText: '', hasTaskList: false, mtime: Date.now() },
 ];
 
 const result = await page.evaluate(async ({ code, cards }) => {
@@ -108,10 +110,12 @@ const result = await page.evaluate(async ({ code, cards }) => {
 
 	return [...document.querySelectorAll('.cardbox-tile')].map((t) => {
 		const title = t.querySelector('.cardbox-tile-title');
+		const snippet = t.querySelector('.cardbox-tile-snippet');
 		return {
 			id: t.getAttribute('data-card-id'),
 			titleText: title ? title.textContent : null,
 			isEmpty: title ? title.classList.contains('is-empty') : false,
+			snippetText: snippet ? snippet.textContent : null,
 		};
 	});
 }, { code: tileCode, cards });
@@ -126,6 +130,21 @@ const expect = {
 	t7: '空内容',     // 抽完只剩空，落到兜底
 	t8: '显式标题',
 	t9: '今天是周三。',
+	t10: '这是一整行两百字的卡片内容，全部内容都在第一行没有任何换行，因此标题取首行后剩余为空，正文必须回退显示全文而不能丢失。',
+};
+
+// 正文（snippet）断言：内容必须可见，不能被「跳过标题行」逻辑丢掉
+const expectSnippet = {
+	t1: '正文内容。',          // 有 title → 全文作正文
+	t2: '这是正文内容。',      // 无 title → 剩余行
+	t3: '正文第二段。',
+	t4: '继续内容。',
+	t5: '正文。',
+	t6: null,                 // 空内容 → 无正文
+	t7: '正文。',             // 无 title → 剩余行
+	t8: '首行正文\n第二行。',  // 有 title → 全文
+	t9: '继续记。',           // 无 title → 剩余行
+	t10: '这是一整行两百字的卡片内容，全部内容都在第一行没有任何换行，因此标题取首行后剩余为空，正文必须回退显示全文而不能丢失。', // 单行 → 回退全文
 };
 
 let pass = 0, fail = 0;
@@ -134,6 +153,10 @@ for (const r of result) {
 	const ok = r.titleText === e;
 	if (ok) pass++;
 	else { fail++; console.log('FAIL:', r.id, '→', JSON.stringify(r.titleText), '期望', JSON.stringify(e)); }
+	// 正文断言：内容可见性
+	const es = expectSnippet[r.id];
+	if (r.snippetText === es) pass++;
+	else { fail++; console.log('FAIL: snippet', r.id, '→', JSON.stringify(r.snippetText), '期望', JSON.stringify(es)); }
 }
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
