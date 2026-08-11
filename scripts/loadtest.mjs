@@ -170,7 +170,7 @@ const obsidianMock = {
 	Plugin, ItemView, Modal, PluginSettingTab, Setting, Notice, Menu, TFile, TFolder, Component, Events,
 	ButtonComponent, TextComponent, TextAreaComponent, DropdownComponent, ToggleComponent,
 	parseYaml, stringifyYaml,
-	setIcon: () => {}, normalizePath: (p) => p, debounce: (f) => f,
+	setIcon: () => {}, getIcon: (n) => (n === "more-vertical" ? {} : null), normalizePath: (p) => p, debounce: (f) => f,
 	MarkdownRenderer: { render: async () => {} },
 	Platform: { isMobile: false, isDesktop: true },
 	WorkspaceLeaf: class {},

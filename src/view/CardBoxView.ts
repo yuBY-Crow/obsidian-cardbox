@@ -510,20 +510,32 @@ export class CardBoxView extends ItemView {
 				log.info('render', '子卡判定', { id: card.id, extCount: children.length, isExpanded, inExpandedIds: expanded.has(card.id) });
 			}
 			result.push({ kind: 'card', card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
-			if (isExpanded) for (const child of children) visit(child, depth + 1);
+			// 父卡展开：子卡从默认位置（depth 0）移除并以 depth+1 重新加入
+			if (isExpanded) {
+				const childIds = new Set(children.map((c) => c.id));
+				const removed: string[] = [];
+				for (let i = result.length - 1; i >= 0; i--) {
+					const r = result[i];
+					if (r.kind === 'card' && childIds.has(r.card.id) && r.depth === 0) {
+						result.splice(i, 1);
+						removed.push(r.card.id);
+					}
+				}
+				log.info('render', '展开：子卡从默认位置移走', { id: card.id, removed });
+				for (const child of children) {
+					visited.delete(child.id);
+					visit(child, depth + 1);
+				}
+			}
 		};
 
 		/**
 		 * 子卡始终显示，但位置随父卡展开状态变化：
 		 * - 父卡未展开（或父卡不可见）：子卡按排序平级显示（depth 0，默认位置）
-		 * - 父卡已展开：子卡不在此处平级显示，由父卡的 visit 递归带出
-		 *   （depth +1，缩进 + 层级竖线，跟在父卡下方）
+		 * - 父卡已展开：子卡 visit depth 0 在先，父卡展开时再从 result 移除并以 depth+1 重新加入
+		 *   （缩进 + 层级竖线，跟在父卡下方）
 		 */
 		for (const card of filtered) {
-			const parent = card.parent ? byId.get(card.parent) : undefined;
-			const parentExpanded = parent !== undefined && expanded.has(parent.id);
-			// 父卡已展开 → 子卡由父卡带出，跳过平级渲染
-			if (parent && parentExpanded) continue;
 			visit(card, 0);
 		}
 		return result;

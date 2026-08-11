@@ -1356,8 +1356,24 @@ var CardIndex = class {
     if (card.mtime - card.updated < UPDATE_BUMP_THRESHOLD_MS) return;
     const last = (_a = this.lastBump.get(card.path)) != null ? _a : 0;
     if (now - last < UPDATE_BUMP_COOLDOWN_MS) return;
+    if (this.isFileBeingEdited(card.path)) return;
     this.lastBump.set(card.path, now);
     this.service.bumpUpdated(card).catch(() => void 0);
+  }
+  /**
+   * 文件是否正在被编辑：普通 markdown 标签页，
+   * 或白板卡片内嵌编辑器（canvas 节点 DOM 里存在该文件的 CM 编辑器）。
+   * 正在编辑时跳过 bump，保留"外部改动才同步 updated"的语义。
+   */
+  isFileBeingEdited(path) {
+    var _a;
+    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+      const view = leaf.view;
+      if (((_a = view.file) == null ? void 0 : _a.path) === path) return true;
+    }
+    if (typeof document === "undefined") return false;
+    const esc = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(path) : path.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return !!document.querySelector(`.canvas-node[data-path="${esc}"] .cm-editor`);
   }
   upsertCard(card) {
     const old = this.cardsById.get(card.id);
@@ -3144,12 +3160,24 @@ var CardBoxView = class extends import_obsidian15.ItemView {
         log.info("render", "\u5B50\u5361\u5224\u5B9A", { id: card.id, extCount: children.length, isExpanded, inExpandedIds: expanded.has(card.id) });
       }
       result.push({ kind: "card", card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
-      if (isExpanded) for (const child of children) visit(child, depth + 1);
+      if (isExpanded) {
+        const childIds = new Set(children.map((c) => c.id));
+        const removed = [];
+        for (let i = result.length - 1; i >= 0; i--) {
+          const r = result[i];
+          if (r.kind === "card" && childIds.has(r.card.id) && r.depth === 0) {
+            result.splice(i, 1);
+            removed.push(r.card.id);
+          }
+        }
+        log.info("render", "\u5C55\u5F00\uFF1A\u5B50\u5361\u4ECE\u9ED8\u8BA4\u4F4D\u7F6E\u79FB\u8D70", { id: card.id, removed });
+        for (const child of children) {
+          visited.delete(child.id);
+          visit(child, depth + 1);
+        }
+      }
     };
     for (const card of filtered) {
-      const parent = card.parent ? byId.get(card.parent) : void 0;
-      const parentExpanded = parent !== void 0 && expanded.has(parent.id);
-      if (parent && parentExpanded) continue;
       visit(card, 0);
     }
     return result;

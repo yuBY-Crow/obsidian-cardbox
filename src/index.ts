@@ -194,8 +194,29 @@ export class CardIndex {
 		if (card.mtime - card.updated < UPDATE_BUMP_THRESHOLD_MS) return;
 		const last = this.lastBump.get(card.path) ?? 0;
 		if (now - last < UPDATE_BUMP_COOLDOWN_MS) return;
+		// 文件正在编辑中（普通编辑器或白板卡片内嵌编辑器）→ 跳过，
+		// 避免二次写盘触发 Obsidian 重载编辑器、光标跳回文首
+		if (this.isFileBeingEdited(card.path)) return;
 		this.lastBump.set(card.path, now);
 		this.service.bumpUpdated(card).catch(() => undefined);
+	}
+
+	/**
+	 * 文件是否正在被编辑：普通 markdown 标签页，
+	 * 或白板卡片内嵌编辑器（canvas 节点 DOM 里存在该文件的 CM 编辑器）。
+	 * 正在编辑时跳过 bump，保留"外部改动才同步 updated"的语义。
+	 */
+	private isFileBeingEdited(path: string): boolean {
+		for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
+			const view = leaf.view as { file?: { path: string } };
+			if (view.file?.path === path) return true;
+		}
+		if (typeof document === 'undefined') return false;
+		const esc =
+			typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+				? CSS.escape(path)
+				: path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+		return !!document.querySelector(`.canvas-node[data-path="${esc}"] .cm-editor`);
 	}
 
 	private upsertCard(card: Card): void {
