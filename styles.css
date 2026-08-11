@@ -306,7 +306,6 @@
 	padding: 10px 8px;
 }
 
-.cardbox-expand-btn,
 .cardbox-more-btn {
 	display: inline-flex;
 	align-items: center;
@@ -322,7 +321,6 @@
 }
 
 @media (hover: hover) {
-	.cardbox-expand-btn:hover,
 	.cardbox-more-btn:hover {
 		background: var(--background-modifier-hover);
 		color: var(--text-normal);
@@ -546,7 +544,6 @@
 body.is-mobile .cardbox-mode-btn,
 body.is-mobile .cardbox-pill,
 body.is-mobile .cardbox-action-btn,
-body.is-mobile .cardbox-expand-btn,
 body.is-mobile .cardbox-more-btn,
 body.is-mobile .cardbox-chip {
 	min-height: 44px;
@@ -1264,30 +1261,9 @@ body.is-mobile .cardbox-backlink-btn {
 	min-height: 36px;
 }
 
-/* ===== 展开按钮旁的关联卡片数量 ===== */
+/* ===== 展开数字（可点击，展开时变色） ===== */
 
-.cardbox-expand-wrap {
-	display: inline-flex;
-	align-items: center;
-	gap: 2px;
-	flex: none;
-	cursor: pointer;
-	border-radius: var(--radius-s);
-	padding-right: 4px;
-}
-
-@media (hover: hover) {
-	.cardbox-expand-wrap:hover {
-		background: var(--background-modifier-hover);
-	}
-	/* 悬停整体时按钮自身不再单独高亮，避免双层背景 */
-	.cardbox-expand-wrap:hover .cardbox-expand-btn,
-	.cardbox-expand-wrap:hover .cardbox-extend-toggle {
-		background: transparent;
-		color: var(--text-normal);
-	}
-}
-
+/* 列表模式：数字在卡片最左侧，保持层级感 */
 .cardbox-expand-count {
 	display: inline-flex;
 	align-items: center;
@@ -1298,15 +1274,19 @@ body.is-mobile .cardbox-backlink-btn {
 	font-size: 11px;
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
-	color: var(--text-on-accent);
-	background: var(--interactive-accent);
+	color: var(--text-muted);
+	background: var(--background-modifier-border);
 	border-radius: 999px;
 	flex: none;
 	user-select: none;
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
 }
 
-body.is-mobile .cardbox-expand-wrap {
-	min-height: 44px;
+/* 展开状态：数字变主题色 */
+.cardbox-expand-count.is-expanded {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
 }
 
 body.is-mobile .cardbox-expand-count {
@@ -1550,17 +1530,12 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-snippet {
 	display: block;
 }
 
-/* 关联卡片行：正文与时间之间，上方一条分隔线（参考图中的「↳ 关联」样式） */
-body.is-mobile .cardbox-list.is-masonry .cardbox-tile-related {
-	margin-top: 10px;
-	padding-top: 8px;
-	border-top: 1px solid var(--background-modifier-border);
-}
-
-/* 时间独占底部一行，弱化显示 */
+/* meta 行：标签 + 展开数字 + 时间同行 */
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile-meta {
 	margin-top: 8px;
 	gap: 6px;
+	flex-wrap: wrap;
+	align-items: center;
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile-time {

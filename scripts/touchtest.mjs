@@ -142,11 +142,11 @@ const st = () => page.evaluate(() => ({ ...window.__state }));
 const results = [];
 const check = (name, cond, got) => results.push({ name, ok: !!cond, got });
 
-// 1. 真实触摸点击展开按钮 → 展开（toggle 1 次）
-await page.locator('.cardbox-expand-btn').tap();
+// 1. 真实触摸点击展开数字 → 展开（toggle 1 次）
+await page.locator('.cardbox-expand-count').tap();
 await page.waitForTimeout(80);
 let state = await st();
-check('触摸点击展开按钮触发 toggle', state.toggles >= 1, state.toggles);
+check('触摸点击展开数字触发 toggle', state.toggles >= 1, state.toggles);
 
 // 2. 长按展开数字区域 650ms → 不误触多选（本轮修复）
 await page.evaluate(() => window.__longPress('.cardbox-expand-count', 650));

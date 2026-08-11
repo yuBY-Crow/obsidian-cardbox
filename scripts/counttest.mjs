@@ -140,31 +140,29 @@ const result = await page.evaluate(
 		};
 
 		// --- 分支 1：可展开 + 有关联数量 ---
-		const f1 = section('可展开：数量显示在展开按钮旁');
+		const f1 = section('可展开：数字即交互入口');
 		const tile1 = render({
 			card: card({ title: '卡片笔记写作法：核心框架', color: 'blue', pinned: true }),
 			childCount: 4,
 			hasVisibleChildren: true,
 		});
 		f1.appendChild(tile1);
-		const wrap1 = tile1.querySelector('.cardbox-expand-wrap');
 		const cnt1 = tile1.querySelector('.cardbox-expand-count');
-		t('展开按钮包了wrap', !!wrap1);
-		t('按钮旁显示数量', cnt1 && cnt1.textContent === '4', cnt1 && cnt1.textContent);
+		t('数字显示在卡片左侧', !!cnt1, !!cnt1);
+		t('数字内容为关联数量', cnt1 && cnt1.textContent === '4', cnt1 && cnt1.textContent);
 		t('meta 行不再重复显示角标', !tile1.querySelector('.cardbox-child-badge'));
 		t('数量有无障碍标签', cnt1 && /4/.test(cnt1.getAttribute('aria-label') ?? ''), cnt1 && cnt1.getAttribute('aria-label'));
-		// 位置关系：数量必须在展开按钮右侧、且在标题左侧
+		t('不再渲染 chevron 按钮', !tile1.querySelector('.cardbox-expand-btn'));
+		t('数字可见（有尺寸）', cnt1 && cnt1.getBoundingClientRect().width > 8, cnt1 && cnt1.getBoundingClientRect().width);
+		// 位置关系：数字在标题左侧（列表模式）
 		{
-			const btn = tile1.querySelector('.cardbox-expand-btn').getBoundingClientRect();
 			const num = cnt1.getBoundingClientRect();
 			const title = tile1.querySelector('.cardbox-tile-title').getBoundingClientRect();
-			t('数量在按钮右侧', num.left >= btn.right - 1, { btnRight: btn.right, numLeft: num.left });
 			t('数量在标题左侧', num.right <= title.left + 1, { numRight: num.right, titleLeft: title.left });
-			t('数量可见（有尺寸）', num.width > 8 && num.height > 8, num);
 		}
 
-		// --- 分支 2：展开态图标切换 ---
-		const f2 = section('展开态：图标变为向下箭头');
+		// --- 分支 2：展开态数字变色 ---
+		const f2 = section('展开态：数字变主题色');
 		const tile2 = render({
 			card: card({ title: '已展开的主卡片', color: 'green' }),
 			childCount: 12,
@@ -172,8 +170,8 @@ const result = await page.evaluate(
 			expanded: true,
 		});
 		f2.appendChild(tile2);
-		const icon2 = tile2.querySelector('.cardbox-expand-btn svg');
-		t('展开态用chevron-down', icon2 && icon2.getAttribute('data-icon') === 'chevron-down', icon2 && icon2.getAttribute('data-icon'));
+		t('展开态数字有 is-expanded 类', tile2.querySelector('.cardbox-expand-count')?.classList.contains('is-expanded'),
+			tile2.querySelector('.cardbox-expand-count')?.className);
 		t('两位数数量也能显示', tile2.querySelector('.cardbox-expand-count').textContent === '12');
 
 		// --- 分支 3：有关联但不可展开（被筛选挡住）→ 回落 meta 行 ---
@@ -184,7 +182,7 @@ const result = await page.evaluate(
 			hasVisibleChildren: false,
 		});
 		f3.appendChild(tile3);
-		t('无展开按钮', !tile3.querySelector('.cardbox-expand-btn'));
+		t('不可展开时无数字', !tile3.querySelector('.cardbox-expand-count'));
 		t('数量回落到 meta 角标', tile3.querySelector('.cardbox-child-badge')?.textContent === '3',
 			tile3.querySelector('.cardbox-child-badge')?.textContent);
 
@@ -199,10 +197,10 @@ const result = await page.evaluate(
 		const tile5 = render({ card: card({ title: '边界' }), childCount: 0, hasVisibleChildren: true });
 		t('可展开但数量 0 时不渲染数字', !tile5.querySelector('.cardbox-expand-count'));
 
-		// --- 分支 6：点击数量也能触发展开 ---
+		// --- 分支 6：点击数字展开 / 再点收起 ---
 		let toggled = 0;
 		const tile6 = render({
-			card: card({ title: '点击数字也能展开' }),
+			card: card({ title: '点击数字切换展开' }),
 			childCount: 2,
 			hasVisibleChildren: true,
 			onToggleExpand: () => toggled++,
@@ -210,8 +208,8 @@ const result = await page.evaluate(
 		document.body.appendChild(tile6);
 		tile6.querySelector('.cardbox-expand-count').click();
 		t('点击数字触发展开回调', toggled === 1, toggled);
-		tile6.querySelector('.cardbox-expand-btn').click();
-		t('点击按钮也触发（不重复）', toggled === 2, toggled);
+		tile6.querySelector('.cardbox-expand-count').click();
+		t('再次点击触发收起回调', toggled === 2, toggled);
 		tile6.remove();
 
 		return { log };

@@ -28,6 +28,36 @@ function firstLine(s: string): string {
 	return s.split('\n')[0].trim();
 }
 
+/**
+ * 从 markdown 文本提取纯文本作为卡片标题。
+ *
+ * 用户手机实机上「卡片没有显示标题」的根因：测试库与真实 vault 的差异——
+ * 大多数卡片没有 frontmatter title 字段，fallback 到正文首行。
+ * 但 markdown 笔记的正文首行经常是 `# 标题` 或 `> 引用`，前缀符号被
+ * 用户当成「没有显示标题」的一部分。
+ * 抽取时去掉常见 markdown 前缀，保留纯文本。
+ */
+function extractTitle(card: { title?: string; snippet: string }): string {
+	if (card.title && card.title.trim()) return card.title.trim();
+	const raw = firstLine(card.snippet);
+	if (!raw) return i18n.emptyContent;
+	// 顺序很重要：先剥成对行内 markdown，再处理首部块级前缀。
+	// 不能先贪吃首部 `*`，否则会把成对 `**粗体**` 的第一个 `**` 吃掉，
+	// 留下孤立的 `**`（这种孤立字符无法用 `\*\*(.+?)\*\*` 匹配）。
+	let s = raw;
+	s = s.replace(/\*\*(.+?)\*\*/g, '$1');
+	s = s.replace(/\*(.+?)\*/g, '$1');
+	s = s.replace(/`([^`]+)`/g, '$1');
+	s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+	// 首部块级 markdown：# 标题、> 引用、- 列表、1. 有序列表；`(?=\s|$)` 让孤立
+	// 的 `#`（如「#\n正文」的错位）也能识别为块级符号
+	s = s.replace(/^\s*(?:#{1,6}(?=\s|$)|>\s|[-*+]\s|\d+\.\s)/, '');
+	const cleaned = s.trim();
+	// 剥光后无任何文字字符（仅有标点）→ 视作空标题
+	if (!cleaned || !/\S/.test(cleaned)) return i18n.emptyContent;
+	return cleaned;
+}
+
 /** 构建单张卡片瓦片（列表 / 平铺 / 时间轴共用） */
 export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	const { card } = opts;
@@ -51,31 +81,23 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	const childCount = opts.childCount ?? card.children.length;
 
 	/**
-	 * 展开按钮 + 关联数量。
-	 * 列表模式放在卡片最左侧（紧凑、便于扫视层级）；
-	 * 平铺模式改放正文下方独立一行（带分隔线），与参考图一致，
-	 * 否则左侧图标会挤占本就不宽的双列卡片正文空间。
+	 * 展开数字（无 chevron 按钮）。
+	 * 数字本身就是交互入口：点击展开（数字变主题色），再点收起（恢复默认色）。
+	 * 列表模式放卡片最左侧，平铺模式放 meta 行与时间同行。
 	 */
-	const buildExpand = (host: HTMLElement) => {
-		if (!opts.hasVisibleChildren) return;
-		const expandWrap = host.createDiv({ cls: 'cardbox-expand-wrap' });
-		const expand = expandWrap.createEl('button', {
-			cls: 'cardbox-expand-btn',
-			attr: { 'aria-label': opts.expanded ? i18n.collapseChildren : i18n.expandChildren },
-		});
-		setIcon(expand, opts.expanded ? 'chevron-down' : 'chevron-right');
-		if (childCount > 0) {
-			const cnt = expandWrap.createSpan({ cls: 'cardbox-expand-count', text: String(childCount) });
-			cnt.setAttribute('aria-label', i18n.relatedCount(childCount));
-		}
-		// 数字也可点击展开，扩大触摸目标
-		expandWrap.addEventListener('click', (e) => {
+	const buildExpandCount = (host: HTMLElement): HTMLElement | null => {
+		if (!opts.hasVisibleChildren || childCount <= 0) return null;
+		const cnt = host.createSpan({ cls: 'cardbox-expand-count', text: String(childCount) });
+		cnt.setAttribute('aria-label', i18n.relatedCount(childCount));
+		if (opts.expanded) cnt.addClass('is-expanded');
+		cnt.addEventListener('click', (e) => {
 			e.stopPropagation();
 			opts.onToggleExpand(card);
 		});
+		return cnt;
 	};
 
-	if (!opts.rich) buildExpand(main);
+	if (!opts.rich) buildExpandCount(main);
 
 	// 多选勾选框（默认隐藏，.cardbox-is-selecting 时显示）
 	const check = main.createDiv({ cls: 'cardbox-check' });
@@ -90,14 +112,15 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	}
 
 	const textRow = body.createDiv({ cls: 'cardbox-tile-text' });
-	const line = firstLine(card.snippet);
 	const titleEl = textRow.createSpan({ cls: 'cardbox-tile-title' });
-	titleEl.setText(card.title ? card.title : line || i18n.emptyContent);
-	if (!card.title && !line) titleEl.addClass('is-empty');
+	titleEl.setText(extractTitle(card));
+	if (titleEl.textContent === i18n.emptyContent) titleEl.addClass('is-empty');
 
 	// 平铺模式显示更多正文；列表模式仅在有独立标题时显示摘要
 	if (opts.rich) {
-		const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(line.length).trim();
+		// 有 frontmatter title → snippet 全文作正文
+		// 无 frontmatter title → 跳过首行（首行已作为标题）
+		const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(firstLine(card.snippet).length).trim();
 		if (rest) body.createDiv({ cls: 'cardbox-tile-snippet' }).setText(rest);
 	} else if (card.title && card.snippet.trim()) {
 		body.createSpan({ cls: 'cardbox-tile-snippet' }).setText(card.snippet.trim());
@@ -122,17 +145,13 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		ic.setAttribute('aria-label', i18n.archivedIndicator);
 	}
 
-	// 平铺模式：关联卡片单独一行放在正文下方（分隔线在CSS 里）
-	if (opts.rich) {
-		const relRow = body.createDiv({ cls: 'cardbox-tile-related' });
-		buildExpand(relRow);
-	}
-
-	// meta 行：标签 + 时间
+	// 平铺模式：展开数字放 meta 行与时间同行（不再单独占一行）
+	// meta 行：标签 + 展开数字 + 时间
 	const meta = body.createDiv({ cls: 'cardbox-tile-meta' });
 	for (const tag of card.tags.slice(0, 4)) {
 		meta.createSpan({ cls: 'cardbox-chip cardbox-chip-sm', text: `#${tag}` });
 	}
+	if (opts.rich) buildExpandCount(meta);
 	meta.createSpan({ cls: 'cardbox-tile-time', text: formatRelativeTime(card.created) });
 
 	// 有关联但当前不可展开（例如关联卡片被筛选条件挡住）时，
@@ -173,11 +192,10 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		}
 	};
 	el.addEventListener('pointerdown', (e) => {
-		// 按钮与「展开按钮区域」都不启动长按：
-		// 展开区域包含数字与留白，手机触摸手指稍停就可能超过 500ms 触发长按进入多选，
-		// 表现就是「点收起按钮没反应」（其实误触发了多选）。PC 鼠标点击快所以几乎不触发，
-		// 这是两端表现差异的根源之一。
-		if ((e.target as HTMLElement).closest('button, .cardbox-expand-wrap')) return;
+		// 按钮与「展开数字」都不启动长按：
+		// 手机触摸手指稍停就可能超过 500ms 触发长按进入多选，
+		// 表现就是「点数字没反应」（其实误触发了多选）。
+		if ((e.target as HTMLElement).closest('button, .cardbox-expand-count')) return;
 		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		pressed = true;
 		startX = e.clientX;

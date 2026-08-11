@@ -191,14 +191,18 @@ const metrics = await page.evaluate(() => {
 	}
 	// 用计算样式判断实际列数（缩进会干扰 left 统计）
 	const gridCols = getComputedStyle(list).gridTemplateColumns.split(' ').length;
-	// 平铺模式（rich）结构断言：关联行应独立在正文下方，kebab 绝对定位在右上
-	const relatedRow = document.querySelector('.cardbox-tile.is-rich .cardbox-tile-related');
+	// 平铺模式（rich）结构断言：展开数字在 meta 行与时间同行，kebab 绝对定位在右上
 	const kebab = document.querySelector('.cardbox-tile.is-rich .cardbox-more-btn');
+	const richTile = document.querySelector('.cardbox-tile.is-rich');
 	const structure = {
-		hasRelatedRow: !!relatedRow,
-		// 关联行里应包含展开按钮（而非留在卡片最左侧）
-		expandInRelated: !!(relatedRow && relatedRow.querySelector('.cardbox-expand-wrap')),
-		expandAtTileLeft: !!document.querySelector('.cardbox-tile.is-rich > .cardbox-tile-main > .cardbox-expand-wrap'),
+		// 不再有独立的 related 行（用户要求去掉，数字与时间同一行）
+		hasRelatedRow: !!document.querySelector('.cardbox-tile.is-rich .cardbox-tile-related'),
+		// 展开数字在 meta 行内
+		expandInMeta: !!(richTile && richTile.querySelector('.cardbox-tile-meta .cardbox-expand-count')),
+		// 平铺模式数字不再出现在卡片最左侧
+		expandAtTileLeft: !!document.querySelector('.cardbox-tile.is-rich > .cardbox-tile-main > .cardbox-expand-count'),
+		// 无 chevron 按钮
+		hasExpandBtn: !!document.querySelector('.cardbox-tile.is-rich .cardbox-expand-btn'),
 		kebabPosition: kebab ? getComputedStyle(kebab).position : null,
 		// 瀑布流：卡片装在列容器里，同列相邻卡片间距应恒定（用户要求「上下间距相同」）
 		colCount: document.querySelectorAll('.cardbox-masonry-group .cardbox-masonry-col').length,
@@ -273,10 +277,11 @@ check('子卡在主卡下方', tileA.top < tileExt1.top && tileExt1.top < tileEx
 check('卡片高度上限在 .cardbox-tile-main', metrics.rects[0].mainMaxHeight === '360px', metrics.rects[0].mainMaxHeight);
 check('卡片超出隐藏在 .cardbox-tile-main', metrics.rects[0].mainOverflow === 'hidden', metrics.rects[0].mainOverflow);
 check('平铺卡片无重叠（grid 行高未塌缩）', metrics.overlapPairs === 0, metrics.overlapPairs);
-// 参考图布局：关联行独立在正文下方（不再挤占左侧），kebab 绝对定位到右上角
-check('平铺存在独立关联行', metrics.structure.hasRelatedRow, metrics.structure);
-check('展开按钮在关联行内', metrics.structure.expandInRelated, metrics.structure);
-check('展开按钮不再占卡片左侧', !metrics.structure.expandAtTileLeft, metrics.structure);
+// 新交互：无 chevron 按钮，展开数字与时间同行在 meta 行，kebab 绝对定位右上
+check('平铺不再有独立关联行', !metrics.structure.hasRelatedRow, metrics.structure);
+check('展开数字在 meta 行内（与时间同行）', metrics.structure.expandInMeta, metrics.structure);
+check('平铺数字不在卡片最左侧', !metrics.structure.expandAtTileLeft, metrics.structure);
+check('不再渲染 chevron 按钮', !metrics.structure.hasExpandBtn, metrics.structure);
 check('kebab 绝对定位（右上角）', metrics.structure.kebabPosition === 'absolute', metrics.structure.kebabPosition);
 // 用户明确要求：卡片之间无缝隙、标题黑体、平铺不显示图钉
 check('同列相邻卡片间距恒定（上下间距相同）',

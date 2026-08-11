@@ -1,0 +1,30 @@
+{
+	"name": "mobile-floating-nav",
+	"version": "0.1.0",
+	"description": "Obsidian mobile floating nav: customizable icon count and actions.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck",
+		"zip": "node scripts/zip.mjs",
+		"test:load": "node scripts/loadtest.mjs"
+	},
+	"keywords": [
+		"obsidian",
+		"mobile",
+		"floating",
+		"navigation",
+		"toolbar"
+	],
+	"author": "FloatingNav",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^22.15.17",
+		"builtin-modules": "3.3.0",
+		"esbuild": "0.25.5",
+		"jsdom": "^30.0.1",
+		"obsidian": "latest",
+		"typescript": "^5.8.3"
+	}
+}

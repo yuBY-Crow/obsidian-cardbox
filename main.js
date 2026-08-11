@@ -1578,6 +1578,20 @@ var HOLD_MS = 500;
 function firstLine(s) {
   return s.split("\n")[0].trim();
 }
+function extractTitle(card) {
+  if (card.title && card.title.trim()) return card.title.trim();
+  const raw = firstLine(card.snippet);
+  if (!raw) return i18n.emptyContent;
+  let s = raw;
+  s = s.replace(/\*\*(.+?)\*\*/g, "$1");
+  s = s.replace(/\*(.+?)\*/g, "$1");
+  s = s.replace(/`([^`]+)`/g, "$1");
+  s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+  s = s.replace(/^\s*(?:#{1,6}(?=\s|$)|>\s|[-*+]\s|\d+\.\s)/, "");
+  const cleaned = s.trim();
+  if (!cleaned || !/\S/.test(cleaned)) return i18n.emptyContent;
+  return cleaned;
+}
 function buildCardTile(opts) {
   var _a;
   const { card } = opts;
@@ -1593,24 +1607,18 @@ function buildCardTile(opts) {
   if (card.color) el.createDiv({ cls: "cardbox-tile-colorbar" });
   const main = el.createDiv({ cls: "cardbox-tile-main" });
   const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
-  const buildExpand = (host) => {
-    if (!opts.hasVisibleChildren) return;
-    const expandWrap = host.createDiv({ cls: "cardbox-expand-wrap" });
-    const expand = expandWrap.createEl("button", {
-      cls: "cardbox-expand-btn",
-      attr: { "aria-label": opts.expanded ? i18n.collapseChildren : i18n.expandChildren }
-    });
-    (0, import_obsidian5.setIcon)(expand, opts.expanded ? "chevron-down" : "chevron-right");
-    if (childCount > 0) {
-      const cnt = expandWrap.createSpan({ cls: "cardbox-expand-count", text: String(childCount) });
-      cnt.setAttribute("aria-label", i18n.relatedCount(childCount));
-    }
-    expandWrap.addEventListener("click", (e) => {
+  const buildExpandCount = (host) => {
+    if (!opts.hasVisibleChildren || childCount <= 0) return null;
+    const cnt = host.createSpan({ cls: "cardbox-expand-count", text: String(childCount) });
+    cnt.setAttribute("aria-label", i18n.relatedCount(childCount));
+    if (opts.expanded) cnt.addClass("is-expanded");
+    cnt.addEventListener("click", (e) => {
       e.stopPropagation();
       opts.onToggleExpand(card);
     });
+    return cnt;
   };
-  if (!opts.rich) buildExpand(main);
+  if (!opts.rich) buildExpandCount(main);
   const check = main.createDiv({ cls: "cardbox-check" });
   if (opts.selected) check.addClass("is-checked");
   const body = main.createDiv({ cls: "cardbox-tile-body" });
@@ -1618,12 +1626,11 @@ function buildCardTile(opts) {
     body.createDiv({ cls: "cardbox-tile-parent", text: i18n.extendParentArrow(opts.parentTitle) });
   }
   const textRow = body.createDiv({ cls: "cardbox-tile-text" });
-  const line = firstLine(card.snippet);
   const titleEl = textRow.createSpan({ cls: "cardbox-tile-title" });
-  titleEl.setText(card.title ? card.title : line || i18n.emptyContent);
-  if (!card.title && !line) titleEl.addClass("is-empty");
+  titleEl.setText(extractTitle(card));
+  if (titleEl.textContent === i18n.emptyContent) titleEl.addClass("is-empty");
   if (opts.rich) {
-    const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(line.length).trim();
+    const rest = card.title ? card.snippet.trim() : card.snippet.trim().slice(firstLine(card.snippet).length).trim();
     if (rest) body.createDiv({ cls: "cardbox-tile-snippet" }).setText(rest);
   } else if (card.title && card.snippet.trim()) {
     body.createSpan({ cls: "cardbox-tile-snippet" }).setText(card.snippet.trim());
@@ -1644,14 +1651,11 @@ function buildCardTile(opts) {
     (0, import_obsidian5.setIcon)(ic, "archive");
     ic.setAttribute("aria-label", i18n.archivedIndicator);
   }
-  if (opts.rich) {
-    const relRow = body.createDiv({ cls: "cardbox-tile-related" });
-    buildExpand(relRow);
-  }
   const meta = body.createDiv({ cls: "cardbox-tile-meta" });
   for (const tag of card.tags.slice(0, 4)) {
     meta.createSpan({ cls: "cardbox-chip cardbox-chip-sm", text: `#${tag}` });
   }
+  if (opts.rich) buildExpandCount(meta);
   meta.createSpan({ cls: "cardbox-tile-time", text: formatRelativeTime(card.created) });
   if (childCount > 0 && !opts.hasVisibleChildren) {
     const badge = meta.createSpan({ cls: "cardbox-child-badge", text: String(childCount) });
@@ -1683,7 +1687,7 @@ function buildCardTile(opts) {
     }
   };
   el.addEventListener("pointerdown", (e) => {
-    if (e.target.closest("button, .cardbox-expand-wrap")) return;
+    if (e.target.closest("button, .cardbox-expand-count")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pressed = true;
     startX = e.clientX;
