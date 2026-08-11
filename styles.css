@@ -374,7 +374,9 @@
 
 .cardbox-tile-title {
 	font-size: 14px;
-	color: var(--text-normal);
+	color: #1a1a1a;
+	font-weight: 700;
+	letter-spacing: -0.01em;
 	line-height: 1.4;
 	word-break: break-word;
 	display: -webkit-box;
@@ -799,9 +801,12 @@ body.is-mobile .cardbox-color-dot {
 
 /* 平铺标题用黑体，与正文摘要形成层级对比 */
 .cardbox-tile.is-rich .cardbox-tile-title {
+	font-size: 15px;
 	font-weight: 700;
+	letter-spacing: -0.01em;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-	color: var(--text-normal);
+	color: #1a1a1a;
+	line-height: 1.35;
 	-webkit-line-clamp: 3;
 }
 
@@ -1511,20 +1516,21 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-text {
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile-title {
-	font-size: 14px;
-	line-height: 1.5;
+	font-size: 16px;
+	line-height: 1.3;
 	-webkit-line-clamp: 2;
-	/* 标题用黑体（加粗 + sans-serif 字族），与正文摘要形成层级对比 */
+	/* 标题用黑体（粗 + 近黑 + 紧字距），与正文摘要形成强烈层级对比 */
 	font-weight: 700;
+	letter-spacing: -0.01em;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-	color: var(--text-normal);
+	color: #1a1a1a;
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile-snippet {
-	margin-top: 6px;
+	margin-top: 8px;
 	font-size: 13px;
 	line-height: 1.7;
-	color: var(--text-muted);
+	color: var(--text-faint);
 	/* 高度上限交给 .cardbox-tile-main 统一截断，这里不限制行数，
 	   让短卡片自适应、长卡片填满到上限（参考图里长短不一的效果） */
 	-webkit-line-clamp: unset;
