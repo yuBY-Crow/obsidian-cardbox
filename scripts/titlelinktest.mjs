@@ -209,7 +209,7 @@ const result = await page.evaluate(async (code) => {
 			Object.entries(o)
 				.map(([k, v]) => (Array.isArray(v) ? `${k}:\n${v.map((x) => `  - "${x}"`).join('\n')}` : `${k}: ${JSON.stringify(v)}`))
 				.join('\n') + '\n',
-		setIcon: () => {},
+		setIcon: () => {}, getIcon: (n) => (n === "more-vertical" ? {} : null),
 		debounce: (fn) => fn,
 		Platform: { isMobile: false },
 		normalizePath: (p) => p,

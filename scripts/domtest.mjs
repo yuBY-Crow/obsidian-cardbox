@@ -171,7 +171,7 @@ const result = await page.evaluate(
 			Plugin, ItemView, Modal, PluginSettingTab, Setting, Notice, Menu, TFile, TFolder, Component, Events,
 			ButtonComponent, TextComponent, DropdownComponent, TextAreaComponent: TextComponent,
 			ToggleComponent: class { setValue() { return this; } onChange() { return this; } },
-			parseYaml, stringifyYaml, setIcon: () => {}, normalizePath: (p) => p,
+			parseYaml, stringifyYaml, setIcon: () => {}, getIcon: (n) => (n === "more-vertical" ? {} : null), normalizePath: (p) => p,
 			debounce: (f) => f, Platform: { isMobile: false, isDesktop: true }, WorkspaceLeaf: class {},
 		};
 

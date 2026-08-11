@@ -1604,3 +1604,10 @@ body.is-mobile .cardbox-list {
 body.is-mobile .cardbox-list.is-masonry {
 	padding-bottom: 80px;
 }
+
+/* kebab 文本兜底：图标库缺少竖三点图标时用 Unicode ⋮ 代替（见 utils/icon.ts） */
+.cardbox-kebab-text {
+	font-size: 16px;
+	line-height: 1;
+	color: var(--text-muted);
+}

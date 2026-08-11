@@ -5,6 +5,7 @@ import type { CardBoxContext } from '../context';
 import { CardPickerModal } from '../modals/CardPickerModal';
 import { buildHierarchicalArticle, createArticleFile, type ArticleNode } from '../utils/article';
 import { formatRelativeTime } from '../utils/format';
+import { setKebabIcon } from '../utils/icon';
 
 export const CARD_EXTEND_VIEW_TYPE = 'cardbox-extend';
 
@@ -281,9 +282,9 @@ export class CardExtendView extends ItemView {
 			});
 		}
 
-		// kebab（与卡片列表一致，统一竖三点）
+		// kebab（探测版竖三点，兼容各版本图标库）
 		const more = head.createEl('button', { cls: 'cardbox-more-btn', attr: { 'aria-label': i18n.more } });
-		setIcon(more, 'more-vertical');
+		setKebabIcon(more);
 		more.addEventListener('click', (e) => {
 			e.stopPropagation();
 			this.showPanelMenu(card, more, parent, source);

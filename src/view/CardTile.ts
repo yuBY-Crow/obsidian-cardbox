@@ -2,6 +2,7 @@ import { setIcon } from 'obsidian';
 import type { Card } from '../types';
 import { i18n } from '../i18n';
 import { formatRelativeTime } from '../utils/format';
+import { setKebabIcon } from '../utils/icon';
 
 const HOLD_MS = 500;
 
@@ -141,12 +142,12 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		badge.setAttribute('aria-label', i18n.relatedCount(childCount));
 	}
 
-	// kebab 菜单按钮：统一用竖三点（用户明确要求，各视图保持一致）
+	// kebab 菜单按钮：统一竖三点，用探测版（图标名在各版本里不同，缺失会渲染成空点）
 	const more = main.createEl('button', {
 		cls: 'cardbox-more-btn',
 		attr: { 'aria-label': i18n.more },
 	});
-	setIcon(more, 'more-vertical');
+	setKebabIcon(more);
 	more.addEventListener('click', (e) => {
 		e.stopPropagation();
 		opts.onKebab(card, more);

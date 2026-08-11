@@ -181,6 +181,7 @@ const probe = window.__PROBE || (window.__PROBE = {});
 			ButtonComponent: class {},
 			parseYaml: (s) => { const o = {}; for (const l of s.split('\n')) { const m = /^(\w+):\s*(.*)$/.exec(l); if (m) o[m[1]] = m[2].replace(/^"|"$/g, ''); } return o; },
 			stringifyYaml: (o) => JSON.stringify(o),
+			getIcon: (n) => (n === "more-vertical" ? {} : null),
 			setIcon: (el) => { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.style.width = '14px'; svg.style.height = '14px'; el.appendChild(svg); },
 			debounce: (fn) => fn,
 			Platform: { isMobile: true, isDesktopApp: false },

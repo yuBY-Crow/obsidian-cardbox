@@ -12,7 +12,8 @@ import esbuild from 'esbuild';
 const css = await readFile('styles.css', 'utf8');
 
 // 把 CardTile 单独打包，obsidian 依赖用 stub 顶掉
-const stub = `export const setIcon = (el, name) => {
+const stub = `export const getIcon = (name) => (name === "more-vertical" ? {} : null);
+export const setIcon = (el, name) => {
 	const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
 	svg.setAttribute('data-icon', name);
 	svg.setAttribute('viewBox','0 0 24 24');
