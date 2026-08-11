@@ -1,9 +1,0 @@
-{
-	"id": "mobile-floating-nav",
-	"name": "Mobile Floating Nav 悬浮导航",
-	"version": "0.1.0",
-	"minAppVersion": "1.5.0",
-	"description": "移动端悬浮导航栏：自定义图标数量与功能，自由增删按钮（执行命令/打开笔记/新建笔记/返回顶部/打开链接），支持左侧或右侧悬浮、折叠、大小与透明度调节。",
-	"author": "FloatingNav",
-	"isDesktopOnly": false
-}
