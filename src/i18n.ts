@@ -182,6 +182,7 @@ export const i18n = {
 
 	// 快速捕获
 	captureTitle: '记录卡片',
+	captureTitleLabel: '标题',
 	capturePlaceholder: '输入卡片内容…',
 	continuousMode: '连续模式',
 	singleMode: '单次模式',

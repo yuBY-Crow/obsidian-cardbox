@@ -464,22 +464,40 @@
 	padding: 0;
 }
 
-/* 顶部深色引导区（Writeathon「写作就像马拉松」） */
+/* 顶部深色引导区：可编辑的默认标题（创建时间，精确到秒） */
 .cardbox-capture-header {
 	background: var(--background-secondary);
-	padding: 14px 16px 12px;
+	padding: 12px 16px;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
+	gap: 10px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	flex: none;
 }
 
-.cardbox-capture-hint {
+.cardbox-capture-label {
 	color: var(--text-faint);
-	font-size: 14px;
-	letter-spacing: 0.02em;
+	font-size: 12px;
+	flex: none;
+}
+
+.cardbox-capture-title {
+	flex: 1;
+	min-width: 0;
+	background: transparent;
+	border: none;
+	outline: none;
+	color: var(--text-normal);
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	padding: 4px 0;
+	border-bottom: 1px solid transparent;
+	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.cardbox-capture-title:focus {
+	border-bottom-color: var(--interactive-accent);
 }
 
 /* 连续模式轻触切换（右上角小标签：圆点 + 文字） */
@@ -493,6 +511,7 @@
 	padding: 4px 8px;
 	border-radius: var(--radius-s);
 	user-select: none;
+	flex: none;
 }
 .cardbox-capture-mode:hover { background: var(--background-modifier-hover); }
 .cardbox-capture-mode-dot {
@@ -526,40 +545,17 @@
 }
 .cardbox-capture-input::placeholder { color: var(--text-faint); }
 
-/* 底部工具栏 */
-.cardbox-capture-toolbar {
+/* 底部：保存按钮（其余编辑工具交给 Obsidian 完整编辑器） */
+.cardbox-capture-footer {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
+	justify-content: flex-end;
 	padding: 10px 14px;
 	background: var(--background-secondary);
 	border-top: 1px solid var(--background-modifier-border);
 	flex: none;
-	/* 手机端贴住键盘顶部，避开底部安全区 */
 	padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
 }
-.cardbox-capture-tools {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-}
-.cardbox-capture-tool {
-	width: 38px;
-	height: 38px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 50%;
-	background: transparent;
-	border: none;
-	color: var(--text-muted);
-	cursor: pointer;
-	padding: 0;
-}
-.cardbox-capture-tool:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.cardbox-capture-tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.cardbox-capture-tool svg * { fill: currentColor; stroke: none; }
 
 /* 添加按钮（最右 CTA，胶囊形） */
 .cardbox-capture-add {
@@ -588,12 +584,9 @@ body.is-mobile .cardbox-modal-hidden-chrome .modal-content {
 }
 
 /* 兼容手机端 */
-body.is-mobile .cardbox-capture-toolbar {
-	padding: 6px 12px;
-}
-body.is-mobile .cardbox-capture-tool {
-	width: 40px;
-	height: 40px;
+body.is-mobile .cardbox-capture-title {
+	font-size: 16px;
+	padding: 6px 0;
 }
 body.is-mobile .cardbox-capture-add {
 	padding: 10px 24px;

@@ -1,12 +1,13 @@
-import { App, Modal, Notice, setIcon } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 import { i18n } from '../i18n';
 import type { CardBoxContext } from '../context';
 import type { Card } from '../types';
+import { pad2 } from '../utils/format';
 
 export interface CaptureOptions {
 	/** 子卡片：保存后登记为父卡片 */
 	parent?: Card;
-	/** 占位提示（Writeathon 风格：顶部淡色引导句） */
+	/** 占位提示 */
 	placeholder?: string;
 	/** 预填内容 */
 	prefill?: string;
@@ -18,13 +19,14 @@ export interface CaptureOptions {
  * 沉浸式快速捕获（Writeathon 风格）
  *
  * 布局：
- * - 顶部深色块作为"启动引导区"，显示占位文本（Writeathon 式：「写作就像马拉松」）
- * - 中部大编辑区（光标自动聚焦，textarea 自适应高度）
- * - 底部工具栏：标签 / 图片 / 链接 / 扫码 / 二维码 / 添加（最右 CTA）
- * - 手机端键盘弹出时，底部工具栏会自动贴住键盘顶部（环境变量 `--safe-area-inset-bottom`）
- * - 连续模式开关藏在右上角轻触区域（默认开启）
+ * - 顶部深色块：可编辑的「卡片标题」输入框（默认 = 笔记创建时间，精确到秒
+ *   YYYY-MM-DD-HHmmss，与文件名方案一致，可随意修改）
+ * - 中部大编辑区（textarea 自适应高度）
+ * - 底部：仅「保存」CTA（Obsidian 默认编辑工具栏在完整编辑器中可用，
+ *   快速记录保持轻量，不加自定义工具按钮）
  */
 export class CaptureModal extends Modal {
+	private titleInput: HTMLInputElement;
 	private textarea: HTMLTextAreaElement;
 	private continuous = true;
 	private autosize = () => this.autoSize();
@@ -46,40 +48,26 @@ export class CaptureModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('cardbox-capture');
 
-		// 顶部深色引导区
+		// 顶部深色引导区：可编辑的默认标题（笔记创建时间，精确到秒）
 		const header = contentEl.createDiv({ cls: 'cardbox-capture-header' });
-		header.createDiv({ cls: 'cardbox-capture-hint', text: this.opts.parent ? i18n.addChildHint : i18n.captureSlogan });
-
-		// 编辑区
-		this.textarea = contentEl.createEl('textarea', {
-			cls: 'cardbox-capture-input',
+		const label = header.createSpan({ cls: 'cardbox-capture-label', text: i18n.captureTitleLabel });
+		this.titleInput = header.createEl('input', {
+			cls: 'cardbox-capture-title',
 			attr: {
-				rows: '3',
-				placeholder: this.opts.placeholder ?? '',
-				'aria-label': this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
+				type: 'text',
+				value: defaultTitle(new Date()),
+				maxlength: '80',
+				spellcheck: 'false',
+				'aria-label': i18n.captureTitleLabel,
 			},
 		});
-		if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-		this.textarea.addEventListener('input', this.autosize);
-		// 自动高度
-		requestAnimationFrame(this.autosize);
+		// 点击全选便于覆盖，输入失焦后自动裁剪空白
+		this.titleInput.addEventListener('focus', () => this.titleInput.select());
+		this.titleInput.addEventListener('blur', () => {
+			this.titleInput.value = this.titleInput.value.trim();
+		});
 
-		// 底部工具栏
-		const toolbar = contentEl.createDiv({ cls: 'cardbox-capture-toolbar' });
-		const tools = toolbar.createDiv({ cls: 'cardbox-capture-tools' });
-		// 工具按钮（占位：标签/图片/链接/扫码/二维码）—— 实际功能后续可接
-		this.makeTool(tools, 'hash', i18n.toolTag, () => this.insertAtCursor('\n# '));
-		this.makeTool(tools, 'image', i18n.toolImage, () => new Notice(i18n.toolImageHint));
-		this.makeTool(tools, 'link', i18n.toolLink, () => this.insertAtCursor('[[', ']]'));
-		this.makeTool(tools, 'scan', i18n.toolScan, () => new Notice(i18n.toolScanHint));
-		this.makeTool(tools, 'qr-code', i18n.toolQr, () => new Notice(i18n.toolQrHint));
-
-		// 添加按钮（最右 CTA）
-		const addBtn = toolbar.createEl('button', { cls: 'cardbox-capture-add', attr: { 'aria-label': i18n.save } });
-		addBtn.createSpan({ text: i18n.save });
-		addBtn.addEventListener('click', () => void this.save());
-
-		// 连续模式轻触切换（点击顶部右侧极小区域：tap-to-toggle，参考 Writeathon 体验）
+		// 连续模式轻触切换（右上角小标签）
 		if (!this.opts.parent && !this.opts.singleShot) {
 			const mode = header.createDiv({ cls: 'cardbox-capture-mode' });
 			mode.createSpan({ cls: 'cardbox-capture-mode-dot' });
@@ -92,35 +80,41 @@ export class CaptureModal extends Modal {
 			mode.classList.toggle('is-continuous', this.continuous);
 		}
 
-		this.textarea.focus();
-		this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
+		// 正文编辑区
+		this.textarea = contentEl.createEl('textarea', {
+			cls: 'cardbox-capture-input',
+			attr: {
+				rows: '3',
+				placeholder: this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
+				'aria-label': this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
+			},
+		});
+		if (this.opts.prefill) this.textarea.value = this.opts.prefill;
+		this.textarea.addEventListener('input', this.autosize);
+		requestAnimationFrame(this.autosize);
 
+		// 底部：仅保存按钮（其余编辑工具交给 Obsidian 完整编辑器）
+		const footer = contentEl.createDiv({ cls: 'cardbox-capture-footer' });
+		const addBtn = footer.createEl('button', { cls: 'cardbox-capture-add', attr: { 'aria-label': i18n.save } });
+		addBtn.createSpan({ text: i18n.save });
+		addBtn.addEventListener('click', () => void this.save());
+
+		// Ctrl/Cmd+Enter 保存
 		this.textarea.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 				e.preventDefault();
 				void this.save();
 			}
 		});
-	}
 
-	private makeTool(host: HTMLElement, icon: string, label: string, onClick: () => void): void {
-		const btn = host.createEl('button', { cls: 'cardbox-capture-tool', attr: { 'aria-label': label } });
-		setIcon(btn, icon);
-		btn.addEventListener('click', onClick);
-	}
-
-	private insertAtCursor(left: string, right = ''): void {
-		const el = this.textarea;
-		const start = el.selectionStart ?? el.value.length;
-		const end = el.selectionEnd ?? el.value.length;
-		const before = el.value.slice(0, start);
-		const sel = el.value.slice(start, end);
-		const after = el.value.slice(end);
-		el.value = before + left + sel + right + after;
-		const cursor = start + left.length + sel.length + right.length;
-		el.setSelectionRange(cursor, cursor);
-		el.focus();
-		this.autosize();
+		// 默认聚焦正文，若正文为空但标题有值时聚焦标题
+		if (this.textarea.value.trim()) {
+			this.textarea.focus();
+			this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
+		} else {
+			this.titleInput.focus();
+			this.titleInput.select();
+		}
 	}
 
 	private autoSize(): void {
@@ -135,8 +129,10 @@ export class CaptureModal extends Modal {
 			new Notice(i18n.emptyCaptureHint, 1500);
 			return;
 		}
+		const title = this.titleInput.value.trim() || undefined;
 		const file = await this.ctx.service.createCard({
 			body,
+			title,
 			tags: this.ctx.settings.defaultTags,
 		});
 		if (!file) return;
@@ -154,6 +150,8 @@ export class CaptureModal extends Modal {
 
 		if (this.continuous) {
 			this.textarea.value = '';
+			// 连续模式：标题重置为新时间
+			this.titleInput.value = defaultTitle(new Date());
 			this.textarea.focus();
 			this.autosize();
 		} else {
@@ -165,4 +163,9 @@ export class CaptureModal extends Modal {
 		this.titleEl.parentElement?.removeClass('cardbox-modal-hidden-chrome');
 		this.contentEl.empty();
 	}
+}
+
+/** 默认标题 = 笔记创建时间，精确到秒（YYYY-MM-DD-HHmmss） */
+function defaultTitle(d: Date): string {
+	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 }

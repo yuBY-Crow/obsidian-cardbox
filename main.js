@@ -248,6 +248,7 @@ var i18n = {
   taskIndicator: "\u542B\u4EFB\u52A1",
   // 快速捕获
   captureTitle: "\u8BB0\u5F55\u5361\u7247",
+  captureTitleLabel: "\u6807\u9898",
   capturePlaceholder: "\u8F93\u5165\u5361\u7247\u5185\u5BB9\u2026",
   continuousMode: "\u8FDE\u7EED\u6A21\u5F0F",
   singleMode: "\u5355\u6B21\u6A21\u5F0F",
@@ -3901,34 +3902,27 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
-    var _a, _b;
+    var _a;
     (_a = this.titleEl.parentElement) == null ? void 0 : _a.addClass("cardbox-modal-hidden-chrome");
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
     const header = contentEl.createDiv({ cls: "cardbox-capture-header" });
-    header.createDiv({ cls: "cardbox-capture-hint", text: this.opts.parent ? i18n.addChildHint : i18n.captureSlogan });
-    this.textarea = contentEl.createEl("textarea", {
-      cls: "cardbox-capture-input",
+    const label = header.createSpan({ cls: "cardbox-capture-label", text: i18n.captureTitleLabel });
+    this.titleInput = header.createEl("input", {
+      cls: "cardbox-capture-title",
       attr: {
-        rows: "3",
-        placeholder: (_b = this.opts.placeholder) != null ? _b : "",
-        "aria-label": this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder
+        type: "text",
+        value: defaultTitle(/* @__PURE__ */ new Date()),
+        maxlength: "80",
+        spellcheck: "false",
+        "aria-label": i18n.captureTitleLabel
       }
     });
-    if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-    this.textarea.addEventListener("input", this.autosize);
-    requestAnimationFrame(this.autosize);
-    const toolbar = contentEl.createDiv({ cls: "cardbox-capture-toolbar" });
-    const tools = toolbar.createDiv({ cls: "cardbox-capture-tools" });
-    this.makeTool(tools, "hash", i18n.toolTag, () => this.insertAtCursor("\n# "));
-    this.makeTool(tools, "image", i18n.toolImage, () => new import_obsidian18.Notice(i18n.toolImageHint));
-    this.makeTool(tools, "link", i18n.toolLink, () => this.insertAtCursor("[[", "]]"));
-    this.makeTool(tools, "scan", i18n.toolScan, () => new import_obsidian18.Notice(i18n.toolScanHint));
-    this.makeTool(tools, "qr-code", i18n.toolQr, () => new import_obsidian18.Notice(i18n.toolQrHint));
-    const addBtn = toolbar.createEl("button", { cls: "cardbox-capture-add", attr: { "aria-label": i18n.save } });
-    addBtn.createSpan({ text: i18n.save });
-    addBtn.addEventListener("click", () => void this.save());
+    this.titleInput.addEventListener("focus", () => this.titleInput.select());
+    this.titleInput.addEventListener("blur", () => {
+      this.titleInput.value = this.titleInput.value.trim();
+    });
     if (!this.opts.parent && !this.opts.singleShot) {
       const mode = header.createDiv({ cls: "cardbox-capture-mode" });
       mode.createSpan({ cls: "cardbox-capture-mode-dot" });
@@ -3940,33 +3934,34 @@ var CaptureModal = class extends import_obsidian18.Modal {
       });
       mode.classList.toggle("is-continuous", this.continuous);
     }
-    this.textarea.focus();
-    this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
+    this.textarea = contentEl.createEl("textarea", {
+      cls: "cardbox-capture-input",
+      attr: {
+        rows: "3",
+        placeholder: this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
+        "aria-label": this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder
+      }
+    });
+    if (this.opts.prefill) this.textarea.value = this.opts.prefill;
+    this.textarea.addEventListener("input", this.autosize);
+    requestAnimationFrame(this.autosize);
+    const footer = contentEl.createDiv({ cls: "cardbox-capture-footer" });
+    const addBtn = footer.createEl("button", { cls: "cardbox-capture-add", attr: { "aria-label": i18n.save } });
+    addBtn.createSpan({ text: i18n.save });
+    addBtn.addEventListener("click", () => void this.save());
     this.textarea.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         void this.save();
       }
     });
-  }
-  makeTool(host, icon, label, onClick) {
-    const btn = host.createEl("button", { cls: "cardbox-capture-tool", attr: { "aria-label": label } });
-    (0, import_obsidian18.setIcon)(btn, icon);
-    btn.addEventListener("click", onClick);
-  }
-  insertAtCursor(left, right = "") {
-    var _a, _b;
-    const el = this.textarea;
-    const start = (_a = el.selectionStart) != null ? _a : el.value.length;
-    const end = (_b = el.selectionEnd) != null ? _b : el.value.length;
-    const before = el.value.slice(0, start);
-    const sel = el.value.slice(start, end);
-    const after = el.value.slice(end);
-    el.value = before + left + sel + right + after;
-    const cursor = start + left.length + sel.length + right.length;
-    el.setSelectionRange(cursor, cursor);
-    el.focus();
-    this.autosize();
+    if (this.textarea.value.trim()) {
+      this.textarea.focus();
+      this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
+    } else {
+      this.titleInput.focus();
+      this.titleInput.select();
+    }
   }
   autoSize() {
     const el = this.textarea;
@@ -3979,8 +3974,10 @@ var CaptureModal = class extends import_obsidian18.Modal {
       new import_obsidian18.Notice(i18n.emptyCaptureHint, 1500);
       return;
     }
+    const title = this.titleInput.value.trim() || void 0;
     const file = await this.ctx.service.createCard({
       body,
+      title,
       tags: this.ctx.settings.defaultTags
     });
     if (!file) return;
@@ -3995,6 +3992,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
     }
     if (this.continuous) {
       this.textarea.value = "";
+      this.titleInput.value = defaultTitle(/* @__PURE__ */ new Date());
       this.textarea.focus();
       this.autosize();
     } else {
@@ -4007,6 +4005,9 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.contentEl.empty();
   }
 };
+function defaultTitle(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
 
 // src/modals/CanvasSendModal.ts
 var import_obsidian19 = require("obsidian");
