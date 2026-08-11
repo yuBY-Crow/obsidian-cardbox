@@ -6,6 +6,7 @@ import { CardService } from './frontmatter';
 import { cardMatchesBox } from './boxes';
 import { parseLinkTarget } from './utils/link';
 import { defaultOutgoingIds, type GraphSource } from './utils/graph';
+import { log } from './utils/logger';
 
 const SCAN_CONCURRENCY = 10;
 const UPDATE_BUMP_THRESHOLD_MS = 1000; // mtime 比 updated 新超过此值才回写 updated
@@ -122,6 +123,7 @@ export class CardIndex {
 		this.isIndexing = false;
 		this.ready = true;
 		this.notify();
+		log.info('index', '索引构建完成', { cards: results.length, withChildren: results.filter((c) => c.children.length > 0).length });
 	}
 
 	/**

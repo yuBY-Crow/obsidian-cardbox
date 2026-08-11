@@ -16,6 +16,7 @@ import { BoxEditModal } from '../modals/BoxEditModal';
 import { CardPickerModal } from '../modals/CardPickerModal';
 import { newBoxId } from '../boxes';
 import { formatDayHeader, toDayKey } from '../utils/format';
+import { log } from '../utils/logger';
 
 export const CARD_BOX_VIEW_TYPE = 'cardbox-main';
 
@@ -432,6 +433,7 @@ export class CardBoxView extends ItemView {
 
 		const items = mode === 'timeline' ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
 		this.list.setItems(items);
+		log.info('render', '渲染完成', { mode, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
 	}
 
 	private showPlaceholder(text: string): void {
@@ -448,6 +450,7 @@ export class CardBoxView extends ItemView {
 		const visited = new Set<string>();
 		// 扩展卡片 = frontmatter 显式关联 + 正文双链，与扩展视图口径一致
 		const extIds = (card: Card) => this.ctx.index.extensionsOf(card).map((e) => e.card.id);
+		let counted = 0;
 		const visit = (card: Card, depth: number) => {
 			if (visited.has(card.id)) return;
 			visited.add(card.id);
@@ -455,6 +458,11 @@ export class CardBoxView extends ItemView {
 				.map((id) => byId.get(id))
 				.filter((c): c is Card => !!c);
 			const isExpanded = children.length > 0 && expanded.has(card.id);
+			// 只记录前几张带子卡的，避免日志刷屏
+			if (children.length > 0 && counted < 10) {
+				counted++;
+				log.info('render', '子卡判定', { id: card.id, extCount: children.length, isExpanded, inExpandedIds: expanded.has(card.id) });
+			}
 			result.push({ kind: 'card', card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
 			if (isExpanded) for (const child of children) visit(child, depth + 1);
 		};
@@ -505,6 +513,7 @@ export class CardBoxView extends ItemView {
 			onToggleExpand: (c) => {
 				if (this.expandedIds.has(c.id)) this.expandedIds.delete(c.id);
 				else this.expandedIds.add(c.id);
+				log.info('expand', '切换展开状态', { id: c.id, now: this.expandedIds.has(c.id) });
 				this.renderKey = '';
 				this.scheduleRender();
 			},

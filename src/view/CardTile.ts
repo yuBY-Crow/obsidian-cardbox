@@ -3,6 +3,7 @@ import type { Card } from '../types';
 import { i18n } from '../i18n';
 import { formatRelativeTime } from '../utils/format';
 import { setKebabIcon } from '../utils/icon';
+import { log } from '../utils/logger';
 
 const HOLD_MS = 500;
 
@@ -94,12 +95,20 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	 * 列表模式放卡片最左侧，平铺模式放 meta 行与时间同行。
 	 */
 	const buildExpandCount = (host: HTMLElement): HTMLElement | null => {
-		if (!opts.hasVisibleChildren || childCount <= 0) return null;
+		if (!opts.hasVisibleChildren || childCount <= 0) {
+			// 扩展关系存在但子卡不可见（被筛选挡住或解析异常）——排查用
+			if ((opts.childCount ?? 0) > 0) {
+				log.info('tile', '有关联但子卡不可见', { id: card.id, childCount, hasVisibleChildren: opts.hasVisibleChildren });
+			}
+			return null;
+		}
 		const cnt = host.createSpan({ cls: 'cardbox-expand-count', text: String(childCount) });
 		cnt.setAttribute('aria-label', i18n.relatedCount(childCount));
 		if (opts.expanded) cnt.addClass('is-expanded');
+		log.debug('tile', '渲染展开数字', { id: card.id, childCount, expanded: opts.expanded, rich: !!opts.rich });
 		cnt.addEventListener('click', (e) => {
 			e.stopPropagation();
+			log.info('tile', '点击展开数字', { id: card.id, wasExpanded: opts.expanded });
 			opts.onToggleExpand(card);
 		});
 		return cnt;
@@ -123,6 +132,12 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	const titleEl = textRow.createSpan({ cls: 'cardbox-tile-title' });
 	titleEl.setText(extractTitle(card));
 	if (titleEl.textContent === i18n.emptyContent) titleEl.addClass('is-empty');
+	// 标题为空是用户反馈的核心问题：必须能出现在日志面板里
+	if (titleEl.textContent === i18n.emptyContent) {
+		log.warn('tile', '标题为空', { id: card.id, hasTitleField: !!card.title, snippetHead: card.snippet?.slice(0, 40) });
+	} else {
+		log.debug('tile', '标题提取', { id: card.id, renderedTitle: titleEl.textContent?.slice(0, 30) });
+	}
 
 	// 平铺模式显示更多正文；列表模式仅在有独立标题时显示摘要
 	if (opts.rich) {

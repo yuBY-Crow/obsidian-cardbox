@@ -259,4 +259,15 @@ export const i18n = {
 	// 通知
 	noticeFolderCreated: (folder: string) => `卡片文件夹不存在，已创建：${folder}`,
 	childCreated: '已创建子卡片',
+
+	// 诊断日志
+	logTitle: 'CardBox 诊断日志',
+	logLevel: (lv: string) =>
+		lv === 'all' ? '全部' : lv === 'error' ? '仅错误' : lv === 'warn' ? '警告+' : lv === 'info' ? '信息+' : '调试+',
+	logRefresh: '刷新',
+	logCopy: '复制日志',
+	logClear: '清空',
+	logEmpty: '暂无日志。若问题复现，先操作一遍再回来复制。',
+	logCopied: '日志已复制',
+	openLogs: '打开 CardBox 诊断日志',
 };

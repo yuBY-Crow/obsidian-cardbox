@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => CardBoxPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -317,7 +317,16 @@ var i18n = {
   tagInputPlaceholder: "\u8F93\u5165\u6807\u7B7E\u540E\u56DE\u8F66",
   // 通知
   noticeFolderCreated: (folder) => `\u5361\u7247\u6587\u4EF6\u5939\u4E0D\u5B58\u5728\uFF0C\u5DF2\u521B\u5EFA\uFF1A${folder}`,
-  childCreated: "\u5DF2\u521B\u5EFA\u5B50\u5361\u7247"
+  childCreated: "\u5DF2\u521B\u5EFA\u5B50\u5361\u7247",
+  // 诊断日志
+  logTitle: "CardBox \u8BCA\u65AD\u65E5\u5FD7",
+  logLevel: (lv) => lv === "all" ? "\u5168\u90E8" : lv === "error" ? "\u4EC5\u9519\u8BEF" : lv === "warn" ? "\u8B66\u544A+" : lv === "info" ? "\u4FE1\u606F+" : "\u8C03\u8BD5+",
+  logRefresh: "\u5237\u65B0",
+  logCopy: "\u590D\u5236\u65E5\u5FD7",
+  logClear: "\u6E05\u7A7A",
+  logEmpty: "\u6682\u65E0\u65E5\u5FD7\u3002\u82E5\u95EE\u9898\u590D\u73B0\uFF0C\u5148\u64CD\u4F5C\u4E00\u904D\u518D\u56DE\u6765\u590D\u5236\u3002",
+  logCopied: "\u65E5\u5FD7\u5DF2\u590D\u5236",
+  openLogs: "\u6253\u5F00 CardBox \u8BCA\u65AD\u65E5\u5FD7"
 };
 
 // src/settings.ts
@@ -1135,6 +1144,51 @@ function countLinkedCards(seeds, source, direction, maxDepth, maxNodes = 200) {
   return collectLinkedCards(seeds, source, direction, maxDepth, maxNodes).nodes.length;
 }
 
+// src/utils/logger.ts
+var MAX = 600;
+var LEVEL_ORDER = { debug: 0, info: 1, warn: 2, error: 3 };
+var Logger = class {
+  constructor() {
+    this.buffer = [];
+    /** 运行时级别：debug 会输出更多细节 */
+    this.minLevel = "info";
+    /** 是否同时输出到 console（真机不方便看，但桌面调试有用） */
+    this.mirrorToConsole = true;
+  }
+  push(level, tag, msg, data) {
+    if (LEVEL_ORDER[level] < LEVEL_ORDER[this.minLevel]) return;
+    const entry = { ts: Date.now(), level, tag, msg, data };
+    this.buffer.push(entry);
+    if (this.buffer.length > MAX) this.buffer.splice(0, this.buffer.length - MAX);
+    if (this.mirrorToConsole) {
+      const line = `[CardBox:${tag}] ${msg}`;
+      const extra = data === void 0 ? "" : data instanceof Error ? ` ${String(data.stack || data)}` : ` ${JSON.stringify(data)}`;
+      if (level === "error") console.error(line + extra);
+      else if (level === "warn") console.warn(line + extra);
+      else console.log(line + extra);
+    }
+  }
+  debug(tag, msg, data) {
+    this.push("debug", tag, msg, data);
+  }
+  info(tag, msg, data) {
+    this.push("info", tag, msg, data);
+  }
+  warn(tag, msg, data) {
+    this.push("warn", tag, msg, data);
+  }
+  error(tag, msg, err) {
+    this.push("error", tag, msg, err);
+  }
+  getAll() {
+    return [...this.buffer];
+  }
+  clear() {
+    this.buffer = [];
+  }
+};
+var log = new Logger();
+
 // src/index.ts
 var SCAN_CONCURRENCY = 10;
 var UPDATE_BUMP_THRESHOLD_MS = 1e3;
@@ -1237,6 +1291,7 @@ var CardIndex = class {
     this.isIndexing = false;
     this.ready = true;
     this.notify();
+    log.info("index", "\u7D22\u5F15\u6784\u5EFA\u5B8C\u6210", { cards: results.length, withChildren: results.filter((c) => c.children.length > 0).length });
   }
   /**
    * 从 metadataCache 读取正文中的 [[双链]]，凡指向卡片文件夹内卡片的即记为 bodyLinks。
@@ -1596,7 +1651,7 @@ function extractTitle(card) {
   return cleaned;
 }
 function buildCardTile(opts) {
-  var _a;
+  var _a, _b, _c;
   const { card } = opts;
   const el = createDiv({ cls: "cardbox-tile" });
   el.setAttribute("data-card-id", card.id);
@@ -1611,12 +1666,20 @@ function buildCardTile(opts) {
   const main = el.createDiv({ cls: "cardbox-tile-main" });
   const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
   const buildExpandCount = (host) => {
-    if (!opts.hasVisibleChildren || childCount <= 0) return null;
+    var _a2;
+    if (!opts.hasVisibleChildren || childCount <= 0) {
+      if (((_a2 = opts.childCount) != null ? _a2 : 0) > 0) {
+        log.info("tile", "\u6709\u5173\u8054\u4F46\u5B50\u5361\u4E0D\u53EF\u89C1", { id: card.id, childCount, hasVisibleChildren: opts.hasVisibleChildren });
+      }
+      return null;
+    }
     const cnt = host.createSpan({ cls: "cardbox-expand-count", text: String(childCount) });
     cnt.setAttribute("aria-label", i18n.relatedCount(childCount));
     if (opts.expanded) cnt.addClass("is-expanded");
+    log.debug("tile", "\u6E32\u67D3\u5C55\u5F00\u6570\u5B57", { id: card.id, childCount, expanded: opts.expanded, rich: !!opts.rich });
     cnt.addEventListener("click", (e) => {
       e.stopPropagation();
+      log.info("tile", "\u70B9\u51FB\u5C55\u5F00\u6570\u5B57", { id: card.id, wasExpanded: opts.expanded });
       opts.onToggleExpand(card);
     });
     return cnt;
@@ -1632,6 +1695,11 @@ function buildCardTile(opts) {
   const titleEl = textRow.createSpan({ cls: "cardbox-tile-title" });
   titleEl.setText(extractTitle(card));
   if (titleEl.textContent === i18n.emptyContent) titleEl.addClass("is-empty");
+  if (titleEl.textContent === i18n.emptyContent) {
+    log.warn("tile", "\u6807\u9898\u4E3A\u7A7A", { id: card.id, hasTitleField: !!card.title, snippetHead: (_b = card.snippet) == null ? void 0 : _b.slice(0, 40) });
+  } else {
+    log.debug("tile", "\u6807\u9898\u63D0\u53D6", { id: card.id, renderedTitle: (_c = titleEl.textContent) == null ? void 0 : _c.slice(0, 30) });
+  }
   if (opts.rich) {
     const rest = card.title ? card.snippet.trim() : card.snippet.split("\n").slice(1).join("\n").trim().replace(/^\s*\n/, "").trim();
     if (rest) body.createDiv({ cls: "cardbox-tile-snippet" }).setText(rest);
@@ -3006,6 +3074,7 @@ var CardBoxView = class extends import_obsidian15.ItemView {
     this.renderKey = key;
     const items = mode === "timeline" ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
     this.list.setItems(items);
+    log.info("render", "\u6E32\u67D3\u5B8C\u6210", { mode, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
   }
   showPlaceholder(text) {
     this.renderKey = "";
@@ -3019,11 +3088,16 @@ var CardBoxView = class extends import_obsidian15.ItemView {
     const result = [];
     const visited = /* @__PURE__ */ new Set();
     const extIds = (card) => this.ctx.index.extensionsOf(card).map((e) => e.card.id);
+    let counted = 0;
     const visit = (card, depth) => {
       if (visited.has(card.id)) return;
       visited.add(card.id);
       const children = extIds(card).map((id) => byId.get(id)).filter((c) => !!c);
       const isExpanded = children.length > 0 && expanded.has(card.id);
+      if (children.length > 0 && counted < 10) {
+        counted++;
+        log.info("render", "\u5B50\u5361\u5224\u5B9A", { id: card.id, extCount: children.length, isExpanded, inExpandedIds: expanded.has(card.id) });
+      }
       result.push({ kind: "card", card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
       if (isExpanded) for (const child of children) visit(child, depth + 1);
     };
@@ -3071,6 +3145,7 @@ var CardBoxView = class extends import_obsidian15.ItemView {
       onToggleExpand: (c) => {
         if (this.expandedIds.has(c.id)) this.expandedIds.delete(c.id);
         else this.expandedIds.add(c.id);
+        log.info("expand", "\u5207\u6362\u5C55\u5F00\u72B6\u6001", { id: c.id, now: this.expandedIds.has(c.id) });
         this.renderKey = "";
         this.scheduleRender();
       },
@@ -4150,8 +4225,102 @@ async function readCanvasCardPaths(app, file) {
   }).map((n) => n.file);
 }
 
+// src/modals/LogModal.ts
+var import_obsidian21 = require("obsidian");
+var LogModal = class extends import_obsidian21.Modal {
+  constructor(app) {
+    super(app);
+    this.filter = "all";
+  }
+  onOpen() {
+    this.setTitle(i18n.logTitle);
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("cardbox-log-modal");
+    const toolbar = contentEl.createDiv({ cls: "cardbox-log-toolbar" });
+    const sel = toolbar.createEl("select", { cls: "cardbox-log-filter" });
+    for (const lv of ["all", "error", "warn", "info", "debug"]) {
+      sel.createEl("option", { text: i18n.logLevel(lv), value: lv });
+    }
+    sel.addEventListener("change", () => {
+      this.filter = sel.value;
+      this.render();
+    });
+    const refreshBtn = toolbar.createEl("button", { cls: "clickable-icon cardbox-log-refresh", attr: { "aria-label": i18n.logRefresh } });
+    (0, import_obsidian21.setIcon)(refreshBtn, "refresh-cw");
+    refreshBtn.addEventListener("click", () => this.render());
+    const copyBtn = toolbar.createEl("button", { cls: "cardbox-log-copy", text: i18n.logCopy });
+    copyBtn.addEventListener("click", () => this.copyAll());
+    const clearBtn = toolbar.createEl("button", { cls: "cardbox-log-clear", text: i18n.logClear });
+    clearBtn.addEventListener("click", () => {
+      log.clear();
+      this.render();
+    });
+    this.bodyEl = contentEl.createDiv({ cls: "cardbox-log-body" });
+    this.render();
+  }
+  render() {
+    this.bodyEl.empty();
+    const entries = log.getAll().filter((e) => {
+      if (this.filter === "all") return true;
+      return e.level === this.filter;
+    });
+    if (entries.length === 0) {
+      this.bodyEl.createDiv({ cls: "cardbox-log-empty", text: i18n.logEmpty });
+      return;
+    }
+    for (const entry of entries.slice(-400)) {
+      this.bodyEl.appendChild(this.renderEntry(entry));
+    }
+    this.bodyEl.scrollTop = this.bodyEl.scrollHeight;
+  }
+  renderEntry(entry) {
+    const line = this.bodyEl.createDiv({ cls: `cardbox-log-line is-${entry.level}` });
+    line.createSpan({ cls: "cardbox-log-time", text: formatTs(entry.ts) });
+    line.createSpan({ cls: "cardbox-log-tag", text: entry.tag });
+    line.createSpan({ cls: "cardbox-log-msg", text: entry.msg });
+    if (entry.data !== void 0) {
+      const text = entry.data instanceof Error ? String(entry.data.stack || entry.data) : JSON.stringify(entry.data, null, 2);
+      line.createEl("pre", { cls: "cardbox-log-data", text });
+    }
+    return line;
+  }
+  copyAll() {
+    var _a;
+    const entries = log.getAll();
+    const lines = entries.map((e) => {
+      const time = new Date(e.ts).toISOString();
+      const data = e.data === void 0 ? "" : e.data instanceof Error ? ` ${String(e.data.stack || e.data)}` : ` ${JSON.stringify(e.data)}`;
+      return `[${time}] [${e.level}] [${e.tag}] ${e.msg}${data}`;
+    });
+    const text = `CardBox \u65E5\u5FD7 ${(/* @__PURE__ */ new Date()).toISOString()}
+\u5171 ${entries.length} \u6761
+
+${lines.join("\n")}`;
+    void ((_a = navigator.clipboard) == null ? void 0 : _a.writeText(text).catch(() => void 0));
+    new LogModalNotice(i18n.logCopied);
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+function formatTs(ts) {
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, "0")}`;
+}
+var LogModalNotice = class {
+  constructor(msg) {
+    const el = document.createElement("div");
+    el.className = "cardbox-log-toast";
+    el.textContent = msg;
+    document.body.appendChild(el);
+    window.setTimeout(() => el.remove(), 1800);
+  }
+};
+
 // src/main.ts
-var CardBoxPlugin = class extends import_obsidian21.Plugin {
+var CardBoxPlugin = class extends import_obsidian22.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -4165,12 +4334,14 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
     try {
       await this.setup();
     } catch (e) {
+      log.error("init", "\u63D2\u4EF6\u521D\u59CB\u5316\u5931\u8D25", e);
       console.error("[CardBox] \u63D2\u4EF6\u521D\u59CB\u5316\u5931\u8D25", e);
-      new import_obsidian21.Notice("CardBox \u521D\u59CB\u5316\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0\uFF08Ctrl+Shift+I\uFF09\u83B7\u53D6\u8BE6\u60C5", 8e3);
+      new import_obsidian22.Notice("CardBox \u521D\u59CB\u5316\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0\uFF08Ctrl+Shift+I\uFF09\u83B7\u53D6\u8BE6\u60C5", 8e3);
     }
   }
   async setup() {
     await this.loadSettings();
+    log.info("init", "setup \u5F00\u59CB", { platform: import_obsidian22.Platform.isMobile ? "mobile" : "desktop", version: this.manifest.version });
     this.service = new CardService(
       this.app,
       () => this.settings.cardsFolder,
@@ -4180,6 +4351,7 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
     );
     this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
     this.index.attach();
+    log.info("init", "setup \u5B8C\u6210\uFF0C\u89C6\u56FE\u4E0E\u7D22\u5F15\u5DF2\u6CE8\u518C");
     this.ctx = {
       settings: this.settings,
       index: this.index,
@@ -4198,14 +4370,14 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
           if (i >= 0) this.settings.boxes[i] = def;
           else this.settings.boxes.push(def);
           await this.saveSettings();
-          new import_obsidian21.Notice(i18n.boxSaved(def.name), 1500);
+          new import_obsidian22.Notice(i18n.boxSaved(def.name), 1500);
         },
         remove: async (id) => {
           const def = this.settings.boxes.find((b) => b.id === id);
           this.settings.boxes = this.settings.boxes.filter((b) => b.id !== id);
           if (this.settings.activeBoxId === id) this.settings.activeBoxId = "";
           await this.saveSettings();
-          if (def) new import_obsidian21.Notice(i18n.boxDeleted(def.name), 1500);
+          if (def) new import_obsidian22.Notice(i18n.boxDeleted(def.name), 1500);
         },
         activeId: () => this.settings.activeBoxId,
         setActiveId: async (id) => {
@@ -4273,6 +4445,13 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
       id: "open-main",
       name: i18n.openMain,
       callback: () => void this.openCardBoxView()
+    });
+    this.addCommand({
+      id: "open-logs",
+      name: i18n.openLogs,
+      callback: () => {
+        new LogModal(this.app).open();
+      }
     });
     this.addCommand({
       id: "toggle-select",
@@ -4383,7 +4562,7 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
    */
   async sendToCanvas(cards, silent = false) {
     if (!cards.length) {
-      new import_obsidian21.Notice(i18n.canvasNoCards);
+      new import_obsidian22.Notice(i18n.canvasNoCards);
       return;
     }
     if (silent) {
@@ -4447,14 +4626,14 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
     this.index.refreshPaths(cards.map((c) => c.path));
     if (ok === 0) {
       const only = cards.length === 1 ? reasons[0] : void 0;
-      if (only === "empty") new import_obsidian21.Notice(i18n.renameNoTitle, 3e3);
-      else if (only === "same") new import_obsidian21.Notice(i18n.renameSame, 2e3);
-      else if (only) new import_obsidian21.Notice(i18n.renameFailed(only), 5e3);
-      else new import_obsidian21.Notice(i18n.renameSame, 2e3);
+      if (only === "empty") new import_obsidian22.Notice(i18n.renameNoTitle, 3e3);
+      else if (only === "same") new import_obsidian22.Notice(i18n.renameSame, 2e3);
+      else if (only) new import_obsidian22.Notice(i18n.renameFailed(only), 5e3);
+      else new import_obsidian22.Notice(i18n.renameSame, 2e3);
       return;
     }
-    if (ok === 1 && cards.length === 1) new import_obsidian21.Notice(i18n.renamed(lastFrom, lastTo), 3e3);
-    else new import_obsidian21.Notice(i18n.renamedBatch(ok), 3e3);
+    if (ok === 1 && cards.length === 1) new import_obsidian22.Notice(i18n.renamed(lastFrom, lastTo), 3e3);
+    else new import_obsidian22.Notice(i18n.renamedBatch(ok), 3e3);
   }
   async mergeFromCanvas(file) {
     const paths = await readCanvasCardPaths(this.app, file);
@@ -4468,7 +4647,7 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
       }
     }
     if (!cards.length) {
-      new import_obsidian21.Notice(i18n.canvasNoCardNodes);
+      new import_obsidian22.Notice(i18n.canvasNoCardNodes);
       return;
     }
     new MergeModal(this.app, this.ctx, cards).open();
@@ -4479,7 +4658,7 @@ var CardBoxPlugin = class extends import_obsidian21.Plugin {
     if (!this.app.vault.getAbstractFileByPath(folder)) {
       try {
         await this.app.vault.createFolder(folder);
-        new import_obsidian21.Notice(i18n.noticeFolderCreated(folder));
+        new import_obsidian22.Notice(i18n.noticeFolderCreated(folder));
       } catch (e) {
       }
     }

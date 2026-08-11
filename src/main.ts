@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile } from 'obsidian';
+import { Notice, Platform, Plugin, TFile } from 'obsidian';
 import { CardBoxSettingTab, DEFAULT_SETTINGS } from './settings';
 import type { Card, CardBoxDef, CardBoxSettings } from './types';
 import { CardService } from './frontmatter';
@@ -12,6 +12,8 @@ import type { CardBoxContext } from './context';
 import { readCanvasCardPaths, sendCardsToCanvas } from './utils/canvas';
 import { collectLinkedCards } from './utils/graph';
 import { i18n } from './i18n';
+import { LogModal } from './modals/LogModal';
+import { log } from './utils/logger';
 
 export default class CardBoxPlugin extends Plugin {
 	settings: CardBoxSettings = DEFAULT_SETTINGS;
@@ -28,6 +30,7 @@ export default class CardBoxPlugin extends Plugin {
 		try {
 			await this.setup();
 		} catch (e) {
+			log.error('init', '插件初始化失败', e);
 			console.error('[CardBox] 插件初始化失败', e);
 			new Notice('CardBox 初始化失败，请查看控制台（Ctrl+Shift+I）获取详情', 8000);
 		}
@@ -35,6 +38,7 @@ export default class CardBoxPlugin extends Plugin {
 
 	private async setup(): Promise<void> {
 		await this.loadSettings();
+		log.info('init', 'setup 开始', { platform: Platform.isMobile ? 'mobile' : 'desktop', version: this.manifest.version });
 
 		this.service = new CardService(
 			this.app,
@@ -45,6 +49,7 @@ export default class CardBoxPlugin extends Plugin {
 		);
 		this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
 		this.index.attach();
+		log.info('init', 'setup 完成，视图与索引已注册');
 
 		this.ctx = {
 			settings: this.settings,
@@ -158,6 +163,13 @@ export default class CardBoxPlugin extends Plugin {
 			id: 'open-main',
 			name: i18n.openMain,
 			callback: () => void this.openCardBoxView(),
+		});
+		this.addCommand({
+			id: 'open-logs',
+			name: i18n.openLogs,
+			callback: () => {
+				new LogModal(this.app).open();
+			},
 		});
 		this.addCommand({
 			id: 'toggle-select',
