@@ -454,7 +454,7 @@
 
 /* ---------- 模态框 ---------- */
 
-/* ===== 沉浸式快速捕获（Writeathon 全屏深色） ===== */
+/* ===== 沉浸式快速捕获（自适应 Obsidian 主题） ===== */
 
 .cardbox-capture {
 	display: flex;
@@ -462,29 +462,30 @@
 	height: 100%;
 	min-height: 0;
 	padding: 0;
-	/* 整个 CaptureModal 全屏深色背景（Writeathon 沉浸式暗模式） */
-	background: #2a2a2a;
+	/* 跟随 Obsidian 主题：浅色主题浅、深色主题深，自适应 */
+	background: var(--background-secondary);
 	border: none;
 }
 
-/* 顶部：标题输入框是白色矩形 box 漂浮在深色背景上（Writeathon 风格） */
+/* 顶部：标题输入框在界面最上层，尽量减少上方留白 */
 .cardbox-capture-title-row {
 	display: flex;
 	align-items: flex-start;
-	padding: 12px 20px;
+	/* 标题贴顶：顶部仅留极小间距 */
+	padding: 6px 16px 4px;
 	flex: none;
 	background: transparent;
 	border: none;
 }
 
 .cardbox-capture-title {
-	/* 白色矩形 box（漂浮在深色背景上） */
+	/* 标题矩形 box，跟随主题 */
 	flex: none;
 	width: auto;
 	max-width: 72%;
-	background: #ffffff;
-	color: #1a1a1a;
-	border: none;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
 	outline: none;
 	border-radius: 8px;
 	font-size: 15px;
@@ -497,19 +498,20 @@
 	color: var(--text-faint);
 }
 .cardbox-capture-title:focus {
-	box-shadow: 0 0 0 2px rgba(91, 110, 225, 0.4);
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px rgba(91, 110, 225, 0.25);
 }
 
-/* 编辑区：在深色背景上，浅色文字，无边框 */
+/* 编辑区：跟随主题的常规文字色，无边框 */
 .cardbox-capture-input {
 	flex: 1 1 auto;
 	min-height: 140px;
 	max-height: 45vh;
 	width: 100%;
-	padding: 16px 20px;
+	padding: 12px 16px;
 	border: none;
 	background: transparent;
-	color: rgba(255, 255, 255, 0.92);
+	color: var(--text-normal);
 	font-size: 16px;
 	line-height: 1.65;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
@@ -517,9 +519,9 @@
 	resize: none;
 	overflow-y: auto;
 }
-.cardbox-capture-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.cardbox-capture-input::placeholder { color: var(--text-faint); }
 
-/* 底部一行：连续模式（白底标签，左）+ 保存（主题色按钮，右）
+/* 底部一行：连续模式（左）+ 保存（右）
    按钮高度与 0.6.19 一致：add padding 8px 22px / mode padding 8px 12px；
    移动端 add 10px 26px + min-height 44px / mode 10px 12px + min-height 44px */
 .cardbox-capture-footer {
@@ -528,29 +530,29 @@
 	justify-content: space-between;
 	gap: 10px;
 	padding: 12px 20px;
-	/* 按钮整体上移一个自身高度（与 0.6.19 一致） */
-	padding-bottom: max(12px, 52px);
+	/* 按钮整体上移两个自身高度（比 0.6.19 再上移一个按钮高度） */
+	padding-bottom: max(12px, 104px);
 	flex: none;
 	background: transparent;
 	border: none;
 }
 
-/* 连续模式轻触切换：白底标签（深色背景上明显可点击） */
+/* 连续模式轻触切换：跟随主题的标签 */
 .cardbox-capture-mode {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	font-size: 13px;
-	color: #1a1a1a;
+	color: var(--text-muted);
 	cursor: pointer;
 	padding: 8px 12px;
 	border-radius: var(--radius-s);
 	user-select: none;
-	background: #ffffff;
-	border: none;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
 	line-height: 1;
 }
-.cardbox-capture-mode:hover { background: rgba(255, 255, 255, 0.88); }
+.cardbox-capture-mode:hover { background: var(--background-modifier-hover); }
 .cardbox-capture-mode-dot {
 	width: 8px;
 	height: 8px;
@@ -563,7 +565,7 @@
 }
 .cardbox-capture-mode.is-continuous { color: var(--interactive-accent); }
 
-/* 保存按钮：主题色椭圆胶囊（与 0.6.19 同高度，深色背景上仍醒目） */
+/* 保存按钮：主题色椭圆胶囊（与 0.6.19 同高度） */
 .cardbox-capture-add {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);

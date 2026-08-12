@@ -189,14 +189,14 @@ t('隐藏了 Obsidian modal chrome（沉浸式）',
 	true,
 	result.chromeHidden);
 t('布局顺序：title-row → input → footer', result.order.indexOf('cardbox-capture-title-row') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
-t('Writeathon 全屏深色：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
-t('Writeathon 全屏深色：整个 modal 背景深色（#2a2a2a）', result.captureRootBg === 'rgb(42, 42, 42)', result.captureRootBg);
-t('Writeathon 全屏深色：标题行背景透明（融入深色 modal）', result.titleRowStyle?.bg === 'rgba(0, 0, 0, 0)' || result.titleRowStyle?.bg === 'transparent', result.titleRowStyle);
-t('Writeathon 全屏深色：标题输入框是白色矩形 box（漂浮在深色上）', result.titleStyle?.bg === 'rgb(255, 255, 255)' && (parseFloat(result.titleStyle?.borderRadius ?? '0') >= 6), result.titleStyle);
-t('Writeathon 全屏深色：标题文字深色（深色背景上对比清晰）', result.titleStyle?.color === 'rgb(26, 26, 26)' || result.titleStyle?.color === 'rgb(34, 34, 34)', result.titleStyle);
-t('Writeathon 全屏深色：编辑区背景透明（深色 modal）', result.inputStyle?.bg === 'rgba(0, 0, 0, 0)' || result.inputStyle?.bg === 'transparent' || result.inputStyle?.bg === undefined, result.inputStyle);
-t('Writeathon 全屏深色：编辑区文字浅色（深色背景上）', result.inputStyle?.color?.startsWith('rgba(255, 255, 255'), result.inputStyle);
-t('Writeathon 全屏深色：连续模式白底标签', result.modeStyle?.bg === 'rgb(255, 255, 255)', result.modeStyle);
+t('自适应主题：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
+t('自适应主题：整个 modal 背景跟随主题（非硬编码纯黑 #2a2a2a）', result.captureRootBg && result.captureRootBg !== 'rgb(42, 42, 42)', result.captureRootBg);
+t('自适应主题：标题行背景透明（融入 modal）', result.titleRowStyle?.bg === 'rgba(0, 0, 0, 0)' || result.titleRowStyle?.bg === 'transparent', result.titleRowStyle);
+t('自适应主题：标题输入框有主题化背景 + 圆角 box', result.titleStyle?.bg && result.titleStyle.bg !== 'rgba(0, 0, 0, 0)' && (parseFloat(result.titleStyle?.borderRadius ?? '0') >= 6), result.titleStyle);
+t('自适应主题：标题文字用主题常规色', result.titleStyle?.color === 'rgb(34, 34, 34)' || result.titleStyle?.color === 'rgb(26, 26, 26)', result.titleStyle);
+t('自适应主题：编辑区背景透明', result.inputStyle?.bg === 'rgba(0, 0, 0, 0)' || result.inputStyle?.bg === 'transparent', result.inputStyle);
+t('自适应主题：编辑区文字用主题常规色（非硬编码浅色）', result.inputStyle?.color === 'rgb(34, 34, 34)' || result.inputStyle?.color === 'rgb(26, 26, 26)', result.inputStyle);
+t('标题在最上层（title-row 高度小 ≤50px）', (result.titleRowStyle?.h ?? 999) <= 50, result.titleRowStyle);
 t('保存按钮高度与 0.6.19 一致（垂直 8px + 水平 22px）', /^8px 22px 8px 22px$/.test(result.addStyle?.padding ?? ''), result.addStyle);
 t('保存按钮是椭圆胶囊（border-radius 999px）', parseFloat(result.addStyle?.borderRadius ?? '0') >= 100, result.addStyle);
 t('连续模式按钮高度与 0.6.19 一致（垂直 8px + 水平 12px）', /^8px 12px 8px 12px$/.test(result.modeStyle?.padding ?? ''), result.modeStyle);
