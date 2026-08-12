@@ -1377,15 +1377,16 @@ var CardIndex = class {
   }
   /**
    * 文件是否正在被编辑：普通 markdown 标签页，
-   * 或白板卡片内嵌编辑器（优先 Canvas 内部 API，回退 DOM 探测）。
+   * 或白板卡片内嵌编辑器（Canvas 内部 API）。
    * 正在编辑时跳过 bump，保留"外部改动才同步 updated"的语义。
    *
    * 注意：Canvas 按视口虚拟化渲染卡片，.canvas-node 只出现在可见区域，
-   * DOM 探测不可靠；view.canvas.nodes 的 Map 是全量的，编辑态下
-   * file 节点的 child.getEditor 存在，是最可靠的检测途径。
+   * DOM 探测不可靠。view.canvas.nodes 的 Map 是全量的；实测 file 节点的
+   * child 仅在卡片进入编辑态时非 null（编辑器视图，含 editorEl/dirty/
+   * editable），其余卡片 child 为 null——child 非空即编辑态。
    */
   isFileBeingEdited(path) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c;
     for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
       const view = leaf.view;
       if (((_a = view.file) == null ? void 0 : _a.path) === path) return true;
@@ -1398,7 +1399,7 @@ var CardIndex = class {
         for (const node of nodes.values()) {
           const n = node;
           if (((_c = n.file) == null ? void 0 : _c.path) !== path) continue;
-          if (typeof ((_d = n.child) == null ? void 0 : _d.getEditor) === "function") return true;
+          if (n.child != null) return true;
         }
       }
     } catch (e) {
