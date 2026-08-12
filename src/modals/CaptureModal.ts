@@ -41,17 +41,17 @@ export class CaptureModal extends Modal {
 	}
 
 	onOpen(): void {
-		// 隐藏 Obsidian 默认 modal 标题栏（沉浸式全屏）
+		// 隐藏 Obsidian 默认 modal 标题栏（沉浸式全屏），也没有取消/关闭按钮
 		this.titleEl.parentElement?.addClass('cardbox-modal-hidden-chrome');
+		if (this.modalEl) this.modalEl.addClass('cardbox-modal-no-close');
 
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('cardbox-capture');
 
-		// 顶部深色引导区：可编辑的默认标题（笔记创建时间，精确到秒）
-		const header = contentEl.createDiv({ cls: 'cardbox-capture-header' });
-		const label = header.createSpan({ cls: 'cardbox-capture-label', text: i18n.captureTitleLabel });
-		this.titleInput = header.createEl('input', {
+		// 顶部：卡片标题（默认 = 创建时间到秒，可编辑）——独立一行，卡片最顶部
+		const titleRow = contentEl.createDiv({ cls: 'cardbox-capture-title-row' });
+		this.titleInput = titleRow.createEl('input', {
 			cls: 'cardbox-capture-title',
 			attr: {
 				type: 'text',
@@ -67,20 +67,7 @@ export class CaptureModal extends Modal {
 			this.titleInput.value = this.titleInput.value.trim();
 		});
 
-		// 连续模式轻触切换（右上角小标签）
-		if (!this.opts.parent && !this.opts.singleShot) {
-			const mode = header.createDiv({ cls: 'cardbox-capture-mode' });
-			mode.createSpan({ cls: 'cardbox-capture-mode-dot' });
-			mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
-			mode.addEventListener('click', () => {
-				this.continuous = !this.continuous;
-				mode.classList.toggle('is-continuous', this.continuous);
-				mode.querySelector('span:last-child')!.textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
-			});
-			mode.classList.toggle('is-continuous', this.continuous);
-		}
-
-		// 正文编辑区
+		// 正文编辑区：与标题栏之间无边框，自身也无边框
 		this.textarea = contentEl.createEl('textarea', {
 			cls: 'cardbox-capture-input',
 			attr: {
@@ -93,8 +80,23 @@ export class CaptureModal extends Modal {
 		this.textarea.addEventListener('input', this.autosize);
 		requestAnimationFrame(this.autosize);
 
-		// 底部：仅保存按钮（其余编辑工具交给 Obsidian 完整编辑器）
+		// 底部一行：连续模式（左）+ 保存按钮（右），按钮整体上移一个自身高度
 		const footer = contentEl.createDiv({ cls: 'cardbox-capture-footer' });
+
+		if (!this.opts.parent && !this.opts.singleShot) {
+			const mode = footer.createEl('button', { cls: 'cardbox-capture-mode' });
+			mode.createSpan({ cls: 'cardbox-capture-mode-dot' });
+			mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
+			mode.addEventListener('click', () => {
+				this.continuous = !this.continuous;
+				mode.classList.toggle('is-continuous', this.continuous);
+				mode.querySelector('span:last-child')!.textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
+			});
+			mode.classList.toggle('is-continuous', this.continuous);
+		} else {
+			footer.createDiv({ cls: 'cardbox-spacer' });
+		}
+
 		const addBtn = footer.createEl('button', { cls: 'cardbox-capture-add', attr: { 'aria-label': i18n.save } });
 		addBtn.createSpan({ text: i18n.save });
 		addBtn.addEventListener('click', () => void this.save());
@@ -161,6 +163,7 @@ export class CaptureModal extends Modal {
 
 	onClose(): void {
 		this.titleEl.parentElement?.removeClass('cardbox-modal-hidden-chrome');
+		if (this.modalEl) this.modalEl.removeClass('cardbox-modal-no-close');
 		this.contentEl.empty();
 	}
 }

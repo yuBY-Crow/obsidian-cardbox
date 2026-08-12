@@ -111,7 +111,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 
 	return {
 		modalCls: document.querySelector('.cardbox-capture') ? 'yes' : 'no',
-		hasHeader: !!document.querySelector('.cardbox-capture-header'),
+		hasHeader: !!document.querySelector('.cardbox-capture-title-row'),
 		titleInput: (() => {
 			const i = document.querySelector('.cardbox-capture-title');
 			return i ? { tag: i.tagName, value: i.value, matchesTime: /^\d{4}-\d{2}-\d{2}-\d{6}$/.test(i.value) } : null;
@@ -124,6 +124,10 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 		hasFooter: !!document.querySelector('.cardbox-capture-footer'),
 		hasMode: !!document.querySelector('.cardbox-capture-mode'),
 		modeText: document.querySelector('.cardbox-capture-mode')?.textContent,
+		modeInFooter: (() => {
+			const footer = document.body.querySelector('.cardbox-capture-footer');
+			return !!footer && footer.querySelector('.cardbox-capture-mode') !== null;
+		})(),
 		chromeHidden: document.body.querySelector('.cardbox-modal-hidden-chrome') ? 'yes' : 'no',
 		// 布局顺序：header → input → footer
 		order: [...document.querySelector('.cardbox-capture')?.children ?? []].map((c) => c.className),
@@ -134,7 +138,8 @@ let pass = 0, fail = 0;
 const t = (name, cond, got) => { if (cond) pass++; else { fail++; console.log('FAIL:', name, got !== undefined ? `→ ${JSON.stringify(got)}` : ''); } };
 
 t('CaptureModal 已打开（有 .cardbox-capture）', result.modalCls === 'yes', result.modalCls);
-t('顶部有深色引导区（.cardbox-capture-header）', result.hasHeader, result.hasHeader);
+t('顶部有标题行（.cardbox-capture-title-row）', result.hasHeader, result.hasHeader);
+t('标题行在卡片最顶部（第一个子元素）', result.order[0] === 'cardbox-capture-title-row', result.order);
 t('引导区有标题输入框（input）', result.titleInput?.tag === 'INPUT', result.titleInput);
 t('标题默认值为创建时间（YYYY-MM-DD-HHmmss）', result.titleInput?.matchesTime === true, result.titleInput);
 t('有大编辑区（textarea）', result.hasInput && result.inputTag === 'TEXTAREA', result.inputTag);
@@ -142,13 +147,14 @@ t('不再有自定义工具按钮', result.toolCount === 0, result.toolCount);
 t('有底部 footer（保存区）', result.hasFooter, result.hasFooter);
 t('有保存按钮（CTA）', result.hasAdd, result.hasAdd);
 t('保存按钮文字为「保存」', result.addText === '保存', result.addText);
+t('连续模式在 footer 内（与保存同行）', result.modeInFooter, result.hasMode);
 t('有连续模式轻触切换', result.hasMode, result.hasMode);
 t('连续模式文字为「连续模式」', result.modeText === '连续模式', result.modeText);
 t('隐藏了 Obsidian modal chrome（沉浸式）',
 	// mock 里 titleEl.parentElement 是 detached div，断言 CaptureModal 调了 addClass
 	true,
 	result.chromeHidden);
-t('布局顺序：header → input → footer', JSON.stringify(result.order).includes('header') && JSON.stringify(result.order).indexOf('header') < JSON.stringify(result.order).indexOf('input') && JSON.stringify(result.order).indexOf('input') < JSON.stringify(result.order).indexOf('footer'), result.order);
+t('布局顺序：title-row → input → footer', result.order.indexOf('cardbox-capture-title-row') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
 
 await page.screenshot({ path: 'shot-capture.png' });
 console.log(`${pass} passed, ${fail} failed`);

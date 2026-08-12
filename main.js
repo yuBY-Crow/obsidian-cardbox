@@ -2855,7 +2855,9 @@ var CardBoxView = class extends import_obsidian15.ItemView {
           this.renderKey = "";
           this.scheduleRender();
         },
-        onModeChange: () => {
+        onModeChange: (mode) => {
+          this.ctx.settings.defaultViewMode = mode;
+          void this.ctx.saveSettings();
           this.renderKey = "";
           this.scheduleRender();
         },
@@ -2892,7 +2894,9 @@ var CardBoxView = class extends import_obsidian15.ItemView {
           this.boxBar.refresh();
           this.scheduleRender();
         },
-        onModeChange: () => {
+        onModeChange: (mode) => {
+          this.ctx.settings.defaultViewMode = mode;
+          void this.ctx.saveSettings();
           this.renderKey = "";
           this.scheduleRender();
         },
@@ -3925,12 +3929,12 @@ var CaptureModal = class extends import_obsidian18.Modal {
   onOpen() {
     var _a;
     (_a = this.titleEl.parentElement) == null ? void 0 : _a.addClass("cardbox-modal-hidden-chrome");
+    if (this.modalEl) this.modalEl.addClass("cardbox-modal-no-close");
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
-    const header = contentEl.createDiv({ cls: "cardbox-capture-header" });
-    const label = header.createSpan({ cls: "cardbox-capture-label", text: i18n.captureTitleLabel });
-    this.titleInput = header.createEl("input", {
+    const titleRow = contentEl.createDiv({ cls: "cardbox-capture-title-row" });
+    this.titleInput = titleRow.createEl("input", {
       cls: "cardbox-capture-title",
       attr: {
         type: "text",
@@ -3944,17 +3948,6 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.titleInput.addEventListener("blur", () => {
       this.titleInput.value = this.titleInput.value.trim();
     });
-    if (!this.opts.parent && !this.opts.singleShot) {
-      const mode = header.createDiv({ cls: "cardbox-capture-mode" });
-      mode.createSpan({ cls: "cardbox-capture-mode-dot" });
-      mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
-      mode.addEventListener("click", () => {
-        this.continuous = !this.continuous;
-        mode.classList.toggle("is-continuous", this.continuous);
-        mode.querySelector("span:last-child").textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
-      });
-      mode.classList.toggle("is-continuous", this.continuous);
-    }
     this.textarea = contentEl.createEl("textarea", {
       cls: "cardbox-capture-input",
       attr: {
@@ -3967,6 +3960,19 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.textarea.addEventListener("input", this.autosize);
     requestAnimationFrame(this.autosize);
     const footer = contentEl.createDiv({ cls: "cardbox-capture-footer" });
+    if (!this.opts.parent && !this.opts.singleShot) {
+      const mode = footer.createEl("button", { cls: "cardbox-capture-mode" });
+      mode.createSpan({ cls: "cardbox-capture-mode-dot" });
+      mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
+      mode.addEventListener("click", () => {
+        this.continuous = !this.continuous;
+        mode.classList.toggle("is-continuous", this.continuous);
+        mode.querySelector("span:last-child").textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
+      });
+      mode.classList.toggle("is-continuous", this.continuous);
+    } else {
+      footer.createDiv({ cls: "cardbox-spacer" });
+    }
     const addBtn = footer.createEl("button", { cls: "cardbox-capture-add", attr: { "aria-label": i18n.save } });
     addBtn.createSpan({ text: i18n.save });
     addBtn.addEventListener("click", () => void this.save());
@@ -4023,6 +4029,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
   onClose() {
     var _a;
     (_a = this.titleEl.parentElement) == null ? void 0 : _a.removeClass("cardbox-modal-hidden-chrome");
+    if (this.modalEl) this.modalEl.removeClass("cardbox-modal-no-close");
     this.contentEl.empty();
   }
 };

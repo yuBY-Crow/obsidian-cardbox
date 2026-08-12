@@ -464,22 +464,13 @@
 	padding: 0;
 }
 
-/* 顶部深色引导区：可编辑的默认标题（创建时间，精确到秒） */
-.cardbox-capture-header {
-	background: var(--background-secondary);
-	padding: 12px 16px;
+/* 顶部标题栏：卡片最顶部，可编辑（默认 = 创建时间到秒），无下边框 */
+.cardbox-capture-title-row {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 14px 16px 6px;
 	flex: none;
-}
-
-.cardbox-capture-label {
-	color: var(--text-faint);
-	font-size: 12px;
-	flex: none;
+	background: var(--background-primary);
 }
 
 .cardbox-capture-title {
@@ -489,7 +480,7 @@
 	border: none;
 	outline: none;
 	color: var(--text-normal);
-	font-size: 15px;
+	font-size: 16px;
 	font-weight: 600;
 	letter-spacing: 0.01em;
 	padding: 4px 0;
@@ -500,39 +491,13 @@
 	border-bottom-color: var(--interactive-accent);
 }
 
-/* 连续模式轻触切换（右上角小标签：圆点 + 文字） */
-.cardbox-capture-mode {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 12px;
-	color: var(--text-faint);
-	cursor: pointer;
-	padding: 4px 8px;
-	border-radius: var(--radius-s);
-	user-select: none;
-	flex: none;
-}
-.cardbox-capture-mode:hover { background: var(--background-modifier-hover); }
-.cardbox-capture-mode-dot {
-	width: 7px;
-	height: 7px;
-	border-radius: 50%;
-	background: var(--text-faint);
-	transition: background 0.15s ease;
-}
-.cardbox-capture-mode.is-continuous .cardbox-capture-mode-dot {
-	background: var(--interactive-accent);
-}
-.cardbox-capture-mode.is-continuous { color: var(--interactive-accent); }
-
-/* 编辑区：大 textarea，自适应高度 */
+/* 编辑区：大 textarea，自适应高度；与标题栏之间无边框、自身也无边框 */
 .cardbox-capture-input {
 	flex: 1 1 auto;
 	min-height: 140px;
 	max-height: 45vh;
 	width: 100%;
-	padding: 18px 16px;
+	padding: 10px 16px 18px;
 	border: none;
 	background: var(--background-primary);
 	color: var(--text-normal);
@@ -545,19 +510,50 @@
 }
 .cardbox-capture-input::placeholder { color: var(--text-faint); }
 
-/* 底部：保存按钮（其余编辑工具交给 Obsidian 完整编辑器） */
+/* 底部一行：连续模式（左）+ 保存按钮（右），按钮整体上移一个自身高度 */
 .cardbox-capture-footer {
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
-	padding: 10px 14px;
-	background: var(--background-secondary);
-	border-top: 1px solid var(--background-modifier-border);
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px 16px;
+	/* 保存按钮下方留出一个按钮高度的空间（整体上移，不贴底） */
+	padding-bottom: max(12px, 52px);
 	flex: none;
-	padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+	/* 只在保存按钮上方加分割线（标题栏与编辑区之间无边框） */
+	border-top: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
 }
 
-/* 添加按钮（最右 CTA，胶囊形） */
+/* 连续模式轻触切换（底部左侧：圆点 + 文字） */
+.cardbox-capture-mode {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 8px 12px;
+	border-radius: var(--radius-s);
+	user-select: none;
+	background: transparent;
+	border: none;
+	line-height: 1;
+}
+.cardbox-capture-mode:hover { background: var(--background-modifier-hover); }
+.cardbox-capture-mode-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--text-faint);
+	transition: background 0.15s ease;
+}
+.cardbox-capture-mode.is-continuous .cardbox-capture-mode-dot {
+	background: var(--interactive-accent);
+}
+.cardbox-capture-mode.is-continuous { color: var(--interactive-accent); }
+
+/* 添加按钮（右 CTA，胶囊形） */
 .cardbox-capture-add {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
@@ -571,9 +567,10 @@
 .cardbox-capture-add:hover { filter: brightness(1.05); }
 .cardbox-capture-add:active { transform: scale(0.96); }
 
-/* 隐藏 Obsidian modal 默认标题栏（沉浸式全屏） */
+/* 隐藏 Obsidian modal 默认标题栏 + 关闭按钮（沉浸式全屏，无取消/关闭入口） */
 .cardbox-modal-hidden-chrome .modal-title,
 .cardbox-modal-hidden-chrome .modal-close-button { display: none; }
+.cardbox-modal-no-close .modal-close-button { display: none; }
 .cardbox-modal-hidden-chrome .modal-content {
 	border-radius: 16px 16px 0 0;
 	/* 手机端沉浸式全屏：撑满高度，让内容区可滚动 */
@@ -585,11 +582,15 @@ body.is-mobile .cardbox-modal-hidden-chrome .modal-content {
 
 /* 兼容手机端 */
 body.is-mobile .cardbox-capture-title {
-	font-size: 16px;
+	font-size: 17px;
 	padding: 6px 0;
 }
 body.is-mobile .cardbox-capture-add {
-	padding: 10px 24px;
+	padding: 10px 26px;
+	min-height: 44px;
+}
+body.is-mobile .cardbox-capture-mode {
+	padding: 10px 12px;
 	min-height: 44px;
 }
 
@@ -1429,10 +1430,12 @@ body.is-mobile .cardbox-backlink-btn {
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* 展开状态：数字变灰（弱化：已展开，关联卡片已显示） */
+/* 展开状态：主题色柔化（半透明蓝），表示「已展开、关联卡片已显示」——
+   仍是蓝色系（提示可收起），但明显比默认浅，和未展开形成层级区分 */
 .cardbox-expand-count.is-expanded {
-	color: var(--text-muted);
-	background: var(--background-modifier-border);
+	color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 35%, transparent);
 }
 
 body.is-mobile .cardbox-expand-count {

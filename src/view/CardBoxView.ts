@@ -89,7 +89,11 @@ export class CardBoxView extends ItemView {
 					this.renderKey = '';
 					this.scheduleRender();
 				},
-				onModeChange: () => {
+				onModeChange: (mode) => {
+					// 持久化模式：Obsidian 切走再切回时视图重建，
+					// 不保存的话会丢回 defaultViewMode（用户看到的「变单列」）
+					this.ctx.settings.defaultViewMode = mode;
+					void this.ctx.saveSettings();
 					this.renderKey = '';
 					this.scheduleRender();
 				},
@@ -130,7 +134,9 @@ export class CardBoxView extends ItemView {
 					this.boxBar.refresh();
 					this.scheduleRender();
 				},
-				onModeChange: () => {
+				onModeChange: (mode) => {
+					this.ctx.settings.defaultViewMode = mode;
+					void this.ctx.saveSettings();
 					this.renderKey = '';
 					this.scheduleRender();
 				},

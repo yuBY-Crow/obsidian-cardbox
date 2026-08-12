@@ -118,10 +118,15 @@ const stats = await page.evaluate(() => {
 	return {
 		w: Math.round(r.width),
 		h: Math.round(r.height),
-		headerRect: (() => { const h = capture.querySelector('.cardbox-capture-header'); return h ? Math.round(h.getBoundingClientRect().height) : null; })(),
+		titleRowRect: (() => { const h = capture.querySelector('.cardbox-capture-title-row'); return h ? Math.round(h.getBoundingClientRect().height) : null; })(),
 		inputRect: (() => { const i = capture.querySelector('.cardbox-capture-input'); return i ? Math.round(i.getBoundingClientRect().height) : null; })(),
-		toolbarRect: (() => { const t = capture.querySelector('.cardbox-capture-toolbar'); return t ? Math.round(t.getBoundingClientRect().height) : null; })(),
-		toolRects: [...capture.querySelectorAll('.cardbox-capture-tool')].map((t) => Math.round(t.getBoundingClientRect().width)),
+		footerRect: (() => { const t = capture.querySelector('.cardbox-capture-footer'); return t ? Math.round(t.getBoundingClientRect().height) : null; })(),
+		modeInFooter: (() => { const f = capture.querySelector('.cardbox-capture-footer'); return !!f && !!f.querySelector('.cardbox-capture-mode'); })(),
+		borders: {
+			titleInput: getComputedStyle(capture.querySelector('.cardbox-capture-input')).borderTopWidth,
+			titleRowBorder: getComputedStyle(capture.querySelector('.cardbox-capture-title-row')).borderBottomWidth,
+			footerBorder: getComputedStyle(capture.querySelector('.cardbox-capture-footer')).borderTopWidth,
+		},
 		addRect: (() => { const a = capture.querySelector('.cardbox-capture-add'); return a ? Math.round(a.getBoundingClientRect().width) : null; })(),
 	};
 });
