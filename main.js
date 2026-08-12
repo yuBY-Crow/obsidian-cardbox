@@ -3939,6 +3939,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
       attr: {
         type: "text",
         value: defaultTitle(/* @__PURE__ */ new Date()),
+        placeholder: i18n.captureSlogan,
         maxlength: "80",
         spellcheck: "false",
         "aria-label": i18n.captureTitleLabel

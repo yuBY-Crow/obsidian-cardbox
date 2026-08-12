@@ -114,7 +114,19 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 		hasHeader: !!document.querySelector('.cardbox-capture-title-row'),
 		titleInput: (() => {
 			const i = document.querySelector('.cardbox-capture-title');
-			return i ? { tag: i.tagName, value: i.value, matchesTime: /^\d{4}-\d{2}-\d{2}-\d{6}$/.test(i.value) } : null;
+			return i ? { tag: i.tagName, value: i.value, matchesTime: /^\d{4}-\d{2}-\d{2}-\d{6}$/.test(i.value), placeholder: i.getAttribute('placeholder') } : null;
+		})(),
+		titleRowStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-title-row');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { bg: cs.backgroundColor, h: Math.round(el.getBoundingClientRect().height), borderBottom: cs.borderBottomWidth };
+		})(),
+		titleStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-title');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { color: cs.color, maxWidth: cs.maxWidth, flex: cs.flex, width: cs.width };
 		})(),
 		hasInput: !!document.querySelector('.cardbox-capture-input'),
 		inputTag: document.querySelector('.cardbox-capture-input')?.tagName,
@@ -155,6 +167,12 @@ t('隐藏了 Obsidian modal chrome（沉浸式）',
 	true,
 	result.chromeHidden);
 t('布局顺序：title-row → input → footer', result.order.indexOf('cardbox-capture-title-row') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
+t('Writeathon 风格：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
+t('Writeathon 风格：标题行是大块（≥120px）', (result.titleRowStyle?.h ?? 0) >= 120, result.titleRowStyle);
+t('Writeathon 风格：标题行背景非白（深色块）', result.titleRowStyle?.bg && !/255, 255, 255/.test(result.titleRowStyle.bg), result.titleRowStyle);
+t('Writeathon 风格：标题 placeholder 为「写作就像马拉松」', result.titleInput?.placeholder === '写作就像马拉松', result.titleInput?.placeholder);
+t('Writeathon 风格：标题在左上角小框（max-width 限制）', result.titleStyle?.maxWidth && result.titleStyle.maxWidth !== 'none' && result.titleStyle?.flex === 'auto 0 1 auto' || result.titleStyle?.flex === 'none 0 0 0' || result.titleStyle?.flex === '0 0 auto', result.titleStyle);
+t('Writeathon 风格：标题文字在深色块上为白色', result.titleStyle?.color === 'rgb(255, 255, 255)', result.titleStyle);
 
 await page.screenshot({ path: 'shot-capture.png' });
 console.log(`${pass} passed, ${fail} failed`);

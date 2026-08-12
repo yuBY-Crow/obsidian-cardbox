@@ -464,28 +464,38 @@
 	padding: 0;
 }
 
-/* 顶部标题栏：卡片最顶部，可编辑（默认 = 创建时间到秒），无下边框 */
+/* 顶部深色块（Writeathon 风格）：占较大面积（约 30% 屏幕），标题放在左上角小框 */
 .cardbox-capture-title-row {
 	display: flex;
-	align-items: center;
-	padding: 14px 16px 6px;
+	align-items: flex-start;
+	/* 大块深色沉浸感：上下大 padding 让深色块视觉占比约 130-150px */
+	padding: 56px 20px 60px;
 	flex: none;
-	background: var(--background-primary);
+	/* 真正的深色块：与编辑区/footer 形成强对比。
+	   固定深灰以保证任何主题下都有清晰的"深色块"视觉 */
+	background: #2a2a2a;
+	border: none;
 }
 
 .cardbox-capture-title {
-	flex: 1;
-	min-width: 0;
+	/* 标题在左上角小框，不横跨整行 */
+	flex: none;
+	width: auto;
+	max-width: 72%;
 	background: transparent;
 	border: none;
 	outline: none;
-	color: var(--text-normal);
+	/* 深色块（#2a2a2a）上用纯白文字 */
+	color: #ffffff;
 	font-size: 16px;
 	font-weight: 600;
 	letter-spacing: 0.01em;
 	padding: 4px 0;
 	border-bottom: 1px solid transparent;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.cardbox-capture-title::placeholder {
+	color: rgba(255, 255, 255, 0.4);
 }
 .cardbox-capture-title:focus {
 	border-bottom-color: var(--interactive-accent);

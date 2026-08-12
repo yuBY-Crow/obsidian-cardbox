@@ -49,13 +49,15 @@ export class CaptureModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('cardbox-capture');
 
-		// 顶部：卡片标题（默认 = 创建时间到秒，可编辑）——独立一行，卡片最顶部
+		// 顶部深色块（Writeathon 风格）：标题在左上角小框，默认 = 创建时间到秒，可编辑
+		// placeholder 用 Writeathon 风格的灰色引导文「写作就像马拉松」让深色块不空
 		const titleRow = contentEl.createDiv({ cls: 'cardbox-capture-title-row' });
 		this.titleInput = titleRow.createEl('input', {
 			cls: 'cardbox-capture-title',
 			attr: {
 				type: 'text',
 				value: defaultTitle(new Date()),
+				placeholder: i18n.captureSlogan,
 				maxlength: '80',
 				spellcheck: 'false',
 				'aria-label': i18n.captureTitleLabel,
