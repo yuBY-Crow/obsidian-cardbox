@@ -126,7 +126,29 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 			const el = document.querySelector('.cardbox-capture-title');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { color: cs.color, maxWidth: cs.maxWidth, flex: cs.flex, width: cs.width, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom };
+			return { color: cs.color, maxWidth: cs.maxWidth, flex: cs.flex, width: cs.width, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, bg: cs.backgroundColor, borderRadius: cs.borderRadius };
+		})(),
+		captureRootBg: (() => {
+			const el = document.querySelector('.cardbox-capture');
+			return el ? getComputedStyle(el).backgroundColor : null;
+		})(),
+		inputStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-input');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { bg: cs.backgroundColor, color: cs.color };
+		})(),
+		modeStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-mode');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { bg: cs.backgroundColor, color: cs.color, padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}` };
+		})(),
+		addStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-add');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`, borderRadius: cs.borderRadius };
 		})(),
 		hasInput: !!document.querySelector('.cardbox-capture-input'),
 		inputTag: document.querySelector('.cardbox-capture-input')?.tagName,
@@ -167,13 +189,17 @@ t('隐藏了 Obsidian modal chrome（沉浸式）',
 	true,
 	result.chromeHidden);
 t('布局顺序：title-row → input → footer', result.order.indexOf('cardbox-capture-title-row') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
-t('Writeathon 风格：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
-t('Writeathon 风格：标题行是紧凑深色块（60~115px）', (result.titleRowStyle?.h ?? 0) >= 60 && (result.titleRowStyle?.h ?? 0) <= 115, result.titleRowStyle);
-t('Writeathon 风格：标题行背景非白（深色块）', result.titleRowStyle?.bg && !/255, 255, 255/.test(result.titleRowStyle.bg), result.titleRowStyle);
-t('输入框垂直 padding = 25px（上下各大 25px）', result.titleStyle?.paddingTop === '25px' && result.titleStyle?.paddingBottom === '25px', result.titleStyle);
-t('Writeathon 风格：标题 placeholder 为「写作就像马拉松」', result.titleInput?.placeholder === '写作就像马拉松', result.titleInput?.placeholder);
-t('Writeathon 风格：标题在左上角小框（max-width 限制）', result.titleStyle?.maxWidth && result.titleStyle.maxWidth !== 'none' && result.titleStyle?.flex === 'auto 0 1 auto' || result.titleStyle?.flex === 'none 0 0 0' || result.titleStyle?.flex === '0 0 auto', result.titleStyle);
-t('Writeathon 风格：标题文字在深色块上为白色', result.titleStyle?.color === 'rgb(255, 255, 255)', result.titleStyle);
+t('Writeathon 全屏深色：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
+t('Writeathon 全屏深色：整个 modal 背景深色（#2a2a2a）', result.captureRootBg === 'rgb(42, 42, 42)', result.captureRootBg);
+t('Writeathon 全屏深色：标题行背景透明（融入深色 modal）', result.titleRowStyle?.bg === 'rgba(0, 0, 0, 0)' || result.titleRowStyle?.bg === 'transparent', result.titleRowStyle);
+t('Writeathon 全屏深色：标题输入框是白色矩形 box（漂浮在深色上）', result.titleStyle?.bg === 'rgb(255, 255, 255)' && (parseFloat(result.titleStyle?.borderRadius ?? '0') >= 6), result.titleStyle);
+t('Writeathon 全屏深色：标题文字深色（深色背景上对比清晰）', result.titleStyle?.color === 'rgb(26, 26, 26)' || result.titleStyle?.color === 'rgb(34, 34, 34)', result.titleStyle);
+t('Writeathon 全屏深色：编辑区背景透明（深色 modal）', result.inputStyle?.bg === 'rgba(0, 0, 0, 0)' || result.inputStyle?.bg === 'transparent' || result.inputStyle?.bg === undefined, result.inputStyle);
+t('Writeathon 全屏深色：编辑区文字浅色（深色背景上）', result.inputStyle?.color?.startsWith('rgba(255, 255, 255'), result.inputStyle);
+t('Writeathon 全屏深色：连续模式白底标签', result.modeStyle?.bg === 'rgb(255, 255, 255)', result.modeStyle);
+t('保存按钮高度与 0.6.19 一致（垂直 8px + 水平 22px）', /^8px 22px 8px 22px$/.test(result.addStyle?.padding ?? ''), result.addStyle);
+t('保存按钮是椭圆胶囊（border-radius 999px）', parseFloat(result.addStyle?.borderRadius ?? '0') >= 100, result.addStyle);
+t('连续模式按钮高度与 0.6.19 一致（垂直 8px + 水平 12px）', /^8px 12px 8px 12px$/.test(result.modeStyle?.padding ?? ''), result.modeStyle);
 
 await page.screenshot({ path: 'shot-capture.png' });
 console.log(`${pass} passed, ${fail} failed`);
