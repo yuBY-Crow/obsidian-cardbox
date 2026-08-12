@@ -464,12 +464,12 @@
 	padding: 0;
 }
 
-/* 顶部深色块（Writeathon 风格）：占较大面积（约 30% 屏幕），标题放在左上角小框 */
+/* 顶部深色块（Writeathon 风格）：包住输入框，输入框比字体上下各大 25px */
 .cardbox-capture-title-row {
 	display: flex;
 	align-items: flex-start;
-	/* 大块深色沉浸感：上下大 padding 让深色块视觉占比约 130-150px */
-	padding: 56px 20px 60px;
+	/* 深色块只包住标题输入框（输入框上下各 25px + 少量外部留白） */
+	padding: 12px 20px;
 	flex: none;
 	/* 真正的深色块：与编辑区/footer 形成强对比。
 	   固定深灰以保证任何主题下都有清晰的"深色块"视觉 */
@@ -490,7 +490,8 @@
 	font-size: 16px;
 	font-weight: 600;
 	letter-spacing: 0.01em;
-	padding: 4px 0;
+	/* 输入框比标题字体上下各大 25px */
+	padding: 25px 0;
 	border-bottom: 1px solid transparent;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
@@ -593,7 +594,8 @@ body.is-mobile .cardbox-modal-hidden-chrome .modal-content {
 /* 兼容手机端 */
 body.is-mobile .cardbox-capture-title {
 	font-size: 17px;
-	padding: 6px 0;
+	/* 输入框比标题字体上下各大 25px（与 PC 一致） */
+	padding: 25px 0;
 }
 body.is-mobile .cardbox-capture-add {
 	padding: 10px 26px;

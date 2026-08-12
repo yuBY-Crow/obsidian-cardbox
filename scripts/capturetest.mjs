@@ -126,7 +126,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 			const el = document.querySelector('.cardbox-capture-title');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { color: cs.color, maxWidth: cs.maxWidth, flex: cs.flex, width: cs.width };
+			return { color: cs.color, maxWidth: cs.maxWidth, flex: cs.flex, width: cs.width, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom };
 		})(),
 		hasInput: !!document.querySelector('.cardbox-capture-input'),
 		inputTag: document.querySelector('.cardbox-capture-input')?.tagName,
@@ -168,8 +168,9 @@ t('隐藏了 Obsidian modal chrome（沉浸式）',
 	result.chromeHidden);
 t('布局顺序：title-row → input → footer', result.order.indexOf('cardbox-capture-title-row') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
 t('Writeathon 风格：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
-t('Writeathon 风格：标题行是大块（≥120px）', (result.titleRowStyle?.h ?? 0) >= 120, result.titleRowStyle);
+t('Writeathon 风格：标题行是紧凑深色块（60~115px）', (result.titleRowStyle?.h ?? 0) >= 60 && (result.titleRowStyle?.h ?? 0) <= 115, result.titleRowStyle);
 t('Writeathon 风格：标题行背景非白（深色块）', result.titleRowStyle?.bg && !/255, 255, 255/.test(result.titleRowStyle.bg), result.titleRowStyle);
+t('输入框垂直 padding = 25px（上下各大 25px）', result.titleStyle?.paddingTop === '25px' && result.titleStyle?.paddingBottom === '25px', result.titleStyle);
 t('Writeathon 风格：标题 placeholder 为「写作就像马拉松」', result.titleInput?.placeholder === '写作就像马拉松', result.titleInput?.placeholder);
 t('Writeathon 风格：标题在左上角小框（max-width 限制）', result.titleStyle?.maxWidth && result.titleStyle.maxWidth !== 'none' && result.titleStyle?.flex === 'auto 0 1 auto' || result.titleStyle?.flex === 'none 0 0 0' || result.titleStyle?.flex === '0 0 auto', result.titleStyle);
 t('Writeathon 风格：标题文字在深色块上为白色', result.titleStyle?.color === 'rgb(255, 255, 255)', result.titleStyle);
