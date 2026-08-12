@@ -196,21 +196,50 @@ export class CardIndex {
 		if (now - last < UPDATE_BUMP_COOLDOWN_MS) return;
 		// 文件正在编辑中（普通编辑器或白板卡片内嵌编辑器）→ 跳过，
 		// 避免二次写盘触发 Obsidian 重载编辑器、光标跳回文首
-		if (this.isFileBeingEdited(card.path)) return;
+		if (this.isFileBeingEdited(card.path)) {
+			log.info('index', 'bump 跳过：文件正在编辑', { path: card.path });
+			return;
+		}
 		this.lastBump.set(card.path, now);
 		this.service.bumpUpdated(card).catch(() => undefined);
 	}
 
 	/**
 	 * 文件是否正在被编辑：普通 markdown 标签页，
-	 * 或白板卡片内嵌编辑器（canvas 节点 DOM 里存在该文件的 CM 编辑器）。
+	 * 或白板卡片内嵌编辑器（优先 Canvas 内部 API，回退 DOM 探测）。
 	 * 正在编辑时跳过 bump，保留"外部改动才同步 updated"的语义。
+	 *
+	 * 注意：Canvas 按视口虚拟化渲染卡片，.canvas-node 只出现在可见区域，
+	 * DOM 探测不可靠；view.canvas.nodes 的 Map 是全量的，编辑态下
+	 * file 节点的 child.getEditor 存在，是最可靠的检测途径。
 	 */
 	private isFileBeingEdited(path: string): boolean {
+		// ① 普通 markdown 标签页
 		for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
 			const view = leaf.view as { file?: { path: string } };
 			if (view.file?.path === path) return true;
 		}
+		// ② 白板 file 节点内嵌编辑器：Canvas 内部 API
+		try {
+			const leaves = this.app.workspace.getLeavesOfType('canvas') as unknown as {
+				view: { canvas?: { nodes?: Map<unknown, unknown> } };
+			}[];
+			for (const leaf of leaves) {
+				const nodes = leaf.view.canvas?.nodes;
+				if (!nodes) continue;
+				for (const node of nodes.values()) {
+					const n = node as {
+						file?: { path: string };
+						child?: { getEditor?: () => unknown };
+					};
+					if (n.file?.path !== path) continue;
+					if (typeof n.child?.getEditor === 'function') return true;
+				}
+			}
+		} catch {
+			/* 内部 API 不可用时回退 DOM 探测 */
+		}
+		// ③ DOM 兜底（仅当 API 不可用时）
 		if (typeof document === 'undefined') return false;
 		const esc =
 			typeof CSS !== 'undefined' && typeof CSS.escape === 'function'

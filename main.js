@@ -1368,20 +1368,40 @@ var CardIndex = class {
     if (card.mtime - card.updated < UPDATE_BUMP_THRESHOLD_MS) return;
     const last = (_a = this.lastBump.get(card.path)) != null ? _a : 0;
     if (now - last < UPDATE_BUMP_COOLDOWN_MS) return;
-    if (this.isFileBeingEdited(card.path)) return;
+    if (this.isFileBeingEdited(card.path)) {
+      log.info("index", "bump \u8DF3\u8FC7\uFF1A\u6587\u4EF6\u6B63\u5728\u7F16\u8F91", { path: card.path });
+      return;
+    }
     this.lastBump.set(card.path, now);
     this.service.bumpUpdated(card).catch(() => void 0);
   }
   /**
    * 文件是否正在被编辑：普通 markdown 标签页，
-   * 或白板卡片内嵌编辑器（canvas 节点 DOM 里存在该文件的 CM 编辑器）。
+   * 或白板卡片内嵌编辑器（优先 Canvas 内部 API，回退 DOM 探测）。
    * 正在编辑时跳过 bump，保留"外部改动才同步 updated"的语义。
+   *
+   * 注意：Canvas 按视口虚拟化渲染卡片，.canvas-node 只出现在可见区域，
+   * DOM 探测不可靠；view.canvas.nodes 的 Map 是全量的，编辑态下
+   * file 节点的 child.getEditor 存在，是最可靠的检测途径。
    */
   isFileBeingEdited(path) {
-    var _a;
+    var _a, _b, _c, _d;
     for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
       const view = leaf.view;
       if (((_a = view.file) == null ? void 0 : _a.path) === path) return true;
+    }
+    try {
+      const leaves = this.app.workspace.getLeavesOfType("canvas");
+      for (const leaf of leaves) {
+        const nodes = (_b = leaf.view.canvas) == null ? void 0 : _b.nodes;
+        if (!nodes) continue;
+        for (const node of nodes.values()) {
+          const n = node;
+          if (((_c = n.file) == null ? void 0 : _c.path) !== path) continue;
+          if (typeof ((_d = n.child) == null ? void 0 : _d.getEditor) === "function") return true;
+        }
+      }
+    } catch (e) {
     }
     if (typeof document === "undefined") return false;
     const esc = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(path) : path.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
