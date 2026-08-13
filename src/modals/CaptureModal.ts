@@ -140,17 +140,28 @@ export class CaptureModal extends Modal {
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
 
-		// 诊断：标题框与关闭按钮的位置（渲染完成后打点，用于对齐排查）
-		requestAnimationFrame(() => {
-			const modalR = this.modalEl?.getBoundingClientRect();
+		// 诊断：标题框与关闭按钮的位置（延迟到 modal 打开动画结束后打点）
+		window.setTimeout(() => {
+			const modal = this.modalEl;
+			const container = modal?.parentElement;
+			const modalR = modal?.getBoundingClientRect();
 			const titleR = this.titleInput?.getBoundingClientRect();
-			const closeR = this.modalEl?.querySelector('.modal-close-button')?.getBoundingClientRect();
+			// 关闭按钮可能在 modal 或 container 里，遍历找 class 含 close 的元素
+			let closeEl: Element | null = null;
+			for (const root of [modal, container]) {
+				if (!root) continue;
+				const found = Array.from(root.querySelectorAll('*')).find((el) => el.className && String(el.className).includes('close'));
+				if (found) { closeEl = found; break; }
+			}
+			const closeR = closeEl?.getBoundingClientRect();
 			log.info('kb', '标题框/关闭按钮位置', {
 				modalTop: modalR ? Math.round(modalR.top) : null,
 				title: titleR ? { top: Math.round(titleR.top), bottom: Math.round(titleR.bottom), h: Math.round(titleR.height) } : null,
-				close: closeR ? { top: Math.round(closeR.top), bottom: Math.round(closeR.bottom), h: Math.round(closeR.height), right: Math.round(closeR.right) } : null,
+				close: closeR ? { top: Math.round(closeR.top), bottom: Math.round(closeR.bottom), h: Math.round(closeR.height), right: Math.round(closeR.right), cls: closeEl?.className } : null,
+				modalChildren: modal ? Array.from(modal.children).map((c) => c.className) : null,
+				containerChildren: container ? Array.from(container.children).map((c) => c.className) : null,
 			});
-		});
+		}, 400);
 	}
 
 	/**
