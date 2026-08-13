@@ -3926,21 +3926,103 @@ CardExtendView.VIEW_TYPE = CARD_EXTEND_VIEW_TYPE;
 
 // src/modals/CaptureModal.ts
 var import_obsidian18 = require("obsidian");
+
+// src/utils/preview.ts
+var import_view = require("@codemirror/view");
+var import_state = require("@codemirror/state");
+var CLS = {
+  tag: "cm-cardbox-tag",
+  link: "cm-cardbox-link",
+  heading: "cm-cardbox-heading",
+  bold: "cm-cardbox-bold",
+  code: "cm-cardbox-code"
+};
+function scan(builder, text, re, cls, fromOf) {
+  re.lastIndex = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const from = fromOf ? fromOf(m) : m.index;
+    const to = m.index + m[0].length;
+    if (from < to) builder.add(from, to, import_view.Decoration.mark({ class: cls }));
+    if (m[0].length === 0) re.lastIndex += 1;
+  }
+}
+function buildDecorations(view) {
+  const builder = new import_state.RangeSetBuilder();
+  const text = view.state.doc.toString();
+  scan(builder, text, /^#{1,6}[ \t]+[^\n]*/gm, CLS.heading);
+  scan(builder, text, /\*\*[^*\n]+\*\*/g, CLS.bold);
+  scan(builder, text, /`[^`\n]+`/g, CLS.code);
+  scan(builder, text, /(^|[\s(（])#[^\s#()）]+/g, CLS.tag, (m) => m.index + m[1].length);
+  scan(builder, text, /\[\[[^\]\n]+\]\]/g, CLS.link);
+  return builder.finish();
+}
+var previewPlugin = import_view.ViewPlugin.fromClass(
+  class {
+    constructor(view) {
+      this.decorations = buildDecorations(view);
+    }
+    update(update) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+function createMarkdownEditor(parent, initial, opts = {}) {
+  const extensions = [
+    import_view.EditorView.lineWrapping,
+    import_view.EditorView.updateListener.of((u) => {
+      var _a;
+      if (u.docChanged) (_a = opts.onChange) == null ? void 0 : _a.call(opts, u.state.doc.toString());
+    }),
+    import_view.EditorView.domEventHandlers({
+      focus: () => {
+        var _a;
+        return (_a = opts.onFocus) == null ? void 0 : _a.call(opts);
+      },
+      keydown: (event) => {
+        var _a;
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          (_a = opts.onSave) == null ? void 0 : _a.call(opts);
+          return true;
+        }
+        return false;
+      }
+    })
+  ];
+  if (opts.highlight !== false) {
+    extensions.push(previewPlugin);
+  }
+  return new import_view.EditorView({
+    state: import_state.EditorState.create({ doc: initial, extensions }),
+    parent
+  });
+}
+function getEditorText(view) {
+  return view.state.doc.toString();
+}
+function setEditorText(view, text) {
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+}
+
+// src/modals/CaptureModal.ts
 var CaptureModal = class extends import_obsidian18.Modal {
   constructor(app, ctx, opts = {}) {
     super(app);
     this.ctx = ctx;
     this.opts = opts;
+    this.editorView = null;
     this.continuous = true;
     this.keyboardCleanup = null;
     this.keyboardPoll = null;
-    this.previewEl = null;
-    this.previewComponent = null;
-    this.renderPreviewDebounce = null;
+    this.keyboardFocusHandler = null;
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     (_a = this.modalEl) == null ? void 0 : _a.addClass("cardbox-capture-modal");
     (_c = (_b = this.modalEl) == null ? void 0 : _b.parentElement) == null ? void 0 : _c.addClass("cardbox-capture-container");
     this.titleEl.style.display = "none";
@@ -3973,26 +4055,23 @@ var CaptureModal = class extends import_obsidian18.Modal {
       this.titleInput.value = this.titleInput.value.trim();
     });
     this.titleInput.addEventListener("keydown", (e) => {
+      var _a2;
       if (e.key === "Enter") {
         e.preventDefault();
-        this.textarea.focus();
+        (_a2 = this.editorView) == null ? void 0 : _a2.focus();
       }
     });
-    this.textarea = contentEl.createEl("textarea", {
-      cls: "cardbox-capture-input",
-      attr: {
-        placeholder: this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
-        "aria-label": this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder
-      }
+    const editorHost = contentEl.createDiv({ cls: "cardbox-capture-input" });
+    this.editorView = createMarkdownEditor(editorHost, (_e = this.opts.prefill) != null ? _e : "", {
+      onChange: () => {
+      },
+      onFocus: () => {
+        var _a2;
+        return (_a2 = this.keyboardFocusHandler) == null ? void 0 : _a2.call(this);
+      },
+      onSave: () => void this.save(),
+      highlight: this.ctx.settings.capturePreview
     });
-    if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-    if (this.ctx.settings.capturePreview) {
-      this.previewEl = contentEl.createDiv({ cls: "cardbox-capture-preview" });
-      this.previewEl.style.display = "none";
-      this.previewComponent = new import_obsidian18.Component();
-      this.previewComponent.load();
-      this.textarea.addEventListener("input", () => this.schedulePreview());
-    }
     const footer = contentEl.createDiv({ cls: "cardbox-capture-footer" });
     if (!this.opts.parent && !this.opts.singleShot) {
       const mode = footer.createEl("button", { cls: "cardbox-capture-mode" });
@@ -4009,52 +4088,8 @@ var CaptureModal = class extends import_obsidian18.Modal {
     const addBtn = footer.createEl("button", { cls: "cardbox-capture-add", attr: { "aria-label": i18n.save } });
     addBtn.createSpan({ text: i18n.save });
     addBtn.addEventListener("click", () => void this.save());
-    this.textarea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        void this.save();
-      }
-    });
-    if (this.opts.prefill) {
-      this.textarea.focus();
-      this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
-    } else {
-      this.textarea.focus();
-    }
+    this.editorView.focus();
     this.bindKeyboard();
-    if (this.previewEl) void this.renderPreview();
-  }
-  /** 防抖触发预览渲染（输入停止 250ms 后渲染，避免每次按键都全量重渲染） */
-  schedulePreview() {
-    if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
-    this.renderPreviewDebounce = window.setTimeout(() => {
-      this.renderPreviewDebounce = null;
-      void this.renderPreview();
-    }, 250);
-  }
-  /** 用 Obsidian 渲染器实时渲染正文，支持 #标签、[[引用]] 等语法 */
-  async renderPreview() {
-    const el = this.previewEl;
-    if (!el || !this.previewComponent) return;
-    const text = this.textarea.value.trim();
-    if (!text) {
-      el.style.display = "none";
-      el.empty();
-      return;
-    }
-    el.style.display = "";
-    el.empty();
-    try {
-      await import_obsidian18.MarkdownRenderer.render(
-        this.app,
-        text,
-        el,
-        this.ctx.settings.cardsFolder,
-        this.previewComponent
-      );
-    } catch (e) {
-      log.warn("capture", "\u9884\u89C8\u6E32\u67D3\u5931\u8D25", e);
-    }
   }
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
@@ -4069,7 +4104,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
    * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
    */
   bindKeyboard() {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d;
     const pm = import_obsidian18.Platform;
     const cap = window.Capacitor;
     const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
@@ -4147,16 +4182,16 @@ var CaptureModal = class extends import_obsidian18.Modal {
     (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("resize", poll);
     (_d = window.visualViewport) == null ? void 0 : _d.addEventListener("scroll", poll);
     window.addEventListener("resize", poll);
-    (_e = this.textarea) == null ? void 0 : _e.addEventListener("focus", poll);
+    this.keyboardFocusHandler = poll;
     poll();
     this.keyboardCleanup = () => {
-      var _a2, _b2, _c2;
+      var _a2, _b2;
       if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
       this.keyboardPoll = null;
       (_a2 = window.visualViewport) == null ? void 0 : _a2.removeEventListener("resize", poll);
       (_b2 = window.visualViewport) == null ? void 0 : _b2.removeEventListener("scroll", poll);
       window.removeEventListener("resize", poll);
-      (_c2 = this.textarea) == null ? void 0 : _c2.removeEventListener("focus", poll);
+      this.keyboardFocusHandler = null;
       handles.forEach((h) => {
         var _a3;
         return (_a3 = h == null ? void 0 : h.remove) == null ? void 0 : _a3.call(h);
@@ -4170,7 +4205,8 @@ var CaptureModal = class extends import_obsidian18.Modal {
     };
   }
   async save() {
-    const body = this.textarea.value.trim();
+    if (!this.editorView) return;
+    const body = getEditorText(this.editorView).trim();
     if (!body) {
       new import_obsidian18.Notice(i18n.emptyCaptureHint, 1500);
       return;
@@ -4192,9 +4228,9 @@ var CaptureModal = class extends import_obsidian18.Modal {
       return;
     }
     if (this.continuous) {
-      this.textarea.value = "";
+      setEditorText(this.editorView, "");
       this.titleInput.value = defaultTitle(/* @__PURE__ */ new Date());
-      this.textarea.focus();
+      this.editorView.focus();
     } else {
       this.close();
     }
@@ -4203,10 +4239,9 @@ var CaptureModal = class extends import_obsidian18.Modal {
     var _a, _b, _c, _d, _e;
     (_a = this.keyboardCleanup) == null ? void 0 : _a.call(this);
     this.keyboardCleanup = null;
-    if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
-    this.renderPreviewDebounce = null;
-    (_b = this.previewComponent) == null ? void 0 : _b.unload();
-    this.previewComponent = null;
+    this.keyboardFocusHandler = null;
+    (_b = this.editorView) == null ? void 0 : _b.destroy();
+    this.editorView = null;
     (_c = this.modalEl) == null ? void 0 : _c.removeClass("cardbox-capture-modal");
     (_e = (_d = this.modalEl) == null ? void 0 : _d.parentElement) == null ? void 0 : _e.removeClass("cardbox-capture-container");
     this.contentEl.empty();

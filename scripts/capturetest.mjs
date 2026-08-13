@@ -119,7 +119,39 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 		commands: { executeCommandById: async () => {} },
 	};
 	const module = { exports: {} };
-	const req = (n) => { if (n === 'obsidian') return obsidian; throw new Error('(' + n + ')'); };
+	// CodeMirror mock（esbuild external，运行时由 Obsidian 提供，测试里用最小实现）
+	const codemirrorView = {
+		EditorView: class {
+			constructor({ state, parent }) {
+				this.state = state;
+				this.dom = document.createElement('div');
+				this.dom.className = 'cm-editor';
+				this.contentDOM = document.createElement('div');
+				this.contentDOM.className = 'cm-content';
+				this.dom.appendChild(this.contentDOM);
+				parent.appendChild(this.dom);
+			}
+			static lineWrapping = [];
+			static updateListener = { of: (fn) => fn };
+			static domEventHandlers = (h) => h;
+			focus() {}
+			destroy() { this.dom.remove(); }
+			dispatch() {}
+		},
+		ViewPlugin: { fromClass: (cls, spec) => ({ cls, spec }) },
+		Decoration: { mark: (spec) => spec },
+		DecorationSet: {},
+	};
+	const codemirrorState = {
+		EditorState: { create: ({ doc }) => ({ doc: { toString: () => doc, length: (doc || '').length } }) },
+		RangeSetBuilder: class { add() {} finish() { return { between: () => [] }; } },
+	};
+	const req = (n) => {
+		if (n === 'obsidian') return obsidian;
+		if (n === '@codemirror/view') return codemirrorView;
+		if (n === '@codemirror/state') return codemirrorState;
+		throw new Error('(' + n + ')');
+	};
 	new Function('module', 'exports', 'require', mainJs)(module, module.exports, req);
 	const PluginClass = module.exports.default ?? module.exports;
 	const plugin = new PluginClass(app, manifest);
@@ -136,7 +168,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 
 	return {
 		modalCls: document.querySelector('.cardbox-capture') ? 'yes' : 'no',
-		hasPreview: !!document.querySelector('.cardbox-capture-preview'),
+		hasEditor: !!document.querySelector('.cardbox-capture-input .cm-editor'),
 		modalRect: (() => { const m = document.querySelector('.modal'); if (!m) return null; const r = m.getBoundingClientRect(); return { top: Math.round(r.top) }; })(),
 		titleInput: (() => {
 			const i = document.querySelector('.cardbox-capture-title');
@@ -161,6 +193,12 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 			if (!el) return null;
 			const cs = getComputedStyle(el);
 			return { bg: cs.backgroundColor, color: cs.color, border: cs.borderTopWidth, fontSize: cs.fontSize, h: Math.round(el.getBoundingClientRect().height) };
+		})(),
+		editorStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-input .cm-editor');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { color: cs.color, fontSize: cs.fontSize };
 		})(),
 		modeStyle: (() => {
 			const el = document.querySelector('.cardbox-capture-mode');
@@ -242,11 +280,11 @@ const t = (name, cond, got) => { if (cond) pass++; else { fail++; console.log('F
 
 // ---- 结构 ----
 t('CaptureModal 已打开（有 .cardbox-capture）', result.modalCls === 'yes', result.modalCls);
-t('实时预览开启（capturePreview 默认 true）→ 有预览区', result.hasPreview === true, result.hasPreview);
+t('正文用 CodeMirror 编辑器（.cm-editor 存在）', result.hasEditor === true, result.hasEditor);
 t('标题输入框在最顶部（第一个子元素）', result.order[0] === 'cardbox-capture-title', result.order);
 t('标题是可编辑 input', result.titleInput?.tag === 'INPUT', result.titleInput);
 t('标题默认值为创建时间（YYYY-MM-DD-HHmmss）', result.titleInput?.matchesTime === true, result.titleInput);
-t('有正文输入区（textarea）', result.hasInput && result.inputTag === 'TEXTAREA', result.inputTag);
+t('有正文编辑器（CodeMirror .cm-editor）', result.hasEditor === true, result.inputTag);
 t('有底部 footer', result.hasFooter, result.hasFooter);
 t('保留「保存」按钮', result.hasAdd && result.addText === '保存', result.addText);
 t('保留「连续创建」按钮', result.hasMode && result.modeText?.includes('连续创建'), result.modeText);
@@ -288,7 +326,7 @@ t('正文区有基本输入高度（≥200px）', (result.inputStyle?.h ?? 0) >=
 // ---- 主题自适应 ----
 t('主题自适应：背景跟随主题（非硬编码深色）', result.captureRootBg && result.captureRootBg !== 'rgb(42, 42, 42)', result.captureRootBg);
 t('主题自适应：标题文字用主题色', result.titleStyle?.color === 'rgb(34, 34, 34)' || result.titleStyle?.color === 'rgb(26, 26, 26)', result.titleStyle);
-t('主题自适应：正文文字用主题色', result.inputStyle?.color === 'rgb(34, 34, 34)' || result.inputStyle?.color === 'rgb(26, 26, 26)', result.inputStyle);
+t('主题自适应：正文文字用主题色', result.editorStyle?.color === 'rgb(34, 34, 34)' || result.editorStyle?.color === 'rgb(26, 26, 26)', result.editorStyle);
 
 // ---- 移动端可点区域 ----
 t('保存按钮是扁平胶囊（border-radius 999px）', parseFloat(result.addStyle?.borderRadius ?? '0') >= 100, result.addStyle);

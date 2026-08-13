@@ -1,9 +1,11 @@
-import { App, Component, MarkdownRenderer, Modal, Notice, Platform } from 'obsidian';
+import { App, Modal, Notice, Platform } from 'obsidian';
+import type { EditorView } from '@codemirror/view';
 import { i18n } from '../i18n';
 import type { CardBoxContext } from '../context';
 import type { Card } from '../types';
 import { pad2 } from '../utils/format';
 import { log } from '../utils/logger';
+import { createMarkdownEditor, getEditorText, setEditorText } from '../utils/preview';
 
 export interface CaptureOptions {
 	/** 子卡片：保存后登记为父卡片 */
@@ -31,13 +33,11 @@ export interface CaptureOptions {
  */
 export class CaptureModal extends Modal {
 	private titleInput: HTMLInputElement;
-	private textarea: HTMLTextAreaElement;
+	private editorView: EditorView | null = null;
 	private continuous = true;
 	private keyboardCleanup: (() => void) | null = null;
 	private keyboardPoll: number | null = null;
-	private previewEl: HTMLElement | null = null;
-	private previewComponent: Component | null = null;
-	private renderPreviewDebounce: number | null = null;
+	private keyboardFocusHandler: (() => void) | null = null;
 
 	constructor(
 		app: App,
@@ -95,28 +95,18 @@ export class CaptureModal extends Modal {
 		this.titleInput.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();
-				this.textarea.focus();
+				this.editorView?.focus();
 			}
 		});
 
-		// 正文：撑满剩余空间的大输入区，无边框
-		this.textarea = contentEl.createEl('textarea', {
-			cls: 'cardbox-capture-input',
-			attr: {
-				placeholder: this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
-				'aria-label': this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
-			},
+		// 正文：CodeMirror 编辑器（capturePreview 开启时实时高亮 #标签/[[引用]] 等）
+		const editorHost = contentEl.createDiv({ cls: 'cardbox-capture-input' });
+		this.editorView = createMarkdownEditor(editorHost, this.opts.prefill ?? '', {
+			onChange: () => {},
+			onFocus: () => this.keyboardFocusHandler?.(),
+			onSave: () => void this.save(),
+			highlight: this.ctx.settings.capturePreview,
 		});
-		if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-
-		// 实时 Markdown 预览（设置开启时）：正文与 footer 之间的预览区
-		if (this.ctx.settings.capturePreview) {
-			this.previewEl = contentEl.createDiv({ cls: 'cardbox-capture-preview' });
-			this.previewEl.style.display = 'none';
-			this.previewComponent = new Component();
-			this.previewComponent.load();
-			this.textarea.addEventListener('input', () => this.schedulePreview());
-		}
 
 		// 底部：连续创建（左，文字按钮）+ 保存（右，主色胶囊）
 		const footer = contentEl.createDiv({ cls: 'cardbox-capture-footer' });
@@ -138,61 +128,11 @@ export class CaptureModal extends Modal {
 		addBtn.createSpan({ text: i18n.save });
 		addBtn.addEventListener('click', () => void this.save());
 
-		// Ctrl/Cmd+Enter 保存
-		this.textarea.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-				e.preventDefault();
-				void this.save();
-			}
-		});
-
-		// 默认聚焦正文（正文是主角）；正文为空时先落在标题上方便改名
-		if (this.opts.prefill) {
-			this.textarea.focus();
-			this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
-		} else {
-			this.textarea.focus();
-		}
+		// 默认聚焦正文（正文是主角）
+		this.editorView.focus();
 
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
-
-		// 有预填内容时立即渲染一次预览
-		if (this.previewEl) void this.renderPreview();
-	}
-
-	/** 防抖触发预览渲染（输入停止 250ms 后渲染，避免每次按键都全量重渲染） */
-	private schedulePreview(): void {
-		if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
-		this.renderPreviewDebounce = window.setTimeout(() => {
-			this.renderPreviewDebounce = null;
-			void this.renderPreview();
-		}, 250);
-	}
-
-	/** 用 Obsidian 渲染器实时渲染正文，支持 #标签、[[引用]] 等语法 */
-	private async renderPreview(): Promise<void> {
-		const el = this.previewEl;
-		if (!el || !this.previewComponent) return;
-		const text = this.textarea.value.trim();
-		if (!text) {
-			el.style.display = 'none';
-			el.empty();
-			return;
-		}
-		el.style.display = '';
-		el.empty();
-		try {
-			await MarkdownRenderer.render(
-				this.app,
-				text,
-				el,
-				this.ctx.settings.cardsFolder,
-				this.previewComponent,
-			);
-		} catch (e) {
-			log.warn('capture', '预览渲染失败', e);
-		}
 	}
 
 	/**
@@ -301,8 +241,8 @@ export class CaptureModal extends Modal {
 		window.visualViewport?.addEventListener('scroll', poll);
 		window.addEventListener('resize', poll);
 
-		// 信号 4：textarea 聚焦时键盘必然弹出，立即触发一次检查
-		this.textarea?.addEventListener('focus', poll);
+		// 信号 4：编辑器聚焦时键盘必然弹出，立即触发一次检查
+		this.keyboardFocusHandler = poll;
 
 		poll();
 
@@ -312,7 +252,7 @@ export class CaptureModal extends Modal {
 			window.visualViewport?.removeEventListener('resize', poll);
 			window.visualViewport?.removeEventListener('scroll', poll);
 			window.removeEventListener('resize', poll);
-			this.textarea?.removeEventListener('focus', poll);
+			this.keyboardFocusHandler = null;
 			handles.forEach((h) => h?.remove?.());
 			if (modal) {
 				modal.style.bottom = '';
@@ -324,7 +264,8 @@ export class CaptureModal extends Modal {
 	}
 
 	private async save(): Promise<void> {
-		const body = this.textarea.value.trim();
+		if (!this.editorView) return;
+		const body = getEditorText(this.editorView).trim();
 		if (!body) {
 			new Notice(i18n.emptyCaptureHint, 1500);
 			return;
@@ -349,10 +290,10 @@ export class CaptureModal extends Modal {
 		}
 
 		if (this.continuous) {
-			this.textarea.value = '';
+			setEditorText(this.editorView, '');
 			// 连续创建：标题重置为新时间，光标回正文
 			this.titleInput.value = defaultTitle(new Date());
-			this.textarea.focus();
+			this.editorView.focus();
 		} else {
 			this.close();
 		}
@@ -361,10 +302,9 @@ export class CaptureModal extends Modal {
 	onClose(): void {
 		this.keyboardCleanup?.();
 		this.keyboardCleanup = null;
-		if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
-		this.renderPreviewDebounce = null;
-		this.previewComponent?.unload();
-		this.previewComponent = null;
+		this.keyboardFocusHandler = null;
+		this.editorView?.destroy();
+		this.editorView = null;
 		this.modalEl?.removeClass('cardbox-capture-modal');
 		this.modalEl?.parentElement?.removeClass('cardbox-capture-container');
 		this.contentEl.empty();

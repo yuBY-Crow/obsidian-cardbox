@@ -237,7 +237,15 @@ function mkApp(opt) {
 
 // 加载模块
 const mod = { exports: {} };
-const req = (n) => (n === 'obsidian' ? obsidian : Module.createRequire(import.meta.url)(n));
+// CodeMirror 在 Node 环境无 DOM，用最小 mock 替代（与浏览器测试一致）
+const codemirrorViewMock = { EditorView: class { constructor({ state, parent }) { this.state = state; this.dom = {}; this.contentDOM = {}; } static lineWrapping = []; static updateListener = { of: (fn) => fn }; static domEventHandlers = (h) => h; focus() {} destroy() {} dispatch() {} }, ViewPlugin: { fromClass: (cls, spec) => ({ cls, spec }) }, Decoration: { mark: (spec) => spec }, DecorationSet: {} };
+const codemirrorStateMock = { EditorState: { create: ({ doc }) => ({ doc: { toString: () => doc, length: (doc || '').length } }) }, RangeSetBuilder: class { add() {} finish() { return { between: () => [] }; } } };
+const req = (n) => {
+	if (n === 'obsidian') return obsidian;
+	if (n === '@codemirror/view') return codemirrorViewMock;
+	if (n === '@codemirror/state') return codemirrorStateMock;
+	return Module.createRequire(import.meta.url)(n);
+};
 new Function('exports', 'require', 'module', '__filename', '__dirname', code)(mod.exports, req, mod, 'main.js', process.cwd());
 const PluginClass = mod.exports.default ?? mod.exports;
 

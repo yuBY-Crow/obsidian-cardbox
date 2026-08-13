@@ -115,7 +115,9 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 	};
 
 	const module = { exports: {} };
-	const req = (n) => { if (n === 'obsidian') return obsidian; throw new Error('unknown ' + n); };
+	const codemirrorView = { EditorView: class { constructor({ state, parent }) { this.state = state; this.dom = document.createElement('div'); this.dom.className = 'cm-editor'; this.contentDOM = document.createElement('div'); this.contentDOM.className = 'cm-content'; this.dom.appendChild(this.contentDOM); parent.appendChild(this.dom); } static lineWrapping = []; static updateListener = { of: (fn) => fn }; static domEventHandlers = (h) => h; focus() {} destroy() { this.dom.remove(); } dispatch() {} }, ViewPlugin: { fromClass: (cls, spec) => ({ cls, spec }) }, Decoration: { mark: (spec) => spec }, DecorationSet: {} };
+	const codemirrorState = { EditorState: { create: ({ doc }) => ({ doc: { toString: () => doc, length: (doc || '').length } }) }, RangeSetBuilder: class { add() {} finish() { return { between: () => [] }; } } };
+	const req = (n) => { if (n === 'obsidian') return obsidian; if (n === '@codemirror/view') return codemirrorView; if (n === '@codemirror/state') return codemirrorState; throw new Error('unknown ' + n); };
 	new Function('module', 'exports', 'require', mainJs)(module, module.exports, req);
 	const PluginClass = module.exports.default ?? module.exports;
 	const plugin = new PluginClass(app, manifest);
