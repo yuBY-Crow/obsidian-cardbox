@@ -27,6 +27,7 @@ ${css}
   <div class="view-header-nav-buttons" style="margin-left:auto;display:flex;gap:4px"></div>
 </div>
 <div id="host" style="height:calc(100vh - 40px)"></div>
+<div style="position:fixed;left:0;right:0;bottom:0;height:340px;background:#d8dbe0;z-index:120;display:flex;align-items:center;justify-content:center;color:#666;font-size:13px">（模拟输入法键盘 340px）</div>
 </body></html>`);
 
 await page.evaluate(async ({ mainJs, manifest }) => {
@@ -63,7 +64,30 @@ await page.evaluate(async ({ mainJs, manifest }) => {
 	const obsidian = {
 		Plugin: class { constructor(a, m) { this.app = a; this.manifest = m; this._views = {}; } addRibbonIcon() {} addCommand() {} addSettingTab() {} registerView() {} async loadData() { return { continuousCaptureDefault: true }; } async saveData() {} },
 		ItemView: class { constructor(l) { this.leaf = l; this.contentEl = mk('div'); } addAction(icon, title, cb) { const b = mk('button', { attr: { 'aria-label': title } }); b.addEventListener('click', cb); document.querySelector('.view-header-nav-buttons').appendChild(b); return b; } },
-		Modal: class { constructor(a) { this.app = a; this.contentEl = mk('div'); this.titleEl = mk('div'); Object.defineProperty(this.titleEl, 'parentElement', { value: mk('div'), writable: true, configurable: true }); /* 模拟 Obsidian 的 modal 容器 */ document.body.appendChild(this.contentEl); this.contentEl.style.cssText = 'position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;z-index:99'; } open() { this.onOpen?.(); } close() { this.onClose?.(); } setTitle() {} },
+		Modal: class {
+			constructor(a) {
+				this.app = a;
+				// 模拟 Obsidian 真实 modal DOM + 真机键盘（底部抬起）
+				const container = mk('div');
+				container.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;z-index:99';
+				this.modalEl = mk('div'); this.modalEl.className = 'modal';
+				this.modalEl.style.cssText = 'width:100%;display:flex;flex-direction:column;background:#fff;margin-bottom:340px';
+				const closeBtn = mk('div'); closeBtn.className = 'modal-close-button';
+				closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:#eee';
+				this.titleEl = mk('div'); this.titleEl.className = 'modal-title';
+				this.contentEl = mk('div'); this.contentEl.className = 'modal-content';
+				this.contentEl.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0';
+				this.modalEl.appendChild(closeBtn);
+				this.modalEl.appendChild(this.titleEl);
+				this.modalEl.appendChild(this.contentEl);
+				container.appendChild(this.modalEl);
+				document.body.appendChild(container);
+				this.containerEl = container;
+			}
+			open() { this.onOpen?.(); }
+			close() { this.onClose?.(); }
+			setTitle() {}
+		},
 		PluginSettingTab: class { constructor() {} },
 		Events: class { constructor() {} on() { return { ref: 0 }; } offref() {} },
 		Setting: class { constructor() {} },

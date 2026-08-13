@@ -3927,8 +3927,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
   }
   onOpen() {
     var _a;
-    (_a = this.titleEl.parentElement) == null ? void 0 : _a.addClass("cardbox-modal-hidden-chrome");
-    if (this.modalEl) this.modalEl.addClass("cardbox-modal-no-close");
+    (_a = this.modalEl) == null ? void 0 : _a.addClass("cardbox-capture-modal");
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
@@ -4022,8 +4021,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
   }
   onClose() {
     var _a;
-    (_a = this.titleEl.parentElement) == null ? void 0 : _a.removeClass("cardbox-modal-hidden-chrome");
-    if (this.modalEl) this.modalEl.removeClass("cardbox-modal-no-close");
+    (_a = this.modalEl) == null ? void 0 : _a.removeClass("cardbox-capture-modal");
     this.contentEl.empty();
   }
 };

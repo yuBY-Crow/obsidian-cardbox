@@ -43,9 +43,9 @@ export class CaptureModal extends Modal {
 	}
 
 	onOpen(): void {
-		// 沉浸式全屏：隐藏 Obsidian 默认标题栏与关闭按钮
-		this.titleEl.parentElement?.addClass('cardbox-modal-hidden-chrome');
-		if (this.modalEl) this.modalEl.addClass('cardbox-modal-no-close');
+		// 沉浸式：class 打在 modalEl 上（关闭按钮 .modal-close-button 是它的直接子元素，
+		// 打在 titleEl.parentElement 上层级不对，选择器命不中）
+		this.modalEl?.addClass('cardbox-capture-modal');
 
 		const { contentEl } = this;
 		contentEl.empty();
@@ -159,8 +159,7 @@ export class CaptureModal extends Modal {
 	}
 
 	onClose(): void {
-		this.titleEl.parentElement?.removeClass('cardbox-modal-hidden-chrome');
-		if (this.modalEl) this.modalEl.removeClass('cardbox-modal-no-close');
+		this.modalEl?.removeClass('cardbox-capture-modal');
 		this.contentEl.empty();
 	}
 }

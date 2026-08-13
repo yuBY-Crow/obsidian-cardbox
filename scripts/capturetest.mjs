@@ -62,7 +62,27 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 	const obsidian = {
 		Plugin: class { constructor(a, m) { this.app = a; this.manifest = m; this._views = {}; } addRibbonIcon() {} addCommand() {} addSettingTab() {} registerView() {} async loadData() { return { continuousCaptureDefault: true }; } async saveData() {} },
 		ItemView: class { constructor(l) { this.leaf = l; this.contentEl = mk('div'); } addAction() {} },
-		Modal: class { constructor(a) { this.app = a; this.contentEl = mk('div'); this.titleEl = mk('div'); /* 模拟真机全屏 modal 容器，正文 flex 才能撑开 */ this.contentEl.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column'; document.body.appendChild(this.contentEl); Object.defineProperty(this.titleEl, 'parentElement', { value: mk('div'), writable: true, configurable: true }); } open() { this.onOpen?.(); } close() { this.onClose?.(); } setTitle() {} },
+		Modal: class {
+			constructor(a) {
+				this.app = a;
+				// 模拟 Obsidian 真实 modal DOM：container > modalEl > (close-button, title, content)
+				const container = mk('div'); container.className = 'modal-container';
+				this.modalEl = mk('div'); this.modalEl.className = 'modal';
+				this.modalEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;display:flex;flex-direction:column';
+				const closeBtn = mk('div'); closeBtn.className = 'modal-close-button';
+				this.titleEl = mk('div'); this.titleEl.className = 'modal-title';
+				this.contentEl = mk('div'); this.contentEl.className = 'modal-content';
+				this.modalEl.appendChild(closeBtn);
+				this.modalEl.appendChild(this.titleEl);
+				this.modalEl.appendChild(this.contentEl);
+				container.appendChild(this.modalEl);
+				document.body.appendChild(container);
+				this.containerEl = container;
+			}
+			open() { this.onOpen?.(); }
+			close() { this.onClose?.(); }
+			setTitle() {}
+		},
 		PluginSettingTab: class { constructor() {} },
 		Events: class { constructor() {} on() { return { ref: 0 }; } offref() {} },
 		Setting: class { constructor() {} },
@@ -141,7 +161,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 			const el = document.querySelector('.cardbox-capture-mode');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { bg: cs.backgroundColor, color: cs.color, border: cs.borderTopWidth, minHeight: cs.minHeight };
+			return { bg: cs.backgroundColor, color: cs.color, border: cs.borderTopWidth, minHeight: cs.minHeight, borderRadius: cs.borderRadius };
 		})(),
 		footerStyle: (() => {
 			const el = document.querySelector('.cardbox-capture-footer');
@@ -171,8 +191,42 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 			const footer = document.body.querySelector('.cardbox-capture-footer');
 			return !!footer && footer.querySelector('.cardbox-capture-mode') !== null;
 		})(),
-		chromeHidden: document.body.querySelector('.cardbox-modal-hidden-chrome') ? 'yes' : 'no',
-		// 布局顺序：header → input → footer
+		// 关闭按钮必须被隐藏（class 打在 modalEl 上才命中）
+		closeBtnHidden: (() => {
+			const btn = document.querySelector('.modal-close-button');
+			if (!btn) return 'no-btn';
+			return getComputedStyle(btn).display === 'none' ? 'hidden' : 'visible';
+		})(),
+		modalScoped: !!document.querySelector('.modal.cardbox-capture-modal'),
+		// 标题贴顶：距 capture 容器顶部的距离
+		titleOffsetTop: (() => {
+			const cap = document.querySelector('.cardbox-capture');
+			const t = document.querySelector('.cardbox-capture-title');
+			if (!cap || !t) return null;
+			return Math.round(t.getBoundingClientRect().top - cap.getBoundingClientRect().top);
+		})(),
+		// 首字符对齐圆角切点：标题左内边距 vs modal 圆角半径
+		alignment: (() => {
+			const modal = document.querySelector('.cardbox-capture-modal');
+			const t = document.querySelector('.cardbox-capture-title');
+			if (!modal || !t) return null;
+			return {
+				titlePaddingLeft: getComputedStyle(t).paddingLeft,
+				modalRadius: getComputedStyle(modal).borderTopLeftRadius,
+			};
+		})(),
+		// 标题文字垂直居中：上下 padding 相等 + line-height = 高度
+		titleCentering: (() => {
+			const t = document.querySelector('.cardbox-capture-title');
+			if (!t) return null;
+			const cs = getComputedStyle(t);
+			return { paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, height: cs.height, lineHeight: cs.lineHeight };
+		})(),
+		// footer 下沿间距（贴近输入法，5~10px）
+		footerPaddingBottom: (() => {
+			const f = document.querySelector('.cardbox-capture-footer');
+			return f ? getComputedStyle(f).paddingBottom : null;
+		})(),
 		order: [...document.querySelector('.cardbox-capture')?.children ?? []].map((c) => c.className),
 	};
 }, { mainJs, manifest });
@@ -192,7 +246,18 @@ t('保留「连续创建」按钮', result.hasMode && result.modeText?.includes(
 t('两个功能按钮同在 footer 内', result.modeInFooter, result.modeInFooter);
 t('布局顺序：标题 → 正文 → footer', result.order.indexOf('cardbox-capture-title') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
 t('无自定义工具按钮', result.toolCount === 0, result.toolCount);
-t('隐藏 Obsidian modal chrome（无关闭按钮）', true, result.chromeHidden);
+
+// ---- 本轮 5 项改动 ----
+t('①关闭按钮已隐藏（display:none）', result.closeBtnHidden === 'hidden', result.closeBtnHidden);
+t('①样式作用域挂在 modalEl 上（能压过主题）', result.modalScoped, result.modalScoped);
+t('②标题贴顶（距容器顶 ≤2px）', (result.titleOffsetTop ?? 99) <= 2, result.titleOffsetTop);
+t('②标题文字垂直居中（上下 padding 相等）', result.titleCentering?.paddingTop === result.titleCentering?.paddingBottom, result.titleCentering);
+t('②标题 line-height = 框高（单行居中）', result.titleCentering?.lineHeight === result.titleCentering?.height, result.titleCentering);
+t('②首字符与圆角切点对齐（左内边距 = 圆角半径）', result.alignment?.titlePaddingLeft === result.alignment?.modalRadius, result.alignment);
+t('③正文区占容器高度 ≥70%', (result.inputStyle?.h ?? 0) / (result.captureH || 1) >= 0.7, { input: result.inputStyle?.h, capture: result.captureH });
+t('④连续创建无底色（背景透明）', result.modeStyle?.bg === 'rgba(0, 0, 0, 0)' || result.modeStyle?.bg === 'transparent', result.modeStyle);
+t('④连续创建底版为圆角（border-radius 999px）', parseFloat(result.modeStyle?.borderRadius ?? '0') >= 100, result.modeStyle);
+t('⑤footer 下沿间距 5~10px（贴近输入法）', (() => { const p = parseFloat(result.footerPaddingBottom ?? '99'); return p >= 5 && p <= 10; })(), result.footerPaddingBottom);
 
 // ---- 简单扁平：零边框 ----
 t('扁平：容器无边框', result.captureBorder === '0px', result.captureBorder);
