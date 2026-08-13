@@ -121,11 +121,13 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	await plugin.onload();
 	await new Promise((r) => setTimeout(r, 300));
 
-	// 模拟真实微信输入法 + Android 沉浸式全屏场景：
+	// 模拟真实微信输入法 + Android（dpr=3）场景：
 	// - innerHeight 不变（WebView 不 resize，Capacitor 全屏 bug）
 	// - visualViewport.height 不变
-	// - 唯一信号：Capacitor Keyboard 事件（keyboardWillShow 上报 keyboardHeight）
-	let mockVvHeight = 844;
+	// - 唯一信号：Capacitor Keyboard 事件上报 keyboardHeight=319（已是 CSS 像素）
+	// 关键：验证不再除以 devicePixelRatio（旧 bug 会把 319 除成 106）
+	window.devicePixelRatio = 3;
+	let mockVvHeight = 890;
 	const vvListeners = { resize: [], scroll: [] };
 	window.visualViewport = {
 		get height() { return mockVvHeight; },
@@ -159,9 +161,8 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	// 状态 1：无键盘
 	const paddingNoKeyboard = container.style.paddingBottom;
 
-	// 模拟微信输入法弹出：只有 Capacitor 事件上报 340px（物理像素，
-	// devicePixelRatio=1 时 = CSS 像素）；Platform 和 vv 都不变
-	(capListeners['keyboardWillShow'] ?? []).forEach((cb) => cb({ keyboardHeight: 340 }));
+	// 模拟微信输入法弹出：Capacitor 上报 319px（CSS 像素，不应被 dpr 除）
+	(capListeners['keyboardWillShow'] ?? []).forEach((cb) => cb({ keyboardHeight: 319 }));
 	await new Promise((r) => setTimeout(r, 50));
 	const paddingWithWeChatKeyboard = container.style.paddingBottom;
 
@@ -187,7 +188,7 @@ t('modal 容器加了底部对齐 class', result.hasContainerClass, result.hasCo
 t('modalEl 加了作用域 class', result.hasModalClass, result.hasModalClass);
 t('容器为底部对齐（align-items flex-end）', result.containerAlignItems === 'flex-end', result.containerAlignItems);
 t('无键盘时容器 padding-bottom 为空', result.paddingNoKeyboard === '' || result.paddingNoKeyboard === undefined, result.paddingNoKeyboard);
-t('微信输入法弹出（vv 不变，仅 Capacitor 事件上报 340px）→ 容器 padding-bottom=340px', result.paddingWithWeChatKeyboard === '340px', result.paddingWithWeChatKeyboard);
+t('dpr=3 时 Capacitor 上报 319px → padding-bottom=319px（不再被 dpr 除）', result.paddingWithWeChatKeyboard === '319px', result.paddingWithWeChatKeyboard);
 t('键盘收起后 padding-bottom 复位', result.paddingKeyboardClosed === '' || result.paddingKeyboardClosed === undefined, result.paddingKeyboardClosed);
 
 console.log(`${pass} passed, ${fail} failed`);

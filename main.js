@@ -4128,10 +4128,6 @@ function defaultTitle(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 }
 function toCssPx(px) {
-  if (px <= 0) return 0;
-  if (import_obsidian18.Platform.isAndroidApp) {
-    return px / (window.devicePixelRatio || 1);
-  }
   return px;
 }
 

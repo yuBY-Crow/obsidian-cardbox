@@ -285,11 +285,12 @@ function defaultTitle(d: Date): string {
 	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 }
 
-/** Capacitor 的 keyboardHeight 在 Android 是物理像素，转成 CSS 像素 */
+/**
+ * Capacitor 的 keyboardHeight 在 Android / iOS 上报的都是 CSS 像素（dp），
+ * 直接使用即可，不要再除以 devicePixelRatio。
+ * （真机日志验证：innerH=890、dpr=3 时 raw=319，319/890≈36% 正是键盘占比；
+ * 若当作物理像素除以 3 得 106px，上移量严重不足，看起来像「没上移」。）
+ */
 function toCssPx(px: number): number {
-	if (px <= 0) return 0;
-	if ((Platform as unknown as { isAndroidApp?: boolean }).isAndroidApp) {
-		return px / (window.devicePixelRatio || 1);
-	}
 	return px;
 }
