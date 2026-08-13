@@ -1,5 +1,6 @@
 # CardBox 卡片盒（Obsidian 插件）
-本插件灵感来自Writeathon
+本插件灵感来自Writeathon，配合Obsidian的双链功能，实现了此插件
+
 Writeathon 风格卡片盒：**记录灵感 → 整理卡片 → 组合成文**。移动端优先，PC 端支持全卡片平铺；自包含（只依赖 Obsidian 官方 API，无需 Dataview 等第三方插件）。
 
 ## 功能
