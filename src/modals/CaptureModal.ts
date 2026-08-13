@@ -33,6 +33,7 @@ export class CaptureModal extends Modal {
 	private textarea: HTMLTextAreaElement;
 	private continuous = true;
 	private keyboardCleanup: (() => void) | null = null;
+	private keyboardPoll: number | null = null;
 
 	constructor(
 		app: App,
@@ -132,33 +133,59 @@ export class CaptureModal extends Modal {
 	/**
 	 * 手机端让卡片下部贴合输入法键盘顶部。
 	 *
-	 * 原理：键盘弹出时 visualViewport 高度会缩小（iOS），或 innerHeight
-	 * 会缩小（Android adjustResize）。用「窗口高度 - 可视视口高度」算出
-	 * 键盘占用高度，把 modal 底部往上顶，使 footer 始终停在键盘上沿。
+	 * 键盘高度的信号源（按优先级）：
+	 * 1. Obsidian 内置 `Platform.mobileKeyboardHeight` /
+	 *    `mobileSoftKeyboardVisible` —— 由 Capacitor Keyboard 插件维护，
+	 *    微信输入法等特殊键盘也能正确上报高度（不依赖 WebView 的
+	 *    visualViewport，后者在 Android adjustResize 下差值为 0 会失效）。
+	 * 2. visualViewport 差值兜底（iOS / 标准 WebView）。
+	 *
+	 * 这两个是「属性」而非事件，用轮询读取；同时监听 resize 做即时响应。
+	 * 上移量 = 键盘高度 − 窗口已缩小量（Android adjustResize 下系统已把
+	 * 窗口压到键盘上沿，避免双重上移）。
 	 */
 	private bindKeyboard(): void {
 		if (!Platform.isMobile) return;
-		const vv = window.visualViewport;
-		if (!vv) return;
+		const modal = this.modalEl;
+		if (!modal) return;
 
-		const adjust = () => {
-			const vvHeight = vv.height ?? window.innerHeight;
-			const keyboard = Math.max(0, window.innerHeight - vvHeight);
-			// modal 容器（Obsidian 的 .modal-container）是 fixed 全屏的，
-			// 用 transform 上移 modalEl 本身，让底部对齐键盘顶部
-			const modal = this.modalEl;
-			if (modal) {
-				modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : '';
-				modal.style.transition = 'transform 0.15s ease-out';
+		const p = Platform as unknown as {
+			mobileKeyboardHeight?: number;
+			mobileSoftKeyboardVisible?: boolean;
+			mobileDeviceHeight?: number;
+		};
+		const deviceHeight = p.mobileDeviceHeight ?? window.screen.height;
+
+		const apply = () => {
+			// 键盘高度：优先 Obsidian 内置值，兜底 visualViewport
+			let keyboard = 0;
+			if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === 'number') {
+				keyboard = p.mobileKeyboardHeight;
+			} else {
+				const vv = window.visualViewport;
+				if (vv) keyboard = Math.max(0, window.innerHeight - (vv.height ?? window.innerHeight));
 			}
+			// 系统已把窗口压小的量（adjustResize）；剩下的才需要手动上移
+			const shrunk = Math.max(0, deviceHeight - window.innerHeight);
+			const translate = Math.max(0, keyboard - shrunk);
+			modal.style.transform = translate > 0 ? `translateY(-${translate}px)` : '';
+			modal.style.transition = 'transform 0.15s ease-out';
 		};
 
-		vv.addEventListener('resize', adjust);
-		vv.addEventListener('scroll', adjust);
-		adjust();
+		window.visualViewport?.addEventListener('resize', apply);
+		window.visualViewport?.addEventListener('scroll', apply);
+		window.addEventListener('resize', apply);
+		// 轮询兜底：属性值无事件，微信输入法等特殊键盘可能不触发 resize
+		this.keyboardPoll = window.setInterval(apply, 150);
+		apply();
+
 		this.keyboardCleanup = () => {
-			vv.removeEventListener('resize', adjust);
-			vv.removeEventListener('scroll', adjust);
+			if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
+			this.keyboardPoll = null;
+			window.visualViewport?.removeEventListener('resize', apply);
+			window.visualViewport?.removeEventListener('scroll', apply);
+			window.removeEventListener('resize', apply);
+			modal.style.transform = '';
 		};
 	}
 

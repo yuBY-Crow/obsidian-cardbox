@@ -90,7 +90,14 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 		setIcon: () => {},
 		getIcon: () => null,
 		debounce: (fn) => fn,
-		Platform: { isMobile: true },
+		// Platform 加 Obsidian 移动端内置的键盘属性（mock 可动态改）
+		Platform: {
+			isMobile: true,
+			isMobileApp: true,
+			get mobileKeyboardHeight() { return mockPlatformKeyboardHeight; },
+			get mobileSoftKeyboardVisible() { return mockPlatformKeyboardVisible; },
+			get mobileDeviceHeight() { return 844; },
+		},
 		normalizePath: (p) => p,
 	};
 	const app = {
@@ -114,6 +121,8 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	await new Promise((r) => setTimeout(r, 300));
 
 	// 模拟 visualViewport（mock 环境没有真实 vv，注入假对象）
+	// 微信输入法场景：vv 高度保持不变（Android adjustResize 下差值=0），
+	// 真正可靠的信号是 Platform.mobileKeyboardHeight
 	let mockVvHeight = 844;
 	const listeners = { resize: [], scroll: [] };
 	window.visualViewport = {
@@ -121,6 +130,9 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 		addEventListener: (t, cb) => listeners[t].push(cb),
 		removeEventListener: (t, cb) => { const i = listeners[t].indexOf(cb); if (i >= 0) listeners[t].splice(i, 1); },
 	};
+	// 用 outer 作用域的 mock 变量（闭包引用）
+	let mockPlatformKeyboardHeight = 0;
+	let mockPlatformKeyboardVisible = false;
 
 	// 打开 CaptureModal
 	const ctx = plugin.ctx;
@@ -133,23 +145,25 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	// 状态 1：无键盘
 	const transformNoKeyboard = modal.style.transform;
 
-	// 模拟键盘弹出：visualViewport 高度缩小 340px
-	mockVvHeight = 844 - 340;
-	listeners.resize.forEach((cb) => cb());
-	await new Promise((r) => setTimeout(r, 50));
-	const transformWithKeyboard = modal.style.transform;
+	// 模拟微信输入法弹出：visualViewport 不变（=844），
+	// 但 Platform.mobileKeyboardHeight 上报 340
+	mockPlatformKeyboardHeight = 340;
+	mockPlatformKeyboardVisible = true;
+	mockVvHeight = 844; // vv 不变，模拟 Android adjustResize 下差值=0 的场景
+	await new Promise((r) => setTimeout(r, 300)); // 等轮询（150ms）触发
+	const transformWithWeChatKeyboard = modal.style.transform;
 
 	// 模拟键盘收起
-	mockVvHeight = 844;
-	listeners.resize.forEach((cb) => cb());
-	await new Promise((r) => setTimeout(r, 50));
+	mockPlatformKeyboardHeight = 0;
+	mockPlatformKeyboardVisible = false;
+	await new Promise((r) => setTimeout(r, 300));
 	const transformKeyboardClosed = modal.style.transform;
 
 	return {
 		hasContainerClass: container.classList.contains('cardbox-capture-container'),
 		hasModalClass: modal.classList.contains('cardbox-capture-modal'),
 		transformNoKeyboard,
-		transformWithKeyboard,
+		transformWithWeChatKeyboard,
 		transformKeyboardClosed,
 		containerAlignItems: getComputedStyle(container).alignItems,
 	};
@@ -162,7 +176,7 @@ t('modal 容器加了底部对齐 class', result.hasContainerClass, result.hasCo
 t('modalEl 加了作用域 class', result.hasModalClass, result.hasModalClass);
 t('容器为底部对齐（align-items flex-end）', result.containerAlignItems === 'flex-end', result.containerAlignItems);
 t('无键盘时 transform 为空', result.transformNoKeyboard === '' || result.transformNoKeyboard === undefined, result.transformNoKeyboard);
-t('键盘弹出（340px）时 transform 上移', result.transformWithKeyboard === 'translateY(-340px)', result.transformWithKeyboard);
+t('微信输入法弹出（vv 不变，Platform 上报 340px）→ transform 上移', result.transformWithWeChatKeyboard === 'translateY(-340px)', result.transformWithWeChatKeyboard);
 t('键盘收起后 transform 复位', result.transformKeyboardClosed === '' || result.transformKeyboardClosed === undefined, result.transformKeyboardClosed);
 
 console.log(`${pass} passed, ${fail} failed`);

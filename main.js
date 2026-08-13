@@ -3924,6 +3924,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.opts = opts;
     this.continuous = true;
     this.keyboardCleanup = null;
+    this.keyboardPoll = null;
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
@@ -3995,30 +3996,51 @@ var CaptureModal = class extends import_obsidian18.Modal {
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
    *
-   * 原理：键盘弹出时 visualViewport 高度会缩小（iOS），或 innerHeight
-   * 会缩小（Android adjustResize）。用「窗口高度 - 可视视口高度」算出
-   * 键盘占用高度，把 modal 底部往上顶，使 footer 始终停在键盘上沿。
+   * 键盘高度的信号源（按优先级）：
+   * 1. Obsidian 内置 `Platform.mobileKeyboardHeight` /
+   *    `mobileSoftKeyboardVisible` —— 由 Capacitor Keyboard 插件维护，
+   *    微信输入法等特殊键盘也能正确上报高度（不依赖 WebView 的
+   *    visualViewport，后者在 Android adjustResize 下差值为 0 会失效）。
+   * 2. visualViewport 差值兜底（iOS / 标准 WebView）。
+   *
+   * 这两个是「属性」而非事件，用轮询读取；同时监听 resize 做即时响应。
+   * 上移量 = 键盘高度 − 窗口已缩小量（Android adjustResize 下系统已把
+   * 窗口压到键盘上沿，避免双重上移）。
    */
   bindKeyboard() {
+    var _a, _b, _c;
     if (!import_obsidian18.Platform.isMobile) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const adjust = () => {
-      var _a;
-      const vvHeight = (_a = vv.height) != null ? _a : window.innerHeight;
-      const keyboard = Math.max(0, window.innerHeight - vvHeight);
-      const modal = this.modalEl;
-      if (modal) {
-        modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : "";
-        modal.style.transition = "transform 0.15s ease-out";
+    const modal = this.modalEl;
+    if (!modal) return;
+    const p = import_obsidian18.Platform;
+    const deviceHeight = (_a = p.mobileDeviceHeight) != null ? _a : window.screen.height;
+    const apply = () => {
+      var _a2;
+      let keyboard = 0;
+      if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === "number") {
+        keyboard = p.mobileKeyboardHeight;
+      } else {
+        const vv = window.visualViewport;
+        if (vv) keyboard = Math.max(0, window.innerHeight - ((_a2 = vv.height) != null ? _a2 : window.innerHeight));
       }
+      const shrunk = Math.max(0, deviceHeight - window.innerHeight);
+      const translate = Math.max(0, keyboard - shrunk);
+      modal.style.transform = translate > 0 ? `translateY(-${translate}px)` : "";
+      modal.style.transition = "transform 0.15s ease-out";
     };
-    vv.addEventListener("resize", adjust);
-    vv.addEventListener("scroll", adjust);
-    adjust();
+    (_b = window.visualViewport) == null ? void 0 : _b.addEventListener("resize", apply);
+    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("scroll", apply);
+    window.addEventListener("resize", apply);
+    this.keyboardPoll = window.setInterval(apply, 150);
+    apply();
     this.keyboardCleanup = () => {
-      vv.removeEventListener("resize", adjust);
-      vv.removeEventListener("scroll", adjust);
+      var _a2, _b2;
+      if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
+      this.keyboardPoll = null;
+      (_a2 = window.visualViewport) == null ? void 0 : _a2.removeEventListener("resize", apply);
+      (_b2 = window.visualViewport) == null ? void 0 : _b2.removeEventListener("scroll", apply);
+      window.removeEventListener("resize", apply);
+      modal.style.transform = "";
     };
   }
   async save() {
