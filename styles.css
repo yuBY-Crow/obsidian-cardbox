@@ -593,6 +593,10 @@ body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 .cardbox-capture-modal .cardbox-capture-input .cm-scroller {
 	overflow-y: auto;
 	padding: 2px 14px 12px;
+	/* CodeMirror 内置 .cm-scroller 硬编码 fontFamily:"monospace"，
+	   导致正文显示成等宽字体。这里改为继承 .cm-editor 的 var(--font-text)，
+	   与 Obsidian 正文默认字体一致 */
+	font-family: inherit;
 }
 .cardbox-capture-modal .cardbox-capture-input .cm-content {
 	padding: 0;
