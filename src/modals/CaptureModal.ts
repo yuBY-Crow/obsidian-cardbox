@@ -177,8 +177,26 @@ export class CaptureModal extends Modal {
 		log.info('kb', '容器与 modal', { container: container.className, modal: this.modalEl?.className });
 
 		let keyboard = 0;
+		// 键盘弹出时卡片上沿额外上移量（用户要求 50~80px，取中 60px）
+		const UP_SHIFT = 60;
+		const modal = this.modalEl;
+		const capture = this.contentEl;
 		const apply = () => {
-			container.style.paddingBottom = keyboard > 0 ? `${keyboard}px` : '';
+			if (keyboard > 0) {
+				// 下沿：贴键盘上沿（容器 padding-bottom 把底部顶上去）
+				container.style.paddingBottom = `${keyboard}px`;
+				// 上沿：再上移 UP_SHIFT。直接控制 contentEl（.cardbox-capture）
+				// 的高度 = 屏幕高 − 键盘 − 上移量，正文区 flex:1 自适应填满
+				// → 整体表现为「上移 + 缩放」
+				capture.style.height = `calc(100vh - ${keyboard + UP_SHIFT}px)`;
+				capture.style.minHeight = '0';
+				if (modal) modal.style.maxHeight = 'none';
+			} else {
+				container.style.paddingBottom = '';
+				capture.style.height = '';
+				capture.style.minHeight = '';
+				if (modal) modal.style.maxHeight = '';
+			}
 		};
 		const raise = (h: number) => {
 			if (h > keyboard) {

@@ -157,19 +157,23 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 
 	const modal = document.querySelector('.modal');
 	const container = document.querySelector('.modal-container');
+	const capture = document.querySelector('.cardbox-capture');
 
 	// 状态 1：无键盘
 	const paddingNoKeyboard = container.style.paddingBottom;
+	const heightNoKeyboard = capture.style.height;
 
 	// 模拟微信输入法弹出：Capacitor 上报 319px（CSS 像素，不应被 dpr 除）
 	(capListeners['keyboardWillShow'] ?? []).forEach((cb) => cb({ keyboardHeight: 319 }));
 	await new Promise((r) => setTimeout(r, 50));
 	const paddingWithWeChatKeyboard = container.style.paddingBottom;
+	const heightWithWeChatKeyboard = capture.style.height;
 
 	// 模拟键盘收起
 	(capListeners['keyboardWillHide'] ?? []).forEach((cb) => cb());
 	await new Promise((r) => setTimeout(r, 50));
 	const paddingKeyboardClosed = container.style.paddingBottom;
+	const heightKeyboardClosed = capture.style.height;
 
 	return {
 		hasContainerClass: container.classList.contains('cardbox-capture-container'),
@@ -177,6 +181,9 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 		paddingNoKeyboard,
 		paddingWithWeChatKeyboard,
 		paddingKeyboardClosed,
+		heightNoKeyboard,
+		heightWithWeChatKeyboard,
+		heightKeyboardClosed,
 		containerAlignItems: getComputedStyle(container).alignItems,
 	};
 }, { mainJs, manifest, css });
@@ -188,8 +195,11 @@ t('modal 容器加了底部对齐 class', result.hasContainerClass, result.hasCo
 t('modalEl 加了作用域 class', result.hasModalClass, result.hasModalClass);
 t('容器为底部对齐（align-items flex-end）', result.containerAlignItems === 'flex-end', result.containerAlignItems);
 t('无键盘时容器 padding-bottom 为空', result.paddingNoKeyboard === '' || result.paddingNoKeyboard === undefined, result.paddingNoKeyboard);
+t('无键盘时卡片高度为默认（空）', result.heightNoKeyboard === '' || result.heightNoKeyboard === undefined, result.heightNoKeyboard);
 t('dpr=3 时 Capacitor 上报 319px → padding-bottom=319px（不再被 dpr 除）', result.paddingWithWeChatKeyboard === '319px', result.paddingWithWeChatKeyboard);
+t('键盘弹出时卡片高度 = 100vh - 键盘(319) - 上移量(60)', result.heightWithWeChatKeyboard === 'calc(100vh - 379px)' || result.heightWithWeChatKeyboard === 'calc(-379px + 100vh)', result.heightWithWeChatKeyboard);
 t('键盘收起后 padding-bottom 复位', result.paddingKeyboardClosed === '' || result.paddingKeyboardClosed === undefined, result.paddingKeyboardClosed);
+t('键盘收起后卡片高度复位', result.heightKeyboardClosed === '' || result.heightKeyboardClosed === undefined, result.heightKeyboardClosed);
 
 console.log(`${pass} passed, ${fail} failed`);
 await browser.close();
