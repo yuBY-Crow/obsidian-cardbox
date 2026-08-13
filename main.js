@@ -3996,30 +3996,28 @@ var CaptureModal = class extends import_obsidian18.Modal {
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
    *
-   * 关键：Obsidian 移动端 Android 用沉浸式全屏（edge-to-edge），触发
-   * Capacitor 已知 bug —— 全屏模式下键盘无法调整 WebView 大小，所以
-   * `window.innerHeight` / `visualViewport.height` 都不变，算不出键盘高度。
-   * 唯一可靠的信号是 Capacitor Keyboard 事件（keyboardWillShow 的
-   * info.keyboardHeight），社区插件均以此为准。
+   * 关键：Obsidian 移动端 Android 沉浸式全屏（edge-to-edge）触发 Capacitor
+   * bug —— 键盘不改变 WebView 尺寸，`innerHeight`/`visualViewport` 都不变。
    *
-   * 信号优先级：
-   * 1. Capacitor `keyboardWillShow` / `keyboardWillHide` 事件（最权威）
-   * 2. `Platform.mobileKeyboardHeight`（Obsidian 封装，轮询兜底）
-   * 3. `visualViewport` 差值（iOS / 标准 WebView 兜底）
+   * 上移手段：给 modal **容器**（.modal-container）设 padding-bottom，
+   * 而不是给 modalEl 设 transform —— 因为 Obsidian 移动端 modal 有进入
+   * 动画（文档注明 "On phones, the modal will animate on screen"），
+   * transform 会被动画覆盖/冲突；padding-bottom 是纯布局属性，绝对生效。
    *
-   * 不做的：shrink 补偿（上版 bug 来源 —— `mobileDeviceHeight` 缺失时
-   * 回退 `screen.height` 是物理像素，会让 translate 被 clamp 成 0）。
-   * 直接上移完整键盘高度即可。
+   * 信号源（取最大值）：
+   * 1. Capacitor keyboardWillShow/keyboardWillHide 事件（最权威）
+   * 2. Platform.mobileKeyboardHeight（Obsidian 封装）
+   * 3. visualViewport 差值（iOS 兜底）
+   * 4. textarea focus（键盘必然由它唤出，触发一次即时检查）
    */
   bindKeyboard() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e, _f;
     if (!import_obsidian18.Platform.isMobile) return;
-    const modal = this.modalEl;
-    if (!modal) return;
+    const container = (_a = this.modalEl) == null ? void 0 : _a.parentElement;
+    if (!container) return;
     let keyboard = 0;
     const apply = () => {
-      modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : "";
-      modal.style.transition = "transform 0.15s ease-out";
+      container.style.paddingBottom = keyboard > 0 ? `${keyboard}px` : "";
     };
     const raise = (h) => {
       if (h > keyboard) {
@@ -4028,7 +4026,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
       }
     };
     const cap = window.Capacitor;
-    const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
+    const kb = (_b = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _b.Keyboard;
     const handles = [];
     if (kb == null ? void 0 : kb.addListener) {
       kb.addListener("keyboardWillShow", (info) => {
@@ -4055,22 +4053,39 @@ var CaptureModal = class extends import_obsidian18.Modal {
       if (vv == null ? void 0 : vv.height) raise(Math.max(0, window.innerHeight - vv.height));
     };
     this.keyboardPoll = window.setInterval(poll, 200);
-    (_b = window.visualViewport) == null ? void 0 : _b.addEventListener("resize", poll);
-    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("scroll", poll);
+    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("resize", poll);
+    (_d = window.visualViewport) == null ? void 0 : _d.addEventListener("scroll", poll);
     window.addEventListener("resize", poll);
+    (_e = this.textarea) == null ? void 0 : _e.addEventListener("focus", poll);
+    let diagnosed = false;
+    (_f = this.textarea) == null ? void 0 : _f.addEventListener("focus", () => {
+      if (diagnosed) return;
+      diagnosed = true;
+      window.setTimeout(() => {
+        var _a2, _b2, _c2, _d2, _e2;
+        const p = import_obsidian18.Platform;
+        const hasCap = !!((_b2 = (_a2 = window.Capacitor) == null ? void 0 : _a2.Plugins) == null ? void 0 : _b2.Keyboard);
+        const vv = window.visualViewport;
+        new import_obsidian18.Notice(
+          `\u952E\u76D8\u8BCA\u65AD cap=${hasCap} pkH=${(_c2 = p.mobileKeyboardHeight) != null ? _c2 : "\u2205"} vis=${(_d2 = p.mobileSoftKeyboardVisible) != null ? _d2 : "\u2205"} vv=${vv ? Math.round((_e2 = vv.height) != null ? _e2 : 0) : "\u2205"} inner=${window.innerHeight} kb=${keyboard}`,
+          8e3
+        );
+      }, 1500);
+    });
     poll();
     this.keyboardCleanup = () => {
-      var _a2, _b2;
+      var _a2, _b2, _c2;
       if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
       this.keyboardPoll = null;
       (_a2 = window.visualViewport) == null ? void 0 : _a2.removeEventListener("resize", poll);
       (_b2 = window.visualViewport) == null ? void 0 : _b2.removeEventListener("scroll", poll);
       window.removeEventListener("resize", poll);
+      (_c2 = this.textarea) == null ? void 0 : _c2.removeEventListener("focus", poll);
       handles.forEach((h) => {
         var _a3;
         return (_a3 = h == null ? void 0 : h.remove) == null ? void 0 : _a3.call(h);
       });
-      modal.style.transform = "";
+      container.style.paddingBottom = "";
     };
   }
   async save() {

@@ -157,25 +157,25 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	const container = document.querySelector('.modal-container');
 
 	// 状态 1：无键盘
-	const transformNoKeyboard = modal.style.transform;
+	const paddingNoKeyboard = container.style.paddingBottom;
 
 	// 模拟微信输入法弹出：只有 Capacitor 事件上报 340px（物理像素，
 	// devicePixelRatio=1 时 = CSS 像素）；Platform 和 vv 都不变
 	(capListeners['keyboardWillShow'] ?? []).forEach((cb) => cb({ keyboardHeight: 340 }));
 	await new Promise((r) => setTimeout(r, 50));
-	const transformWithWeChatKeyboard = modal.style.transform;
+	const paddingWithWeChatKeyboard = container.style.paddingBottom;
 
 	// 模拟键盘收起
 	(capListeners['keyboardWillHide'] ?? []).forEach((cb) => cb());
 	await new Promise((r) => setTimeout(r, 50));
-	const transformKeyboardClosed = modal.style.transform;
+	const paddingKeyboardClosed = container.style.paddingBottom;
 
 	return {
 		hasContainerClass: container.classList.contains('cardbox-capture-container'),
 		hasModalClass: modal.classList.contains('cardbox-capture-modal'),
-		transformNoKeyboard,
-		transformWithWeChatKeyboard,
-		transformKeyboardClosed,
+		paddingNoKeyboard,
+		paddingWithWeChatKeyboard,
+		paddingKeyboardClosed,
 		containerAlignItems: getComputedStyle(container).alignItems,
 	};
 }, { mainJs, manifest, css });
@@ -186,9 +186,9 @@ const t = (name, cond, got) => { if (cond) pass++; else { fail++; console.log('F
 t('modal 容器加了底部对齐 class', result.hasContainerClass, result.hasContainerClass);
 t('modalEl 加了作用域 class', result.hasModalClass, result.hasModalClass);
 t('容器为底部对齐（align-items flex-end）', result.containerAlignItems === 'flex-end', result.containerAlignItems);
-t('无键盘时 transform 为空', result.transformNoKeyboard === '' || result.transformNoKeyboard === undefined, result.transformNoKeyboard);
-t('微信输入法弹出（vv 不变，仅 Capacitor 事件上报 340px）→ transform 上移', result.transformWithWeChatKeyboard === 'translateY(-340px)', result.transformWithWeChatKeyboard);
-t('键盘收起后 transform 复位', result.transformKeyboardClosed === '' || result.transformKeyboardClosed === undefined, result.transformKeyboardClosed);
+t('无键盘时容器 padding-bottom 为空', result.paddingNoKeyboard === '' || result.paddingNoKeyboard === undefined, result.paddingNoKeyboard);
+t('微信输入法弹出（vv 不变，仅 Capacitor 事件上报 340px）→ 容器 padding-bottom=340px', result.paddingWithWeChatKeyboard === '340px', result.paddingWithWeChatKeyboard);
+t('键盘收起后 padding-bottom 复位', result.paddingKeyboardClosed === '' || result.paddingKeyboardClosed === undefined, result.paddingKeyboardClosed);
 
 console.log(`${pass} passed, ${fail} failed`);
 await browser.close();
