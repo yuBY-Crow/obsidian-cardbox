@@ -4006,42 +4006,22 @@ var CaptureModal = class extends import_obsidian18.Modal {
    * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
    */
   bindKeyboard() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e;
     const pm = import_obsidian18.Platform;
     const cap = window.Capacitor;
     const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
-    log.info("kb", "=== bindKeyboard ===");
-    log.info("kb", "isMobile/isMobileApp/isAndroidApp", { isMobile: import_obsidian18.Platform.isMobile, isMobileApp: pm.isMobileApp, isAndroidApp: pm.isAndroidApp });
-    log.info("kb", "Capacitor \u53EF\u7528\u6027", { cap: !!cap, kb: !!kb, addListener: typeof (kb == null ? void 0 : kb.addListener) });
-    log.info("kb", "Platform \u5185\u7F6E\u503C", { pkH: pm.mobileKeyboardHeight, vis: pm.mobileSoftKeyboardVisible, deviceH: pm.mobileDeviceHeight });
-    log.info("kb", "\u89C6\u53E3\u5FEB\u7167", { innerH: window.innerHeight, outerH: window.outerHeight, screenH: (_b = window.screen) == null ? void 0 : _b.height, dpr: window.devicePixelRatio, vv: window.visualViewport ? Math.round((_c = window.visualViewport.height) != null ? _c : 0) : null });
     if (!import_obsidian18.Platform.isMobile) {
-      log.info("kb", "skip\uFF1A\u975E\u79FB\u52A8\u7AEF");
       return;
     }
-    const container = (_d = this.modalEl) == null ? void 0 : _d.parentElement;
+    const container = (_b = this.modalEl) == null ? void 0 : _b.parentElement;
     if (!container) {
-      log.info("kb", "skip\uFF1A\u627E\u4E0D\u5230 modal \u5BB9\u5668");
       return;
-    }
-    log.info("kb", "\u5BB9\u5668\u4E0E modal", { container: container.className, modal: (_e = this.modalEl) == null ? void 0 : _e.className });
-    {
-      const mr = (_f = this.modalEl) == null ? void 0 : _f.getBoundingClientRect();
-      const cr = container.getBoundingClientRect();
-      log.info("kb", "\u5B9A\u4F4D\u8BCA\u65AD", {
-        bodyClass: document.body.className,
-        modalRect: mr ? { top: Math.round(mr.top), left: Math.round(mr.left), w: Math.round(mr.width), h: Math.round(mr.height) } : null,
-        containerRect: cr ? { top: Math.round(cr.top), left: Math.round(cr.left), w: Math.round(cr.width), h: Math.round(cr.height) } : null,
-        modalPosition: this.modalEl ? getComputedStyle(this.modalEl).position : null,
-        containerTransform: getComputedStyle(container).transform
-      });
     }
     let keyboard = 0;
     const HEIGHT_INCREASE = 40;
     const modal = this.modalEl;
     const capture = this.contentEl;
     let originalH = capture.offsetHeight || 0;
-    log.info("kb", "\u65E0\u952E\u76D8\u5361\u7247\u539F\u9AD8\u5EA6", { originalH });
     const apply = () => {
       if (keyboard > 0 && modal) {
         modal.style.bottom = `${keyboard}px`;
@@ -4051,8 +4031,6 @@ var CaptureModal = class extends import_obsidian18.Modal {
         modal.style.maxHeight = "none";
         log.info("kb", "\u4E0A\u79FB+\u7F29\u653E apply", {
           keyboard,
-          HEIGHT_INCREASE,
-          originalH,
           cardH,
           bottom: modal.style.bottom,
           height: capture.style.height
@@ -4072,7 +4050,6 @@ var CaptureModal = class extends import_obsidian18.Modal {
     };
     const raise = (h) => {
       if (h > keyboard) {
-        log.info("kb", "\u952E\u76D8\u9AD8\u5EA6 raise", { from: keyboard, to: h });
         keyboard = h;
         apply();
       }
@@ -4081,18 +4058,20 @@ var CaptureModal = class extends import_obsidian18.Modal {
     if (kb == null ? void 0 : kb.addListener) {
       kb.addListener("keyboardWillShow", (info) => {
         var _a2, _b2;
-        log.info("kb", "keyboardWillShow \u89E6\u53D1", { raw: info == null ? void 0 : info.keyboardHeight, css: toCssPx((_a2 = info == null ? void 0 : info.keyboardHeight) != null ? _a2 : 0) });
+        log.info("kb", "\u952E\u76D8\u5F39\u51FA", { height: toCssPx((_a2 = info == null ? void 0 : info.keyboardHeight) != null ? _a2 : 0) });
         raise(toCssPx((_b2 = info == null ? void 0 : info.keyboardHeight) != null ? _b2 : 0));
       }).then((h) => {
         if (h) handles.push(h);
-      }).catch((e) => log.warn("kb", "show \u76D1\u542C\u5931\u8D25", e));
+      }).catch(() => {
+      });
       kb.addListener("keyboardWillHide", () => {
-        log.info("kb", "keyboardWillHide \u89E6\u53D1");
+        log.info("kb", "\u952E\u76D8\u6536\u8D77");
         keyboard = 0;
         apply();
       }).then((h) => {
         if (h) handles.push(h);
-      }).catch((e) => log.warn("kb", "hide \u76D1\u542C\u5931\u8D25", e));
+      }).catch(() => {
+      });
     }
     const poll = () => {
       if (pm.mobileSoftKeyboardVisible && typeof pm.mobileKeyboardHeight === "number") {
@@ -4102,15 +4081,11 @@ var CaptureModal = class extends import_obsidian18.Modal {
       if (vv == null ? void 0 : vv.height) raise(Math.max(0, window.innerHeight - vv.height));
     };
     this.keyboardPoll = window.setInterval(poll, 200);
-    (_g = window.visualViewport) == null ? void 0 : _g.addEventListener("resize", poll);
-    (_h = window.visualViewport) == null ? void 0 : _h.addEventListener("scroll", poll);
+    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("resize", poll);
+    (_d = window.visualViewport) == null ? void 0 : _d.addEventListener("scroll", poll);
     window.addEventListener("resize", poll);
-    (_i = this.textarea) == null ? void 0 : _i.addEventListener("focus", () => {
-      log.info("kb", "textarea focus \u89E6\u53D1");
-      poll();
-    });
+    (_e = this.textarea) == null ? void 0 : _e.addEventListener("focus", poll);
     poll();
-    log.info("kb", "\u521D\u59CB keyboard", { keyboard });
     this.keyboardCleanup = () => {
       var _a2, _b2, _c2;
       if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);

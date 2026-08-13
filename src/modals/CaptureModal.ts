@@ -158,35 +158,13 @@ export class CaptureModal extends Modal {
 		}).Capacitor;
 		const kb = cap?.Plugins?.Keyboard;
 
-		// 环境快照（打开即输出，不依赖任何交互）
-		log.info('kb', '=== bindKeyboard ===');
-		log.info('kb', 'isMobile/isMobileApp/isAndroidApp', { isMobile: Platform.isMobile, isMobileApp: pm.isMobileApp, isAndroidApp: pm.isAndroidApp });
-		log.info('kb', 'Capacitor 可用性', { cap: !!cap, kb: !!kb, addListener: typeof kb?.addListener });
-		log.info('kb', 'Platform 内置值', { pkH: pm.mobileKeyboardHeight, vis: pm.mobileSoftKeyboardVisible, deviceH: pm.mobileDeviceHeight });
-		log.info('kb', '视口快照', { innerH: window.innerHeight, outerH: window.outerHeight, screenH: window.screen?.height, dpr: window.devicePixelRatio, vv: window.visualViewport ? Math.round(window.visualViewport.height ?? 0) : null });
-
 		if (!Platform.isMobile) {
-			log.info('kb', 'skip：非移动端');
 			return;
 		}
 		const container = this.modalEl?.parentElement;
 		if (!container) {
-			log.info('kb', 'skip：找不到 modal 容器');
 			return;
 		}
-		log.info('kb', '容器与 modal', { container: container.className, modal: this.modalEl?.className });
-	// 诊断「卡片飞了」：body 是否有 is-mobile、modal 实际位置、容器 transform
-	{
-		const mr = this.modalEl?.getBoundingClientRect();
-		const cr = container.getBoundingClientRect();
-		log.info('kb', '定位诊断', {
-			bodyClass: document.body.className,
-			modalRect: mr ? { top: Math.round(mr.top), left: Math.round(mr.left), w: Math.round(mr.width), h: Math.round(mr.height) } : null,
-			containerRect: cr ? { top: Math.round(cr.top), left: Math.round(cr.left), w: Math.round(cr.width), h: Math.round(cr.height) } : null,
-			modalPosition: this.modalEl ? getComputedStyle(this.modalEl).position : null,
-			containerTransform: getComputedStyle(container).transform,
-		});
-	}
 
 		let keyboard = 0;
 		// 键盘弹出时，卡片在「原高度」基础上增高的量（用户要求 40px）
@@ -195,14 +173,12 @@ export class CaptureModal extends Modal {
 		const capture = this.contentEl;
 		// 记录无键盘时的卡片原高度（offsetHeight 强制同步布局，值准确）
 		let originalH = capture.offsetHeight || 0;
-		log.info('kb', '无键盘卡片原高度', { originalH });
 
 		const apply = () => {
 			if (keyboard > 0 && modal) {
 				// 下沿：贴键盘上沿（modal fixed 定位，直接设 bottom）
 				modal.style.bottom = `${keyboard}px`;
 				// 卡片高度 = 原高度 + 40（而非撑满屏幕），正文区 flex:1 自适应
-				// 多增高 40px，卡片上沿随之比「纯上移」更靠上，但不顶到屏幕顶
 				const cardH = Math.max(120, originalH + HEIGHT_INCREASE);
 				capture.style.height = `${cardH}px`;
 				capture.style.minHeight = '0';
@@ -210,8 +186,6 @@ export class CaptureModal extends Modal {
 				// 打点：记录设置值与实际布局矩形，便于定位「没生效」的层级
 				log.info('kb', '上移+缩放 apply', {
 					keyboard,
-					HEIGHT_INCREASE,
-					originalH,
 					cardH,
 					bottom: modal.style.bottom,
 					height: capture.style.height,
@@ -231,7 +205,6 @@ export class CaptureModal extends Modal {
 		};
 		const raise = (h: number) => {
 			if (h > keyboard) {
-				log.info('kb', '键盘高度 raise', { from: keyboard, to: h });
 				keyboard = h;
 				apply();
 			}
@@ -241,14 +214,14 @@ export class CaptureModal extends Modal {
 		const handles: Array<{ remove?: () => void }> = [];
 		if (kb?.addListener) {
 			kb.addListener('keyboardWillShow', (info) => {
-				log.info('kb', 'keyboardWillShow 触发', { raw: info?.keyboardHeight, css: toCssPx(info?.keyboardHeight ?? 0) });
+				log.info('kb', '键盘弹出', { height: toCssPx(info?.keyboardHeight ?? 0) });
 				raise(toCssPx(info?.keyboardHeight ?? 0));
-			}).then((h) => { if (h) handles.push(h); }).catch((e) => log.warn('kb', 'show 监听失败', e));
+			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
 			kb.addListener('keyboardWillHide', () => {
-				log.info('kb', 'keyboardWillHide 触发');
+				log.info('kb', '键盘收起');
 				keyboard = 0;
 				apply();
-			}).then((h) => { if (h) handles.push(h); }).catch((e) => log.warn('kb', 'hide 监听失败', e));
+			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
 		}
 
 		// 信号 2 + 3：Platform 内置值 + visualViewport 差值
@@ -265,13 +238,9 @@ export class CaptureModal extends Modal {
 		window.addEventListener('resize', poll);
 
 		// 信号 4：textarea 聚焦时键盘必然弹出，立即触发一次检查
-		this.textarea?.addEventListener('focus', () => {
-			log.info('kb', 'textarea focus 触发');
-			poll();
-		});
+		this.textarea?.addEventListener('focus', poll);
 
 		poll();
-		log.info('kb', '初始 keyboard', { keyboard });
 
 		this.keyboardCleanup = () => {
 			if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
