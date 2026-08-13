@@ -3928,13 +3928,18 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     (_a = this.modalEl) == null ? void 0 : _a.addClass("cardbox-capture-modal");
     (_c = (_b = this.modalEl) == null ? void 0 : _b.parentElement) == null ? void 0 : _c.addClass("cardbox-capture-container");
     this.titleEl.style.display = "none";
     this.titleEl.style.height = "0";
     this.titleEl.style.padding = "0";
     this.titleEl.style.margin = "0";
+    const headerEl = (_d = this.modalEl) == null ? void 0 : _d.querySelector(".modal-header");
+    if (headerEl) {
+      headerEl.style.display = "none";
+      headerEl.style.height = "0";
+    }
     if (this.modalEl) this.modalEl.style.padding = "0";
     const { contentEl } = this;
     contentEl.empty();
@@ -3998,30 +4003,6 @@ var CaptureModal = class extends import_obsidian18.Modal {
       this.textarea.focus();
     }
     this.bindKeyboard();
-    window.setTimeout(() => {
-      var _a2;
-      const modal = this.modalEl;
-      const container = modal == null ? void 0 : modal.parentElement;
-      const modalR = modal == null ? void 0 : modal.getBoundingClientRect();
-      const titleR = (_a2 = this.titleInput) == null ? void 0 : _a2.getBoundingClientRect();
-      let closeEl = null;
-      for (const root of [modal, container]) {
-        if (!root) continue;
-        const found = Array.from(root.querySelectorAll("*")).find((el) => el.className && String(el.className).includes("close"));
-        if (found) {
-          closeEl = found;
-          break;
-        }
-      }
-      const closeR = closeEl == null ? void 0 : closeEl.getBoundingClientRect();
-      log.info("kb", "\u6807\u9898\u6846/\u5173\u95ED\u6309\u94AE\u4F4D\u7F6E", {
-        modalTop: modalR ? Math.round(modalR.top) : null,
-        title: titleR ? { top: Math.round(titleR.top), bottom: Math.round(titleR.bottom), h: Math.round(titleR.height) } : null,
-        close: closeR ? { top: Math.round(closeR.top), bottom: Math.round(closeR.bottom), h: Math.round(closeR.height), right: Math.round(closeR.right), cls: closeEl == null ? void 0 : closeEl.className } : null,
-        modalChildren: modal ? Array.from(modal.children).map((c) => c.className) : null,
-        containerChildren: container ? Array.from(container.children).map((c) => c.className) : null
-      });
-    }, 400);
   }
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。

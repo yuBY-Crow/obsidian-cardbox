@@ -460,8 +460,9 @@
    input/textarea 加的边框与底色。 */
 
 /* modal 外壳：隐藏 Obsidian 默认标题栏（用自定义标题 input 替代），
-   保留关闭按钮 */
-.cardbox-capture-modal .modal-title {
+   保留关闭按钮。真实 DOM 结构（真机日志确认）：
+   .modal > [.modal-header-button 关闭按钮, .modal-header 标题栏, .modal-content] */
+.cardbox-capture-modal .modal-header {
 	display: none !important;
 }
 .cardbox-capture-modal {
@@ -475,17 +476,20 @@
 	padding: 0 !important;
 }
 
-/* 关闭按钮：直径 = 标题栏高度（52px），右上角，圆心与标题栏高度中点对齐
+/* 关闭按钮（真实 class：modal-header-button.mod-raised.clickable-icon）：
+   直径 = 标题栏高度（52px），右上角，圆心与标题栏高度中点对齐
    （标题栏 0~52px，中点 26px；按钮 top:0 高 52px → 圆心 26px，正好对齐）
-   注意：top/right/margin 必须加 !important —— Obsidian 默认内联 style
-   特异性高于普通类选择器，不加 !important 会被覆盖 */
-.cardbox-capture-modal .modal-close-button {
+   注意：top/right/width/height/margin/padding 必须加 !important —— Obsidian
+   默认内联 style 特异性高于普通类选择器，不加会被覆盖 */
+.cardbox-capture-modal .modal-header-button {
 	display: flex !important;
 	align-items: center;
 	justify-content: center;
-	position: absolute;
+	position: absolute !important;
 	top: 0 !important;
 	right: 0 !important;
+	left: auto !important;
+	bottom: auto !important;
 	width: 52px !important;
 	height: 52px !important;
 	margin: 0 !important;
@@ -493,7 +497,7 @@
 	border-radius: 50%;
 	z-index: 10;
 }
-.cardbox-capture-modal .modal-close-button svg {
+.cardbox-capture-modal .modal-header-button svg {
 	width: 18px;
 	height: 18px;
 }

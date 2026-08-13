@@ -46,18 +46,23 @@ export class CaptureModal extends Modal {
 	}
 
 	onOpen(): void {
-		// 沉浸式：class 打在 modalEl 上（关闭按钮 .modal-close-button 是它的直接子元素，
-		// 打在 titleEl.parentElement 上层级不对，选择器命不中）
+		// 沉浸式：class 打在 modalEl 上
 		this.modalEl?.addClass('cardbox-capture-modal');
 		// modal 容器（modalEl 的父级 = .modal-container）也标记，用于底部对齐
 		this.modalEl?.parentElement?.addClass('cardbox-capture-container');
 
-		// 用 JS 强制隐藏 Obsidian 默认标题栏、去掉 content 默认 padding，
-		// 让自定义标题 input 真正贴卡片顶部（CSS 可能被主题覆盖）
+		// 用 JS 强制隐藏 Obsidian 默认标题栏（真实 class 是 .modal-header，
+		// 真机日志确认 modal 子元素为 [.modal-header-button, .modal-header, .modal-content]），
+		// 去掉 content 默认 padding，让自定义标题 input 真正贴卡片顶部
 		this.titleEl.style.display = 'none';
 		this.titleEl.style.height = '0';
 		this.titleEl.style.padding = '0';
 		this.titleEl.style.margin = '0';
+		const headerEl = this.modalEl?.querySelector('.modal-header') as HTMLElement | null;
+		if (headerEl) {
+			headerEl.style.display = 'none';
+			headerEl.style.height = '0';
+		}
 		// modal 本身也强制无 padding，确保关闭按钮 top:0 与标题框同高
 		if (this.modalEl) this.modalEl.style.padding = '0';
 
@@ -139,29 +144,6 @@ export class CaptureModal extends Modal {
 
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
-
-		// 诊断：标题框与关闭按钮的位置（延迟到 modal 打开动画结束后打点）
-		window.setTimeout(() => {
-			const modal = this.modalEl;
-			const container = modal?.parentElement;
-			const modalR = modal?.getBoundingClientRect();
-			const titleR = this.titleInput?.getBoundingClientRect();
-			// 关闭按钮可能在 modal 或 container 里，遍历找 class 含 close 的元素
-			let closeEl: Element | null = null;
-			for (const root of [modal, container]) {
-				if (!root) continue;
-				const found = Array.from(root.querySelectorAll('*')).find((el) => el.className && String(el.className).includes('close'));
-				if (found) { closeEl = found; break; }
-			}
-			const closeR = closeEl?.getBoundingClientRect();
-			log.info('kb', '标题框/关闭按钮位置', {
-				modalTop: modalR ? Math.round(modalR.top) : null,
-				title: titleR ? { top: Math.round(titleR.top), bottom: Math.round(titleR.bottom), h: Math.round(titleR.height) } : null,
-				close: closeR ? { top: Math.round(closeR.top), bottom: Math.round(closeR.bottom), h: Math.round(closeR.height), right: Math.round(closeR.right), cls: closeEl?.className } : null,
-				modalChildren: modal ? Array.from(modal.children).map((c) => c.className) : null,
-				containerChildren: container ? Array.from(container.children).map((c) => c.className) : null,
-			});
-		}, 400);
 	}
 
 	/**

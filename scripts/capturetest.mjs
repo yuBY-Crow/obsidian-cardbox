@@ -65,12 +65,13 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 		Modal: class {
 			constructor(a) {
 				this.app = a;
-				// 模拟 Obsidian 真实 modal DOM：container > modalEl > (close-button, title, content)
+				// 模拟 Obsidian 真实 modal DOM（真机日志确认）：
+				// container > modalEl > (modal-header-button 关闭按钮, modal-header 标题栏, modal-content)
 				const container = mk('div'); container.className = 'modal-container';
 				this.modalEl = mk('div'); this.modalEl.className = 'modal';
 				this.modalEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;display:flex;flex-direction:column';
-				const closeBtn = mk('div'); closeBtn.className = 'modal-close-button';
-				this.titleEl = mk('div'); this.titleEl.className = 'modal-title';
+				const closeBtn = mk('div'); closeBtn.className = 'modal-header-button mod-raised clickable-icon';
+				this.titleEl = mk('div'); this.titleEl.className = 'modal-header';
 				this.contentEl = mk('div'); this.contentEl.className = 'modal-content';
 				this.modalEl.appendChild(closeBtn);
 				this.modalEl.appendChild(this.titleEl);
@@ -194,11 +195,11 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 		})(),
 		// 关闭按钮必须显示并对齐标题栏：直径 = 标题栏高度，圆心对齐中点
 		closeBtnVisible: (() => {
-			const btn = document.querySelector('.modal-close-button');
+			const btn = document.querySelector('.modal-header-button');
 			if (!btn) return 'no-btn';
 			return getComputedStyle(btn).display === 'none' ? 'hidden' : 'visible';
 		})(),
-		closeBtnRect: (() => { const b = document.querySelector('.modal-close-button'); if (!b) return null; const r = b.getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) }; })(),
+		closeBtnRect: (() => { const b = document.querySelector('.modal-header-button'); if (!b) return null; const r = b.getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) }; })(),
 		modalScoped: !!document.querySelector('.modal.cardbox-capture-modal'),
 		// 标题贴顶：距 capture 容器顶部的距离
 		titleOffsetTop: (() => {
