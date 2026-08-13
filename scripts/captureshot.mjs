@@ -142,7 +142,8 @@ const stats = await page.evaluate(() => {
 	return {
 		w: Math.round(r.width),
 		h: Math.round(r.height),
-		titleRect: (() => { const h = capture.querySelector('.cardbox-capture-title'); return h ? Math.round(h.getBoundingClientRect().height) : null; })(),
+		titleRect: (() => { const h = capture.querySelector('.cardbox-capture-title'); if (!h) return null; const r = h.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height) }; })(),
+		closeBtnRect: (() => { const b = document.querySelector('.modal-close-button'); if (!b) return null; const r = b.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), right: Math.round(r.right), width: Math.round(r.width), height: Math.round(r.height) }; })(),
 		inputRect: (() => { const i = capture.querySelector('.cardbox-capture-input'); return i ? Math.round(i.getBoundingClientRect().height) : null; })(),
 		footerRect: (() => { const t = capture.querySelector('.cardbox-capture-footer'); return t ? Math.round(t.getBoundingClientRect().height) : null; })(),
 		modeInFooter: (() => { const f = capture.querySelector('.cardbox-capture-footer'); return !!f && !!f.querySelector('.cardbox-capture-mode'); })(),
@@ -159,6 +160,8 @@ const stats = await page.evaluate(() => {
 			input: getComputedStyle(capture.querySelector('.cardbox-capture-input')).fontSize,
 		},
 		addRect: (() => { const a = capture.querySelector('.cardbox-capture-add'); return a ? Math.round(a.getBoundingClientRect().width) : null; })(),
+		modalRect: (() => { const m = document.querySelector('.modal'); if (!m) return null; const r = m.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height) }; })(),
+		modalContentPad: (() => { const c = document.querySelector('.modal-content'); return c ? getComputedStyle(c).padding : null; })(),
 	};
 });
 console.log('CaptureModal 布局:', stats);

@@ -133,6 +133,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 
 	return {
 		modalCls: document.querySelector('.cardbox-capture') ? 'yes' : 'no',
+		modalRect: (() => { const m = document.querySelector('.modal'); if (!m) return null; const r = m.getBoundingClientRect(); return { top: Math.round(r.top) }; })(),
 		titleInput: (() => {
 			const i = document.querySelector('.cardbox-capture-title');
 			return i ? { tag: i.tagName, value: i.value, matchesTime: /^\d{4}-\d{2}-\d{2}-\d{6}$/.test(i.value), placeholder: i.getAttribute('placeholder') } : null;
@@ -191,12 +192,13 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 			const footer = document.body.querySelector('.cardbox-capture-footer');
 			return !!footer && footer.querySelector('.cardbox-capture-mode') !== null;
 		})(),
-		// 关闭按钮必须被隐藏（class 打在 modalEl 上才命中）
-		closeBtnHidden: (() => {
+		// 关闭按钮必须显示并对齐标题栏：直径 = 标题栏高度，圆心对齐中点
+		closeBtnVisible: (() => {
 			const btn = document.querySelector('.modal-close-button');
 			if (!btn) return 'no-btn';
 			return getComputedStyle(btn).display === 'none' ? 'hidden' : 'visible';
 		})(),
+		closeBtnRect: (() => { const b = document.querySelector('.modal-close-button'); if (!b) return null; const r = b.getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) }; })(),
 		modalScoped: !!document.querySelector('.modal.cardbox-capture-modal'),
 		// 标题贴顶：距 capture 容器顶部的距离
 		titleOffsetTop: (() => {
@@ -248,7 +250,9 @@ t('布局顺序：标题 → 正文 → footer', result.order.indexOf('cardbox-c
 t('无自定义工具按钮', result.toolCount === 0, result.toolCount);
 
 // ---- 本轮 5 项改动 ----
-t('①关闭按钮已隐藏（display:none）', result.closeBtnHidden === 'hidden', result.closeBtnHidden);
+t('①关闭按钮已显示（之前错误隐藏，已恢复）', result.closeBtnVisible === 'visible', result.closeBtnVisible);
+t('①关闭按钮直径 = 标题栏高度 52px', result.closeBtnRect?.width === 52 && result.closeBtnRect?.height === 52, result.closeBtnRect);
+t('①关闭按钮圆心与标题栏中点对齐（关闭按钮 top = 标题 top = modal 顶）', result.closeBtnRect && result.closeBtnRect.top === (result.modalRect?.top ?? -999), { closeBtnTop: result.closeBtnRect?.top, modalTop: result.modalRect?.top });
 t('①样式作用域挂在 modalEl 上（能压过主题）', result.modalScoped, result.modalScoped);
 t('②标题贴顶（距容器顶 ≤2px）', (result.titleOffsetTop ?? 99) <= 2, result.titleOffsetTop);
 t('②标题文字垂直居中（上下 padding 相等）', result.titleCentering?.paddingTop === result.titleCentering?.paddingBottom, result.titleCentering);

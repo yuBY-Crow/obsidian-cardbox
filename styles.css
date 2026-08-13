@@ -459,28 +459,55 @@
    多一层选择器才能压过 Obsidian 主题（如 Minimal）给 modal 内
    input/textarea 加的边框与底色。 */
 
-/* modal 外壳：去掉标题栏与关闭按钮，手机端占满下半屏 */
-.cardbox-capture-modal .modal-title,
-.cardbox-capture-modal .modal-close-button {
-	display: none;
+/* modal 外壳：隐藏 Obsidian 默认标题栏（用自定义标题 input 替代），
+   保留关闭按钮 */
+.cardbox-capture-modal .modal-title {
+	display: none !important;
 }
 .cardbox-capture-modal {
 	padding: 0;
 	border-radius: 14px;
 	background: var(--background-primary);
+	/* modal 必须 positioned（fixed），关闭按钮的 absolute 才能相对 modal
+	   而不是 modal-container；不依赖 body.is-mobile，桌面与移动端都生效 */
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	max-height: calc(100vh - 60px);
+}
+/* 标题栏上提：去掉 modal-content 默认 padding，让标题 input 真正贴顶
+   （Obsidian 主题可能覆盖，加 !important 兜底） */
+.cardbox-capture-modal .modal-content {
+	padding: 0 !important;
+}
+
+/* 关闭按钮：直径 = 标题栏高度（52px），右上角，圆心与标题栏高度中点对齐
+   （标题栏 0~52px，中点 26px；按钮 top:0 高 52px → 圆心 26px，正好对齐）
+   注意：top/right/margin 必须加 !important —— Obsidian 默认内联 style
+   特异性高于普通类选择器，不加 !important 会被覆盖 */
+.cardbox-capture-modal .modal-close-button {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0 !important;
+	right: 0 !important;
+	width: 52px !important;
+	height: 52px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border-radius: 50%;
+	z-index: 10;
+}
+.cardbox-capture-modal .modal-close-button svg {
+	width: 18px;
+	height: 18px;
 }
 body.is-mobile .cardbox-capture-modal {
 	border-radius: 14px 14px 0 0;
 	width: 100%;
 	max-width: 100%;
-	max-height: calc(100vh - 60px);
-	/* 直接 fixed 定位到屏幕底部，键盘弹出时用 JS 设 bottom 上移。
-	   不依赖 .modal-container 的 flex 布局（Obsidian 的 flex 居中/对齐
-	   行为不可控，导致 padding-bottom 方案顶不起卡片） */
-	position: fixed;
-	left: 0;
-	right: 0;
-	bottom: 0;
 }
 
 /* modal 容器：不再依赖其 flex 对齐（卡片已 fixed 定位） */
