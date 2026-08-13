@@ -42,12 +42,24 @@ function scan(
 	}
 }
 
+/** 标题：区分 H1~H6，按级别打不同 class，CSS 用 --hN-size 分级放大字号 */
+function scanHeadings(builder: RangeSetBuilder<Decoration>, text: string): void {
+	const re = /^(#{1,6})[ \t]+[^\n]*/gm;
+	re.lastIndex = 0;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text)) !== null) {
+		const level = m[1].length;
+		builder.add(m.index, m.index + m[0].length, Decoration.mark({ class: `${CLS.heading} cm-cardbox-h${level}` }));
+		if (m[0].length === 0) re.lastIndex += 1;
+	}
+}
+
 function buildDecorations(view: EditorView): DecorationSet {
 	const builder = new RangeSetBuilder<Decoration>();
 	const text = view.state.doc.toString();
 
-	// 标题：#~###### 行首（整行）
-	scan(builder, text, /^#{1,6}[ \t]+[^\n]*/gm, CLS.heading);
+	// 标题：#~###### 行首（区分级别，分级放大字号）
+	scanHeadings(builder, text);
 	// 加粗 **text**
 	scan(builder, text, /\*\*[^*\n]+\*\*/g, CLS.bold);
 	// 行内代码 `code`

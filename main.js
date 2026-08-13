@@ -2963,6 +2963,7 @@ var CardBoxView = class extends import_obsidian15.ItemView {
     this.ctx.index.onChanged(this.indexChangedCb);
     (_b = (_a = this.filterBar).refreshTags) == null ? void 0 : _b.call(_a);
     this.scheduleRender();
+    log.info("view", "\u89C6\u56FE\u6253\u5F00", { defaultViewMode: this.ctx.settings.defaultViewMode, mode: this.filterBar.getMode(), isMobile: import_obsidian15.Platform.isMobile });
   }
   /**
    * 视图尺寸变化（窗口缩放、侧栏拖宽等）时重算瀑布流列数。
@@ -3101,7 +3102,8 @@ var CardBoxView = class extends import_obsidian15.ItemView {
    * PC 端按容器实际宽度除以设置的最小列宽，至少 1 列。
    */
   masonryColumns() {
-    if (import_obsidian15.Platform.isMobile) return 2;
+    const isMobile = import_obsidian15.Platform.isMobile || document.body.classList.contains("is-mobile");
+    if (isMobile) return 2;
     const width = this.listEl.clientWidth;
     const min = Math.max(160, this.ctx.settings.masonryMinColumnWidth);
     if (!width) return 2;
@@ -3144,7 +3146,7 @@ var CardBoxView = class extends import_obsidian15.ItemView {
     this.renderKey = key;
     const items = mode === "timeline" ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
     this.list.setItems(items);
-    log.info("render", "\u6E32\u67D3\u5B8C\u6210", { mode, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
+    log.info("render", "\u6E32\u67D3\u5B8C\u6210", { mode, columns: this.list.getColumnCount(), defaultViewMode: this.ctx.settings.defaultViewMode, isMobile: import_obsidian15.Platform.isMobile, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
     window.requestAnimationFrame(() => this.checkTileTitles());
   }
   /**
@@ -3947,10 +3949,20 @@ function scan(builder, text, re, cls, fromOf) {
     if (m[0].length === 0) re.lastIndex += 1;
   }
 }
+function scanHeadings(builder, text) {
+  const re = /^(#{1,6})[ \t]+[^\n]*/gm;
+  re.lastIndex = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const level = m[1].length;
+    builder.add(m.index, m.index + m[0].length, import_view.Decoration.mark({ class: `${CLS.heading} cm-cardbox-h${level}` }));
+    if (m[0].length === 0) re.lastIndex += 1;
+  }
+}
 function buildDecorations(view) {
   const builder = new import_state.RangeSetBuilder();
   const text = view.state.doc.toString();
-  scan(builder, text, /^#{1,6}[ \t]+[^\n]*/gm, CLS.heading);
+  scanHeadings(builder, text);
   scan(builder, text, /\*\*[^*\n]+\*\*/g, CLS.bold);
   scan(builder, text, /`[^`\n]+`/g, CLS.code);
   scan(builder, text, /(^|[\s(（])#[^\s#()）]+/g, CLS.tag, (m) => m.index + m[1].length);

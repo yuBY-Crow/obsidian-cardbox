@@ -203,6 +203,8 @@ export class CardBoxView extends ItemView {
 		this.ctx.index.onChanged(this.indexChangedCb);
 		this.filterBar.refreshTags?.();
 		this.scheduleRender();
+		// 诊断「平铺返回变单列」：记录视图打开时的模式来源
+		log.info('view', '视图打开', { defaultViewMode: this.ctx.settings.defaultViewMode, mode: this.filterBar.getMode(), isMobile: Platform.isMobile });
 	}
 
 	/**
@@ -362,7 +364,11 @@ export class CardBoxView extends ItemView {
 	 * PC 端按容器实际宽度除以设置的最小列宽，至少 1 列。
 	 */
 	private masonryColumns(): number {
-		if (Platform.isMobile) return 2;
+		// 手机端固定双列（屏幕窄，再多列每张卡就没法读了）。
+		// 用 body.is-mobile 兜底：个别环境下 Platform.isMobile 可能不准，
+		// 一旦误判为 PC 会走 clientWidth 分支，窄屏算成 1 列（用户看到的「变单列」）
+		const isMobile = Platform.isMobile || document.body.classList.contains('is-mobile');
+		if (isMobile) return 2;
 		const width = this.listEl.clientWidth;
 		const min = Math.max(160, this.ctx.settings.masonryMinColumnWidth);
 		// clientWidth 为 0 说明还没布局完（首次渲染），先给 2 列，
@@ -439,7 +445,7 @@ export class CardBoxView extends ItemView {
 
 		const items = mode === 'timeline' ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
 		this.list.setItems(items);
-		log.info('render', '渲染完成', { mode, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
+		log.info('render', '渲染完成', { mode, columns: this.list.getColumnCount(), defaultViewMode: this.ctx.settings.defaultViewMode, isMobile: Platform.isMobile, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
 		// 标题可见性检查：等布局完成后验证标题元素实际渲染状态
 		// （用户反馈「卡片没有显示标题」，需要区分：提取为空 / 渲染不可见 / 正常）
 		window.requestAnimationFrame(() => this.checkTileTitles());
