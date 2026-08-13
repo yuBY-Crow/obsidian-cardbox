@@ -1,5 +1,5 @@
 # CardBox 卡片盒（Obsidian 插件）
-
+本插件灵感来自Writeathon
 Writeathon 风格卡片盒：**记录灵感 → 整理卡片 → 组合成文**。移动端优先，PC 端支持全卡片平铺；自包含（只依赖 Obsidian 官方 API，无需 Dataview 等第三方插件）。
 
 ## 功能
@@ -139,9 +139,4 @@ node scripts/preview.mjs                  # 生成 preview.html 视觉预览（�
 ### 测试 Vault
 仓库内的 `test-vault/` 已预置插件与400+ 张测试卡片，可直接用 Obsidian 打开（设置 → 第三方插件 → 启用 CardBox 卡片盒）。
 
-## 后续规划
-- AI 卡片小松 / 魔法文章（Writeathon 官方文档该章节仍为「待补充」）
-- 卡片写作台（三栏拖拽排序成文；当前已可通过多选合并与扩展视图层级成文覆盖大部分场景）
-- 空间（Space）：多空间隔离卡片与标签
-- 语音卡片 / 微信输入 / 微信读书导入
-- 标签管理增强：标签合并、重命名、批量删除
+
