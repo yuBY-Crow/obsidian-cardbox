@@ -182,22 +182,21 @@ export class CaptureModal extends Modal {
 		const modal = this.modalEl;
 		const capture = this.contentEl;
 		const apply = () => {
-			if (keyboard > 0) {
-				// 下沿：贴键盘上沿（容器 padding-bottom 把底部顶上去）
-				container.style.paddingBottom = `${keyboard}px`;
+			if (keyboard > 0 && modal) {
+				// 下沿：贴键盘上沿（modal fixed 定位，直接设 bottom）
+				modal.style.bottom = `${keyboard}px`;
 				// 上沿：再上移 UP_SHIFT。用 window.innerHeight 算具体像素
-				// （100vh 在键盘弹出时可能等于可视高度而非屏幕高度，不可靠），
 				// 卡片高度 = 屏幕高 − 键盘 − 上移量，正文区 flex:1 自适应填满
 				const cardH = Math.max(120, window.innerHeight - keyboard - UP_SHIFT);
 				capture.style.height = `${cardH}px`;
 				capture.style.minHeight = '0';
-				if (modal) modal.style.maxHeight = 'none';
+				modal.style.maxHeight = 'none';
 				// 打点：记录设置值与实际布局矩形，便于定位「没生效」的层级
 				log.info('kb', '上移+缩放 apply', {
 					keyboard,
 					UP_SHIFT,
 					cardH,
-					paddingBottom: container.style.paddingBottom,
+					bottom: modal.style.bottom,
 					height: capture.style.height,
 				});
 				window.setTimeout(() => {
@@ -205,10 +204,12 @@ export class CaptureModal extends Modal {
 					log.info('kb', '卡片实际位置', { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), innerH: window.innerHeight });
 				}, 80);
 			} else {
-				container.style.paddingBottom = '';
+				if (modal) {
+					modal.style.bottom = '';
+					modal.style.maxHeight = '';
+				}
 				capture.style.height = '';
 				capture.style.minHeight = '';
-				if (modal) modal.style.maxHeight = '';
 			}
 		};
 		const raise = (h: number) => {
@@ -263,7 +264,12 @@ export class CaptureModal extends Modal {
 			window.removeEventListener('resize', poll);
 			this.textarea?.removeEventListener('focus', poll);
 			handles.forEach((h) => h?.remove?.());
-			container.style.paddingBottom = '';
+			if (modal) {
+				modal.style.bottom = '';
+				modal.style.maxHeight = '';
+			}
+			capture.style.height = '';
+			capture.style.minHeight = '';
 		};
 	}
 

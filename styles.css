@@ -474,13 +474,18 @@ body.is-mobile .cardbox-capture-modal {
 	width: 100%;
 	max-width: 100%;
 	max-height: calc(100vh - 60px);
+	/* 直接 fixed 定位到屏幕底部，键盘弹出时用 JS 设 bottom 上移。
+	   不依赖 .modal-container 的 flex 布局（Obsidian 的 flex 居中/对齐
+	   行为不可控，导致 padding-bottom 方案顶不起卡片） */
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
 }
 
-/* modal 容器底部对齐：让卡片贴在屏幕底部，键盘弹出时用 transform
-   上移（见 CaptureModal.bindKeyboard），使下部贴合输入法顶部 */
+/* modal 容器：不再依赖其 flex 对齐（卡片已 fixed 定位） */
 body.is-mobile .cardbox-capture-container {
-	align-items: flex-end;
-	justify-content: center;
+	display: block;
 }
 body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 	margin: 0;

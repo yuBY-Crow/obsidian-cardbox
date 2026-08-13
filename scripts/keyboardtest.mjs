@@ -160,31 +160,31 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 	const capture = document.querySelector('.cardbox-capture');
 
 	// 状态 1：无键盘
-	const paddingNoKeyboard = container.style.paddingBottom;
+	const bottomNoKeyboard = modal.style.bottom;
 	const heightNoKeyboard = capture.style.height;
 
 	// 模拟微信输入法弹出：Capacitor 上报 319px（CSS 像素，不应被 dpr 除）
 	(capListeners['keyboardWillShow'] ?? []).forEach((cb) => cb({ keyboardHeight: 319 }));
 	await new Promise((r) => setTimeout(r, 50));
-	const paddingWithWeChatKeyboard = container.style.paddingBottom;
+	const bottomWithWeChatKeyboard = modal.style.bottom;
 	const heightWithWeChatKeyboard = capture.style.height;
 
 	// 模拟键盘收起
 	(capListeners['keyboardWillHide'] ?? []).forEach((cb) => cb());
 	await new Promise((r) => setTimeout(r, 50));
-	const paddingKeyboardClosed = container.style.paddingBottom;
+	const bottomKeyboardClosed = modal.style.bottom;
 	const heightKeyboardClosed = capture.style.height;
 
 	return {
 		hasContainerClass: container.classList.contains('cardbox-capture-container'),
 		hasModalClass: modal.classList.contains('cardbox-capture-modal'),
-		paddingNoKeyboard,
-		paddingWithWeChatKeyboard,
-		paddingKeyboardClosed,
+		bottomNoKeyboard,
+		bottomWithWeChatKeyboard,
+		bottomKeyboardClosed,
 		heightNoKeyboard,
 		heightWithWeChatKeyboard,
 		heightKeyboardClosed,
-		containerAlignItems: getComputedStyle(container).alignItems,
+		modalPosition: getComputedStyle(modal).position,
 	};
 }, { mainJs, manifest, css });
 
@@ -193,12 +193,12 @@ const t = (name, cond, got) => { if (cond) pass++; else { fail++; console.log('F
 
 t('modal 容器加了底部对齐 class', result.hasContainerClass, result.hasContainerClass);
 t('modalEl 加了作用域 class', result.hasModalClass, result.hasModalClass);
-t('容器为底部对齐（align-items flex-end）', result.containerAlignItems === 'flex-end', result.containerAlignItems);
-t('无键盘时容器 padding-bottom 为空', result.paddingNoKeyboard === '' || result.paddingNoKeyboard === undefined, result.paddingNoKeyboard);
+t('手机端 modal 为 fixed 定位（绕开容器 flex 布局）', result.modalPosition === 'fixed', result.modalPosition);
+t('无键盘时 modal bottom 为空（默认 0）', result.bottomNoKeyboard === '' || result.bottomNoKeyboard === undefined, result.bottomNoKeyboard);
 t('无键盘时卡片高度为默认（空）', result.heightNoKeyboard === '' || result.heightNoKeyboard === undefined, result.heightNoKeyboard);
-t('dpr=3 时 Capacitor 上报 319px → padding-bottom=319px（不再被 dpr 除）', result.paddingWithWeChatKeyboard === '319px', result.paddingWithWeChatKeyboard);
+t('dpr=3 时 Capacitor 上报 319px → modal bottom=319px（不再被 dpr 除）', result.bottomWithWeChatKeyboard === '319px', result.bottomWithWeChatKeyboard);
 t('键盘弹出时卡片高度 = innerHeight(844) - 键盘(319) - 上移量(20) = 505px', result.heightWithWeChatKeyboard === '505px', result.heightWithWeChatKeyboard);
-t('键盘收起后 padding-bottom 复位', result.paddingKeyboardClosed === '' || result.paddingKeyboardClosed === undefined, result.paddingKeyboardClosed);
+t('键盘收起后 modal bottom 复位', result.bottomKeyboardClosed === '' || result.bottomKeyboardClosed === undefined, result.bottomKeyboardClosed);
 t('键盘收起后卡片高度复位', result.heightKeyboardClosed === '' || result.heightKeyboardClosed === undefined, result.heightKeyboardClosed);
 
 console.log(`${pass} passed, ${fail} failed`);

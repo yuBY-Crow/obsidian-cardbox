@@ -4030,17 +4030,17 @@ var CaptureModal = class extends import_obsidian18.Modal {
     const modal = this.modalEl;
     const capture = this.contentEl;
     const apply = () => {
-      if (keyboard > 0) {
-        container.style.paddingBottom = `${keyboard}px`;
+      if (keyboard > 0 && modal) {
+        modal.style.bottom = `${keyboard}px`;
         const cardH = Math.max(120, window.innerHeight - keyboard - UP_SHIFT);
         capture.style.height = `${cardH}px`;
         capture.style.minHeight = "0";
-        if (modal) modal.style.maxHeight = "none";
+        modal.style.maxHeight = "none";
         log.info("kb", "\u4E0A\u79FB+\u7F29\u653E apply", {
           keyboard,
           UP_SHIFT,
           cardH,
-          paddingBottom: container.style.paddingBottom,
+          bottom: modal.style.bottom,
           height: capture.style.height
         });
         window.setTimeout(() => {
@@ -4048,10 +4048,12 @@ var CaptureModal = class extends import_obsidian18.Modal {
           log.info("kb", "\u5361\u7247\u5B9E\u9645\u4F4D\u7F6E", { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), innerH: window.innerHeight });
         }, 80);
       } else {
-        container.style.paddingBottom = "";
+        if (modal) {
+          modal.style.bottom = "";
+          modal.style.maxHeight = "";
+        }
         capture.style.height = "";
         capture.style.minHeight = "";
-        if (modal) modal.style.maxHeight = "";
       }
     };
     const raise = (h) => {
@@ -4107,7 +4109,12 @@ var CaptureModal = class extends import_obsidian18.Modal {
         var _a3;
         return (_a3 = h == null ? void 0 : h.remove) == null ? void 0 : _a3.call(h);
       });
-      container.style.paddingBottom = "";
+      if (modal) {
+        modal.style.bottom = "";
+        modal.style.maxHeight = "";
+      }
+      capture.style.height = "";
+      capture.style.minHeight = "";
     };
   }
   async save() {
