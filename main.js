@@ -3996,83 +3996,81 @@ var CaptureModal = class extends import_obsidian18.Modal {
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
    *
-   * 关键：Obsidian 移动端 Android 沉浸式全屏（edge-to-edge）触发 Capacitor
-   * bug —— 键盘不改变 WebView 尺寸，`innerHeight`/`visualViewport` 都不变。
+   * 上移手段：给 modal 容器（.modal-container）设 padding-bottom（纯布局
+   * 属性，不碰 transform，避开 Obsidian modal 进入动画的覆盖）。
    *
-   * 上移手段：给 modal **容器**（.modal-container）设 padding-bottom，
-   * 而不是给 modalEl 设 transform —— 因为 Obsidian 移动端 modal 有进入
-   * 动画（文档注明 "On phones, the modal will animate on screen"），
-   * transform 会被动画覆盖/冲突；padding-bottom 是纯布局属性，绝对生效。
+   * 信号源（取最大值）：Capacitor keyboardWillShow 事件 / Platform
+   * .mobileKeyboardHeight / visualViewport 差值。
    *
-   * 信号源（取最大值）：
-   * 1. Capacitor keyboardWillShow/keyboardWillHide 事件（最权威）
-   * 2. Platform.mobileKeyboardHeight（Obsidian 封装）
-   * 3. visualViewport 差值（iOS 兜底）
-   * 4. textarea focus（键盘必然由它唤出，触发一次即时检查）
+   * 诊断全部走 console.log（[cardbox-kb] 前缀），因为 Notice 在真机上
+   * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
    */
   bindKeyboard() {
-    var _a, _b, _c, _d, _e, _f;
-    if (!import_obsidian18.Platform.isMobile) return;
-    const container = (_a = this.modalEl) == null ? void 0 : _a.parentElement;
-    if (!container) return;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    const tag = "[cardbox-kb]";
+    const pm = import_obsidian18.Platform;
+    const cap = window.Capacitor;
+    const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
+    console.log(tag, "=== bindKeyboard ===");
+    console.log(tag, "isMobile=", import_obsidian18.Platform.isMobile, "isMobileApp=", pm.isMobileApp, "isAndroidApp=", pm.isAndroidApp);
+    console.log(tag, "Capacitor=", !!cap, "Keyboard=", !!kb, "addListener=", typeof (kb == null ? void 0 : kb.addListener));
+    console.log(tag, "pkH=", pm.mobileKeyboardHeight, "vis=", pm.mobileSoftKeyboardVisible, "deviceH=", pm.mobileDeviceHeight);
+    console.log(tag, "innerH=", window.innerHeight, "outerH=", window.outerHeight, "screenH=", (_b = window.screen) == null ? void 0 : _b.height, "dpr=", window.devicePixelRatio, "vv=", window.visualViewport ? Math.round((_c = window.visualViewport.height) != null ? _c : 0) : null);
+    if (!import_obsidian18.Platform.isMobile) {
+      console.log(tag, "skip\uFF1A\u975E\u79FB\u52A8\u7AEF");
+      return;
+    }
+    const container = (_d = this.modalEl) == null ? void 0 : _d.parentElement;
+    if (!container) {
+      console.log(tag, "skip\uFF1A\u627E\u4E0D\u5230 modal \u5BB9\u5668");
+      return;
+    }
+    console.log(tag, "container=", container.className, "modal=", (_e = this.modalEl) == null ? void 0 : _e.className);
     let keyboard = 0;
     const apply = () => {
       container.style.paddingBottom = keyboard > 0 ? `${keyboard}px` : "";
     };
     const raise = (h) => {
       if (h > keyboard) {
+        console.log(tag, "raise", keyboard, "->", h);
         keyboard = h;
         apply();
       }
     };
-    const cap = window.Capacitor;
-    const kb = (_b = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _b.Keyboard;
     const handles = [];
     if (kb == null ? void 0 : kb.addListener) {
       kb.addListener("keyboardWillShow", (info) => {
-        var _a2;
-        raise(toCssPx((_a2 = info == null ? void 0 : info.keyboardHeight) != null ? _a2 : 0));
+        var _a2, _b2;
+        console.log(tag, "keyboardWillShow \u89E6\u53D1\uFF0Craw keyboardHeight=", info == null ? void 0 : info.keyboardHeight, "\u2192 css=", toCssPx((_a2 = info == null ? void 0 : info.keyboardHeight) != null ? _a2 : 0));
+        raise(toCssPx((_b2 = info == null ? void 0 : info.keyboardHeight) != null ? _b2 : 0));
       }).then((h) => {
         if (h) handles.push(h);
-      }).catch(() => {
-      });
+      }).catch((e) => console.log(tag, "show \u76D1\u542C\u5931\u8D25", e));
       kb.addListener("keyboardWillHide", () => {
+        console.log(tag, "keyboardWillHide \u89E6\u53D1");
         keyboard = 0;
         apply();
       }).then((h) => {
         if (h) handles.push(h);
-      }).catch(() => {
-      });
+      }).catch((e) => console.log(tag, "hide \u76D1\u542C\u5931\u8D25", e));
     }
     const poll = () => {
-      const p = import_obsidian18.Platform;
-      if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === "number") {
-        raise(p.mobileKeyboardHeight);
+      if (pm.mobileSoftKeyboardVisible && typeof pm.mobileKeyboardHeight === "number") {
+        raise(pm.mobileKeyboardHeight);
       }
       const vv = window.visualViewport;
       if (vv == null ? void 0 : vv.height) raise(Math.max(0, window.innerHeight - vv.height));
     };
     this.keyboardPoll = window.setInterval(poll, 200);
-    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("resize", poll);
-    (_d = window.visualViewport) == null ? void 0 : _d.addEventListener("scroll", poll);
+    (_f = window.visualViewport) == null ? void 0 : _f.addEventListener("resize", poll);
+    (_g = window.visualViewport) == null ? void 0 : _g.addEventListener("scroll", poll);
     window.addEventListener("resize", poll);
-    (_e = this.textarea) == null ? void 0 : _e.addEventListener("focus", poll);
-    let diagnosed = false;
-    (_f = this.textarea) == null ? void 0 : _f.addEventListener("focus", () => {
-      if (diagnosed) return;
-      diagnosed = true;
-      window.setTimeout(() => {
-        var _a2, _b2, _c2, _d2, _e2;
-        const p = import_obsidian18.Platform;
-        const hasCap = !!((_b2 = (_a2 = window.Capacitor) == null ? void 0 : _a2.Plugins) == null ? void 0 : _b2.Keyboard);
-        const vv = window.visualViewport;
-        new import_obsidian18.Notice(
-          `\u952E\u76D8\u8BCA\u65AD cap=${hasCap} pkH=${(_c2 = p.mobileKeyboardHeight) != null ? _c2 : "\u2205"} vis=${(_d2 = p.mobileSoftKeyboardVisible) != null ? _d2 : "\u2205"} vv=${vv ? Math.round((_e2 = vv.height) != null ? _e2 : 0) : "\u2205"} inner=${window.innerHeight} kb=${keyboard}`,
-          8e3
-        );
-      }, 1500);
+    (_h = this.textarea) == null ? void 0 : _h.addEventListener("focus", () => {
+      console.log(tag, "textarea focus \u89E6\u53D1");
+      poll();
     });
     poll();
+    console.log(tag, "\u521D\u59CB keyboard=", keyboard);
     this.keyboardCleanup = () => {
       var _a2, _b2, _c2;
       if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);

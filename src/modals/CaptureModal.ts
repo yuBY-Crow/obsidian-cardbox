@@ -133,24 +133,48 @@ export class CaptureModal extends Modal {
 	/**
 	 * 手机端让卡片下部贴合输入法键盘顶部。
 	 *
-	 * 关键：Obsidian 移动端 Android 沉浸式全屏（edge-to-edge）触发 Capacitor
-	 * bug —— 键盘不改变 WebView 尺寸，`innerHeight`/`visualViewport` 都不变。
+	 * 上移手段：给 modal 容器（.modal-container）设 padding-bottom（纯布局
+	 * 属性，不碰 transform，避开 Obsidian modal 进入动画的覆盖）。
 	 *
-	 * 上移手段：给 modal **容器**（.modal-container）设 padding-bottom，
-	 * 而不是给 modalEl 设 transform —— 因为 Obsidian 移动端 modal 有进入
-	 * 动画（文档注明 "On phones, the modal will animate on screen"），
-	 * transform 会被动画覆盖/冲突；padding-bottom 是纯布局属性，绝对生效。
+	 * 信号源（取最大值）：Capacitor keyboardWillShow 事件 / Platform
+	 * .mobileKeyboardHeight / visualViewport 差值。
 	 *
-	 * 信号源（取最大值）：
-	 * 1. Capacitor keyboardWillShow/keyboardWillHide 事件（最权威）
-	 * 2. Platform.mobileKeyboardHeight（Obsidian 封装）
-	 * 3. visualViewport 差值（iOS 兜底）
-	 * 4. textarea focus（键盘必然由它唤出，触发一次即时检查）
+	 * 诊断全部走 console.log（[cardbox-kb] 前缀），因为 Notice 在真机上
+	 * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
 	 */
 	private bindKeyboard(): void {
-		if (!Platform.isMobile) return;
+		const tag = '[cardbox-kb]';
+		const pm = Platform as unknown as {
+			isMobileApp?: boolean;
+			isAndroidApp?: boolean;
+			mobileKeyboardHeight?: number;
+			mobileSoftKeyboardVisible?: boolean;
+			mobileDeviceHeight?: number;
+		};
+		const cap = (window as unknown as {
+			Capacitor?: { Plugins?: { Keyboard?: {
+				addListener?: (event: string, cb: (info?: { keyboardHeight?: number }) => void) => Promise<{ remove?: () => void }>;
+			} } };
+		}).Capacitor;
+		const kb = cap?.Plugins?.Keyboard;
+
+		// 环境快照（打开即输出，不依赖任何交互）
+		console.log(tag, '=== bindKeyboard ===');
+		console.log(tag, 'isMobile=', Platform.isMobile, 'isMobileApp=', pm.isMobileApp, 'isAndroidApp=', pm.isAndroidApp);
+		console.log(tag, 'Capacitor=', !!cap, 'Keyboard=', !!kb, 'addListener=', typeof kb?.addListener);
+		console.log(tag, 'pkH=', pm.mobileKeyboardHeight, 'vis=', pm.mobileSoftKeyboardVisible, 'deviceH=', pm.mobileDeviceHeight);
+		console.log(tag, 'innerH=', window.innerHeight, 'outerH=', window.outerHeight, 'screenH=', window.screen?.height, 'dpr=', window.devicePixelRatio, 'vv=', window.visualViewport ? Math.round(window.visualViewport.height ?? 0) : null);
+
+		if (!Platform.isMobile) {
+			console.log(tag, 'skip：非移动端');
+			return;
+		}
 		const container = this.modalEl?.parentElement;
-		if (!container) return;
+		if (!container) {
+			console.log(tag, 'skip：找不到 modal 容器');
+			return;
+		}
+		console.log(tag, 'container=', container.className, 'modal=', this.modalEl?.className);
 
 		let keyboard = 0;
 		const apply = () => {
@@ -158,37 +182,30 @@ export class CaptureModal extends Modal {
 		};
 		const raise = (h: number) => {
 			if (h > keyboard) {
+				console.log(tag, 'raise', keyboard, '->', h);
 				keyboard = h;
 				apply();
 			}
 		};
 
 		// 信号 1：Capacitor Keyboard 事件
-		const cap = (window as unknown as {
-			Capacitor?: { Plugins?: { Keyboard?: {
-				addListener?: (event: string, cb: (info?: { keyboardHeight?: number }) => void) => Promise<{ remove?: () => void }>;
-			} } };
-		}).Capacitor;
-		const kb = cap?.Plugins?.Keyboard;
 		const handles: Array<{ remove?: () => void }> = [];
 		if (kb?.addListener) {
 			kb.addListener('keyboardWillShow', (info) => {
+				console.log(tag, 'keyboardWillShow 触发，raw keyboardHeight=', info?.keyboardHeight, '→ css=', toCssPx(info?.keyboardHeight ?? 0));
 				raise(toCssPx(info?.keyboardHeight ?? 0));
-			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
+			}).then((h) => { if (h) handles.push(h); }).catch((e) => console.log(tag, 'show 监听失败', e));
 			kb.addListener('keyboardWillHide', () => {
+				console.log(tag, 'keyboardWillHide 触发');
 				keyboard = 0;
 				apply();
-			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
+			}).then((h) => { if (h) handles.push(h); }).catch((e) => console.log(tag, 'hide 监听失败', e));
 		}
 
 		// 信号 2 + 3：Platform 内置值 + visualViewport 差值
 		const poll = () => {
-			const p = Platform as unknown as {
-				mobileKeyboardHeight?: number;
-				mobileSoftKeyboardVisible?: boolean;
-			};
-			if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === 'number') {
-				raise(p.mobileKeyboardHeight);
+			if (pm.mobileSoftKeyboardVisible && typeof pm.mobileKeyboardHeight === 'number') {
+				raise(pm.mobileKeyboardHeight);
 			}
 			const vv = window.visualViewport;
 			if (vv?.height) raise(Math.max(0, window.innerHeight - vv.height));
@@ -199,31 +216,13 @@ export class CaptureModal extends Modal {
 		window.addEventListener('resize', poll);
 
 		// 信号 4：textarea 聚焦时键盘必然弹出，立即触发一次检查
-		this.textarea?.addEventListener('focus', poll);
-
-		// 诊断：首次聚焦后延迟检查，若键盘没被检测到则提示信号源状态，
-		// 便于在真机上定位「到底哪一层失效」
-		let diagnosed = false;
 		this.textarea?.addEventListener('focus', () => {
-			if (diagnosed) return;
-			diagnosed = true;
-			window.setTimeout(() => {
-				const p = Platform as unknown as {
-					mobileKeyboardHeight?: number;
-					mobileSoftKeyboardVisible?: boolean;
-				};
-				const hasCap = !!(window as unknown as {
-					Capacitor?: { Plugins?: { Keyboard?: unknown } };
-				}).Capacitor?.Plugins?.Keyboard;
-				const vv = window.visualViewport;
-				new Notice(
-					`键盘诊断 cap=${hasCap} pkH=${p.mobileKeyboardHeight ?? '∅'} vis=${p.mobileSoftKeyboardVisible ?? '∅'} vv=${vv ? Math.round(vv.height ?? 0) : '∅'} inner=${window.innerHeight} kb=${keyboard}`,
-					8000,
-				);
-			}, 1500);
+			console.log(tag, 'textarea focus 触发');
+			poll();
 		});
 
 		poll();
+		console.log(tag, '初始 keyboard=', keyboard);
 
 		this.keyboardCleanup = () => {
 			if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
