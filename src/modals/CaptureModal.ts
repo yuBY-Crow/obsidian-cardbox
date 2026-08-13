@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, Platform } from 'obsidian';
 import { i18n } from '../i18n';
 import type { CardBoxContext } from '../context';
 import type { Card } from '../types';
@@ -32,6 +32,7 @@ export class CaptureModal extends Modal {
 	private titleInput: HTMLInputElement;
 	private textarea: HTMLTextAreaElement;
 	private continuous = true;
+	private keyboardCleanup: (() => void) | null = null;
 
 	constructor(
 		app: App,
@@ -46,6 +47,8 @@ export class CaptureModal extends Modal {
 		// 沉浸式：class 打在 modalEl 上（关闭按钮 .modal-close-button 是它的直接子元素，
 		// 打在 titleEl.parentElement 上层级不对，选择器命不中）
 		this.modalEl?.addClass('cardbox-capture-modal');
+		// modal 容器（modalEl 的父级 = .modal-container）也标记，用于底部对齐
+		this.modalEl?.parentElement?.addClass('cardbox-capture-container');
 
 		const { contentEl } = this;
 		contentEl.empty();
@@ -121,6 +124,42 @@ export class CaptureModal extends Modal {
 		} else {
 			this.textarea.focus();
 		}
+
+		// 手机端：下部实时贴合输入法键盘顶部
+		this.bindKeyboard();
+	}
+
+	/**
+	 * 手机端让卡片下部贴合输入法键盘顶部。
+	 *
+	 * 原理：键盘弹出时 visualViewport 高度会缩小（iOS），或 innerHeight
+	 * 会缩小（Android adjustResize）。用「窗口高度 - 可视视口高度」算出
+	 * 键盘占用高度，把 modal 底部往上顶，使 footer 始终停在键盘上沿。
+	 */
+	private bindKeyboard(): void {
+		if (!Platform.isMobile) return;
+		const vv = window.visualViewport;
+		if (!vv) return;
+
+		const adjust = () => {
+			const vvHeight = vv.height ?? window.innerHeight;
+			const keyboard = Math.max(0, window.innerHeight - vvHeight);
+			// modal 容器（Obsidian 的 .modal-container）是 fixed 全屏的，
+			// 用 transform 上移 modalEl 本身，让底部对齐键盘顶部
+			const modal = this.modalEl;
+			if (modal) {
+				modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : '';
+				modal.style.transition = 'transform 0.15s ease-out';
+			}
+		};
+
+		vv.addEventListener('resize', adjust);
+		vv.addEventListener('scroll', adjust);
+		adjust();
+		this.keyboardCleanup = () => {
+			vv.removeEventListener('resize', adjust);
+			vv.removeEventListener('scroll', adjust);
+		};
 	}
 
 	private async save(): Promise<void> {
@@ -159,7 +198,10 @@ export class CaptureModal extends Modal {
 	}
 
 	onClose(): void {
+		this.keyboardCleanup?.();
+		this.keyboardCleanup = null;
 		this.modalEl?.removeClass('cardbox-capture-modal');
+		this.modalEl?.parentElement?.removeClass('cardbox-capture-container');
 		this.contentEl.empty();
 	}
 }

@@ -3923,11 +3923,13 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.ctx = ctx;
     this.opts = opts;
     this.continuous = true;
+    this.keyboardCleanup = null;
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
-    var _a;
+    var _a, _b, _c;
     (_a = this.modalEl) == null ? void 0 : _a.addClass("cardbox-capture-modal");
+    (_c = (_b = this.modalEl) == null ? void 0 : _b.parentElement) == null ? void 0 : _c.addClass("cardbox-capture-container");
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
@@ -3988,6 +3990,36 @@ var CaptureModal = class extends import_obsidian18.Modal {
     } else {
       this.textarea.focus();
     }
+    this.bindKeyboard();
+  }
+  /**
+   * 手机端让卡片下部贴合输入法键盘顶部。
+   *
+   * 原理：键盘弹出时 visualViewport 高度会缩小（iOS），或 innerHeight
+   * 会缩小（Android adjustResize）。用「窗口高度 - 可视视口高度」算出
+   * 键盘占用高度，把 modal 底部往上顶，使 footer 始终停在键盘上沿。
+   */
+  bindKeyboard() {
+    if (!import_obsidian18.Platform.isMobile) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const adjust = () => {
+      var _a;
+      const vvHeight = (_a = vv.height) != null ? _a : window.innerHeight;
+      const keyboard = Math.max(0, window.innerHeight - vvHeight);
+      const modal = this.modalEl;
+      if (modal) {
+        modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : "";
+        modal.style.transition = "transform 0.15s ease-out";
+      }
+    };
+    vv.addEventListener("resize", adjust);
+    vv.addEventListener("scroll", adjust);
+    adjust();
+    this.keyboardCleanup = () => {
+      vv.removeEventListener("resize", adjust);
+      vv.removeEventListener("scroll", adjust);
+    };
   }
   async save() {
     const body = this.textarea.value.trim();
@@ -4020,8 +4052,11 @@ var CaptureModal = class extends import_obsidian18.Modal {
     }
   }
   onClose() {
-    var _a;
-    (_a = this.modalEl) == null ? void 0 : _a.removeClass("cardbox-capture-modal");
+    var _a, _b, _c, _d;
+    (_a = this.keyboardCleanup) == null ? void 0 : _a.call(this);
+    this.keyboardCleanup = null;
+    (_b = this.modalEl) == null ? void 0 : _b.removeClass("cardbox-capture-modal");
+    (_d = (_c = this.modalEl) == null ? void 0 : _c.parentElement) == null ? void 0 : _d.removeClass("cardbox-capture-container");
     this.contentEl.empty();
   }
 };
