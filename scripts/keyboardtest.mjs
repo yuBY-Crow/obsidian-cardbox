@@ -197,7 +197,7 @@ t('容器为底部对齐（align-items flex-end）', result.containerAlignItems 
 t('无键盘时容器 padding-bottom 为空', result.paddingNoKeyboard === '' || result.paddingNoKeyboard === undefined, result.paddingNoKeyboard);
 t('无键盘时卡片高度为默认（空）', result.heightNoKeyboard === '' || result.heightNoKeyboard === undefined, result.heightNoKeyboard);
 t('dpr=3 时 Capacitor 上报 319px → padding-bottom=319px（不再被 dpr 除）', result.paddingWithWeChatKeyboard === '319px', result.paddingWithWeChatKeyboard);
-t('键盘弹出时卡片高度 = 100vh - 键盘(319) - 上移量(60)', result.heightWithWeChatKeyboard === 'calc(100vh - 379px)' || result.heightWithWeChatKeyboard === 'calc(-379px + 100vh)', result.heightWithWeChatKeyboard);
+t('键盘弹出时卡片高度 = innerHeight(844) - 键盘(319) - 上移量(20) = 505px', result.heightWithWeChatKeyboard === '505px', result.heightWithWeChatKeyboard);
 t('键盘收起后 padding-bottom 复位', result.paddingKeyboardClosed === '' || result.paddingKeyboardClosed === undefined, result.paddingKeyboardClosed);
 t('键盘收起后卡片高度复位', result.heightKeyboardClosed === '' || result.heightKeyboardClosed === undefined, result.heightKeyboardClosed);
 
