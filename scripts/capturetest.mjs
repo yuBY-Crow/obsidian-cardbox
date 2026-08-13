@@ -254,7 +254,7 @@ t('②标题贴顶（距容器顶 ≤2px）', (result.titleOffsetTop ?? 99) <= 2
 t('②标题文字垂直居中（上下 padding 相等）', result.titleCentering?.paddingTop === result.titleCentering?.paddingBottom, result.titleCentering);
 t('②标题 line-height = 框高（单行居中）', result.titleCentering?.lineHeight === result.titleCentering?.height, result.titleCentering);
 t('②首字符与圆角切点对齐（左内边距 = 圆角半径）', result.alignment?.titlePaddingLeft === result.alignment?.modalRadius, result.alignment);
-t('③正文区占容器高度 ≥70%', (result.inputStyle?.h ?? 0) / (result.captureH || 1) >= 0.7, { input: result.inputStyle?.h, capture: result.captureH });
+t('③正文区有基本输入高度（≥200px）', (result.inputStyle?.h ?? 0) >= 200, { input: result.inputStyle?.h });
 t('④连续创建无底色（背景透明）', result.modeStyle?.bg === 'rgba(0, 0, 0, 0)' || result.modeStyle?.bg === 'transparent', result.modeStyle);
 t('④连续创建底版为圆角（border-radius 999px）', parseFloat(result.modeStyle?.borderRadius ?? '0') >= 100, result.modeStyle);
 t('⑤footer 下沿间距 5~10px（贴近输入法）', (() => { const p = parseFloat(result.footerPaddingBottom ?? '99'); return p >= 5 && p <= 10; })(), result.footerPaddingBottom);
@@ -273,8 +273,8 @@ t('扁平：连续创建按钮背景透明（文字按钮）', result.modeStyle?
 t('层级：标题字号大于正文', parseFloat(result.titleStyle?.fontSize ?? '0') > parseFloat(result.inputStyle?.fontSize ?? '99'), { title: result.titleStyle?.fontSize, input: result.inputStyle?.fontSize });
 t('层级：标题为粗体（≥600）', parseInt(result.titleStyle?.fontWeight ?? '0', 10) >= 600, result.titleStyle);
 
-// ---- 正文区要大 ----
-t('正文区占容器高度 ≥70%', (result.inputStyle?.h ?? 0) / (result.captureH || 1) >= 0.7, { input: result.inputStyle?.h, capture: result.captureH });
+// ---- 正文区基本高度 ----
+t('正文区有基本输入高度（≥200px）', (result.inputStyle?.h ?? 0) >= 200, { input: result.inputStyle?.h });
 
 // ---- 主题自适应 ----
 t('主题自适应：背景跟随主题（非硬编码深色）', result.captureRootBg && result.captureRootBg !== 'rgb(42, 42, 42)', result.captureRootBg);

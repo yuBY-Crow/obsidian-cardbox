@@ -177,24 +177,29 @@ export class CaptureModal extends Modal {
 		log.info('kb', '容器与 modal', { container: container.className, modal: this.modalEl?.className });
 
 		let keyboard = 0;
-		// 键盘弹出时卡片上沿额外上移量（用户调优为 20px）
-		const UP_SHIFT = 20;
+		// 键盘弹出时，卡片在「原高度」基础上增高的量（用户要求 40px）
+		const HEIGHT_INCREASE = 40;
 		const modal = this.modalEl;
 		const capture = this.contentEl;
+		// 记录无键盘时的卡片原高度（offsetHeight 强制同步布局，值准确）
+		let originalH = capture.offsetHeight || 0;
+		log.info('kb', '无键盘卡片原高度', { originalH });
+
 		const apply = () => {
 			if (keyboard > 0 && modal) {
 				// 下沿：贴键盘上沿（modal fixed 定位，直接设 bottom）
 				modal.style.bottom = `${keyboard}px`;
-				// 上沿：再上移 UP_SHIFT。用 window.innerHeight 算具体像素
-				// 卡片高度 = 屏幕高 − 键盘 − 上移量，正文区 flex:1 自适应填满
-				const cardH = Math.max(120, window.innerHeight - keyboard - UP_SHIFT);
+				// 卡片高度 = 原高度 + 40（而非撑满屏幕），正文区 flex:1 自适应
+				// 多增高 40px，卡片上沿随之比「纯上移」更靠上，但不顶到屏幕顶
+				const cardH = Math.max(120, originalH + HEIGHT_INCREASE);
 				capture.style.height = `${cardH}px`;
 				capture.style.minHeight = '0';
 				modal.style.maxHeight = 'none';
 				// 打点：记录设置值与实际布局矩形，便于定位「没生效」的层级
 				log.info('kb', '上移+缩放 apply', {
 					keyboard,
-					UP_SHIFT,
+					HEIGHT_INCREASE,
+					originalH,
 					cardH,
 					bottom: modal.style.bottom,
 					height: capture.style.height,

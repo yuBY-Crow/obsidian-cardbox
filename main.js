@@ -4026,19 +4026,22 @@ var CaptureModal = class extends import_obsidian18.Modal {
     }
     log.info("kb", "\u5BB9\u5668\u4E0E modal", { container: container.className, modal: (_e = this.modalEl) == null ? void 0 : _e.className });
     let keyboard = 0;
-    const UP_SHIFT = 20;
+    const HEIGHT_INCREASE = 40;
     const modal = this.modalEl;
     const capture = this.contentEl;
+    let originalH = capture.offsetHeight || 0;
+    log.info("kb", "\u65E0\u952E\u76D8\u5361\u7247\u539F\u9AD8\u5EA6", { originalH });
     const apply = () => {
       if (keyboard > 0 && modal) {
         modal.style.bottom = `${keyboard}px`;
-        const cardH = Math.max(120, window.innerHeight - keyboard - UP_SHIFT);
+        const cardH = Math.max(120, originalH + HEIGHT_INCREASE);
         capture.style.height = `${cardH}px`;
         capture.style.minHeight = "0";
         modal.style.maxHeight = "none";
         log.info("kb", "\u4E0A\u79FB+\u7F29\u653E apply", {
           keyboard,
-          UP_SHIFT,
+          HEIGHT_INCREASE,
+          originalH,
           cardH,
           bottom: modal.style.bottom,
           height: capture.style.height

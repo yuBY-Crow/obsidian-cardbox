@@ -496,8 +496,8 @@ body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
-	/* 正文区尽量大：撑到接近视口高度 */
-	min-height: 62vh;
+	/* 高度由内容自然决定（标题 + 正文 min-height 200px + footer），
+	   键盘弹出时 JS 在原高度上 +40px（不再撑满屏幕顶到顶） */
 	background: var(--background-primary);
 	border: none;
 	padding: 0;
