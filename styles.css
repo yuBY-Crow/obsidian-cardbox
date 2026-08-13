@@ -554,7 +554,7 @@ body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 	font-weight: 600;
 	line-height: 52px;
 	letter-spacing: -0.01em;
-	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+	font-family: var(--font-text);
 }
 .cardbox-capture-modal .cardbox-capture-title:focus,
 .cardbox-capture-modal .cardbox-capture-title:hover,
@@ -587,7 +587,7 @@ body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 	color: var(--text-normal);
 	font-size: 16px;
 	line-height: 1.7;
-	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+	font-family: var(--font-text);
 	height: 100%;
 }
 .cardbox-capture-modal .cardbox-capture-input .cm-scroller {
