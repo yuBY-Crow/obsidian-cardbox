@@ -90,6 +90,8 @@ const result = await page.evaluate(async ({ mainJs, manifest, css }) => {
 		setIcon: () => {},
 		getIcon: () => null,
 		debounce: (fn) => fn,
+		Component: class { load() {} unload() {} },
+		MarkdownRenderer: { render: async () => {} },
 		// Platform 加 Obsidian 移动端内置的键盘属性（mock 可动态改）
 		Platform: {
 			isMobile: true,

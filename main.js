@@ -320,6 +320,8 @@ var i18n = {
   sortTitle: "\u6807\u9898",
   continuousName: "\u8FDE\u7EED\u6A21\u5F0F\u9ED8\u8BA4\u5F00\u542F",
   continuousDesc: "\u5FEB\u901F\u8BB0\u5F55\u65F6\u4FDD\u5B58\u540E\u4FDD\u6301\u6253\u5F00\u5E76\u6E05\u7A7A\u8F93\u5165\u6846\uFF0C\u65B9\u4FBF\u8FDE\u7EED\u5F55\u5165\u7075\u611F\u3002",
+  capturePreviewName: "\u65B0\u5EFA\u5361\u7247\u5B9E\u65F6\u9884\u89C8",
+  capturePreviewDesc: "\u5728\u65B0\u5EFA\u5361\u7247\u6B63\u6587\u4E0B\u65B9\u5B9E\u65F6\u6E32\u67D3 Markdown\uFF08\u652F\u6301 #\u6807\u7B7E\u3001[[\u7B14\u8BB0\u5F15\u7528]] \u7B49 Obsidian \u8BED\u6CD5\uFF09\u3002",
   showArchivedName: "\u5361\u7247\u76D2\u4E2D\u663E\u793A\u5F52\u6863\u5361\u7247",
   showArchivedDesc: "\u5173\u95ED\u65F6\u5F52\u6863\u5361\u7247\u4E0D\u51FA\u73B0\u5728\u5361\u7247\u76D2\u4E2D\u3002",
   archiveMethodName: "\u5F52\u6863\u65B9\u5F0F",
@@ -361,7 +363,8 @@ var DEFAULT_SETTINGS = {
   canvasDrawEdges: true,
   canvasBidirectionalColor: "5",
   defaultProperties: {},
-  writeTimestampFields: false
+  writeTimestampFields: false,
+  capturePreview: true
 };
 var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
   /**
@@ -502,6 +505,12 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName(i18n.continuousName).setDesc(i18n.continuousDesc).addToggle((t) => {
       t.setValue(s.continuousCaptureDefault).onChange(async (v) => {
         s.continuousCaptureDefault = v;
+        await this.access.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName(i18n.capturePreviewName).setDesc(i18n.capturePreviewDesc).addToggle((t) => {
+      t.setValue(s.capturePreview).onChange(async (v) => {
+        s.capturePreview = v;
         await this.access.saveSettings();
       });
     });
@@ -3925,6 +3934,9 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.continuous = true;
     this.keyboardCleanup = null;
     this.keyboardPoll = null;
+    this.previewEl = null;
+    this.previewComponent = null;
+    this.renderPreviewDebounce = null;
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
@@ -3974,6 +3986,13 @@ var CaptureModal = class extends import_obsidian18.Modal {
       }
     });
     if (this.opts.prefill) this.textarea.value = this.opts.prefill;
+    if (this.ctx.settings.capturePreview) {
+      this.previewEl = contentEl.createDiv({ cls: "cardbox-capture-preview" });
+      this.previewEl.style.display = "none";
+      this.previewComponent = new import_obsidian18.Component();
+      this.previewComponent.load();
+      this.textarea.addEventListener("input", () => this.schedulePreview());
+    }
     const footer = contentEl.createDiv({ cls: "cardbox-capture-footer" });
     if (!this.opts.parent && !this.opts.singleShot) {
       const mode = footer.createEl("button", { cls: "cardbox-capture-mode" });
@@ -4003,6 +4022,39 @@ var CaptureModal = class extends import_obsidian18.Modal {
       this.textarea.focus();
     }
     this.bindKeyboard();
+    if (this.previewEl) void this.renderPreview();
+  }
+  /** 防抖触发预览渲染（输入停止 250ms 后渲染，避免每次按键都全量重渲染） */
+  schedulePreview() {
+    if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
+    this.renderPreviewDebounce = window.setTimeout(() => {
+      this.renderPreviewDebounce = null;
+      void this.renderPreview();
+    }, 250);
+  }
+  /** 用 Obsidian 渲染器实时渲染正文，支持 #标签、[[引用]] 等语法 */
+  async renderPreview() {
+    const el = this.previewEl;
+    if (!el || !this.previewComponent) return;
+    const text = this.textarea.value.trim();
+    if (!text) {
+      el.style.display = "none";
+      el.empty();
+      return;
+    }
+    el.style.display = "";
+    el.empty();
+    try {
+      await import_obsidian18.MarkdownRenderer.render(
+        this.app,
+        text,
+        el,
+        this.ctx.settings.cardsFolder,
+        this.previewComponent
+      );
+    } catch (e) {
+      log.warn("capture", "\u9884\u89C8\u6E32\u67D3\u5931\u8D25", e);
+    }
   }
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
@@ -4148,11 +4200,15 @@ var CaptureModal = class extends import_obsidian18.Modal {
     }
   }
   onClose() {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     (_a = this.keyboardCleanup) == null ? void 0 : _a.call(this);
     this.keyboardCleanup = null;
-    (_b = this.modalEl) == null ? void 0 : _b.removeClass("cardbox-capture-modal");
-    (_d = (_c = this.modalEl) == null ? void 0 : _c.parentElement) == null ? void 0 : _d.removeClass("cardbox-capture-container");
+    if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
+    this.renderPreviewDebounce = null;
+    (_b = this.previewComponent) == null ? void 0 : _b.unload();
+    this.previewComponent = null;
+    (_c = this.modalEl) == null ? void 0 : _c.removeClass("cardbox-capture-modal");
+    (_e = (_d = this.modalEl) == null ? void 0 : _d.parentElement) == null ? void 0 : _e.removeClass("cardbox-capture-container");
     this.contentEl.empty();
   }
 };

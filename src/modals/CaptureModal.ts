@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Platform } from 'obsidian';
+import { App, Component, MarkdownRenderer, Modal, Notice, Platform } from 'obsidian';
 import { i18n } from '../i18n';
 import type { CardBoxContext } from '../context';
 import type { Card } from '../types';
@@ -35,6 +35,9 @@ export class CaptureModal extends Modal {
 	private continuous = true;
 	private keyboardCleanup: (() => void) | null = null;
 	private keyboardPoll: number | null = null;
+	private previewEl: HTMLElement | null = null;
+	private previewComponent: Component | null = null;
+	private renderPreviewDebounce: number | null = null;
 
 	constructor(
 		app: App,
@@ -106,6 +109,15 @@ export class CaptureModal extends Modal {
 		});
 		if (this.opts.prefill) this.textarea.value = this.opts.prefill;
 
+		// 实时 Markdown 预览（设置开启时）：正文与 footer 之间的预览区
+		if (this.ctx.settings.capturePreview) {
+			this.previewEl = contentEl.createDiv({ cls: 'cardbox-capture-preview' });
+			this.previewEl.style.display = 'none';
+			this.previewComponent = new Component();
+			this.previewComponent.load();
+			this.textarea.addEventListener('input', () => this.schedulePreview());
+		}
+
 		// 底部：连续创建（左，文字按钮）+ 保存（右，主色胶囊）
 		const footer = contentEl.createDiv({ cls: 'cardbox-capture-footer' });
 
@@ -144,6 +156,43 @@ export class CaptureModal extends Modal {
 
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
+
+		// 有预填内容时立即渲染一次预览
+		if (this.previewEl) void this.renderPreview();
+	}
+
+	/** 防抖触发预览渲染（输入停止 250ms 后渲染，避免每次按键都全量重渲染） */
+	private schedulePreview(): void {
+		if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
+		this.renderPreviewDebounce = window.setTimeout(() => {
+			this.renderPreviewDebounce = null;
+			void this.renderPreview();
+		}, 250);
+	}
+
+	/** 用 Obsidian 渲染器实时渲染正文，支持 #标签、[[引用]] 等语法 */
+	private async renderPreview(): Promise<void> {
+		const el = this.previewEl;
+		if (!el || !this.previewComponent) return;
+		const text = this.textarea.value.trim();
+		if (!text) {
+			el.style.display = 'none';
+			el.empty();
+			return;
+		}
+		el.style.display = '';
+		el.empty();
+		try {
+			await MarkdownRenderer.render(
+				this.app,
+				text,
+				el,
+				this.ctx.settings.cardsFolder,
+				this.previewComponent,
+			);
+		} catch (e) {
+			log.warn('capture', '预览渲染失败', e);
+		}
 	}
 
 	/**
@@ -312,6 +361,10 @@ export class CaptureModal extends Modal {
 	onClose(): void {
 		this.keyboardCleanup?.();
 		this.keyboardCleanup = null;
+		if (this.renderPreviewDebounce !== null) window.clearTimeout(this.renderPreviewDebounce);
+		this.renderPreviewDebounce = null;
+		this.previewComponent?.unload();
+		this.previewComponent = null;
 		this.modalEl?.removeClass('cardbox-capture-modal');
 		this.modalEl?.parentElement?.removeClass('cardbox-capture-container');
 		this.contentEl.empty();

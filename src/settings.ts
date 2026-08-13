@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	canvasBidirectionalColor: '5',
 	defaultProperties: {},
 	writeTimestampFields: false,
+	capturePreview: true,
 };
 
 /** main.ts 的 CardBoxPlugin 需实现此接口，避免设置页与主模块循环依赖 */
@@ -250,6 +251,16 @@ export class CardBoxSettingTab extends PluginSettingTab {
 			.addToggle((t) => {
 				t.setValue(s.continuousCaptureDefault).onChange(async (v) => {
 					s.continuousCaptureDefault = v;
+					await this.access.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(i18n.capturePreviewName)
+			.setDesc(i18n.capturePreviewDesc)
+			.addToggle((t) => {
+				t.setValue(s.capturePreview).onChange(async (v) => {
+					s.capturePreview = v;
 					await this.access.saveSettings();
 				});
 			});

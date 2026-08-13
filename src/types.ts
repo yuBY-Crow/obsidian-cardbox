@@ -155,6 +155,8 @@ export interface CardBoxSettings {
 	 * 属性面板不会显示这两个对用户无意义的时间戳。
 	 */
 	writeTimestampFields: boolean;
+	/** 新建卡片时实时预览 Markdown（#标签、[[引用]] 等 Obsidian 语法） */
+	capturePreview: boolean;
 }
 
 /** 新建卡片属性预设的推荐项（供设置页一键添加） */

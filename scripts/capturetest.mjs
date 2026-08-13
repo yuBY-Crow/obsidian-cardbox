@@ -97,6 +97,8 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 		setIcon: (el, name) => { el.setAttribute('data-icon', name); const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); el.appendChild(svg); },
 		getIcon: () => null,
 		debounce: (fn) => fn,
+		Component: class { load() {} unload() {} },
+		MarkdownRenderer: { render: async () => {} },
 		Platform: { isMobile: true },
 		normalizePath: (p) => p,
 	};
@@ -134,6 +136,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 
 	return {
 		modalCls: document.querySelector('.cardbox-capture') ? 'yes' : 'no',
+		hasPreview: !!document.querySelector('.cardbox-capture-preview'),
 		modalRect: (() => { const m = document.querySelector('.modal'); if (!m) return null; const r = m.getBoundingClientRect(); return { top: Math.round(r.top) }; })(),
 		titleInput: (() => {
 			const i = document.querySelector('.cardbox-capture-title');
@@ -239,6 +242,7 @@ const t = (name, cond, got) => { if (cond) pass++; else { fail++; console.log('F
 
 // ---- 结构 ----
 t('CaptureModal 已打开（有 .cardbox-capture）', result.modalCls === 'yes', result.modalCls);
+t('实时预览开启（capturePreview 默认 true）→ 有预览区', result.hasPreview === true, result.hasPreview);
 t('标题输入框在最顶部（第一个子元素）', result.order[0] === 'cardbox-capture-title', result.order);
 t('标题是可编辑 input', result.titleInput?.tag === 'INPUT', result.titleInput);
 t('标题默认值为创建时间（YYYY-MM-DD-HHmmss）', result.titleInput?.matchesTime === true, result.titleInput);

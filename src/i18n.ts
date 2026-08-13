@@ -260,6 +260,8 @@ export const i18n = {
 	sortTitle: '标题',
 	continuousName: '连续模式默认开启',
 	continuousDesc: '快速记录时保存后保持打开并清空输入框，方便连续录入灵感。',
+	capturePreviewName: '新建卡片实时预览',
+	capturePreviewDesc: '在新建卡片正文下方实时渲染 Markdown（支持 #标签、[[笔记引用]] 等 Obsidian 语法）。',
 	showArchivedName: '卡片盒中显示归档卡片',
 	showArchivedDesc: '关闭时归档卡片不出现在卡片盒中。',
 	archiveMethodName: '归档方式',
