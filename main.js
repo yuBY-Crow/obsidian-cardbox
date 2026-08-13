@@ -4006,7 +4006,7 @@ var CaptureModal = class extends import_obsidian18.Modal {
    * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
    */
   bindKeyboard() {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     const pm = import_obsidian18.Platform;
     const cap = window.Capacitor;
     const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
@@ -4025,6 +4025,17 @@ var CaptureModal = class extends import_obsidian18.Modal {
       return;
     }
     log.info("kb", "\u5BB9\u5668\u4E0E modal", { container: container.className, modal: (_e = this.modalEl) == null ? void 0 : _e.className });
+    {
+      const mr = (_f = this.modalEl) == null ? void 0 : _f.getBoundingClientRect();
+      const cr = container.getBoundingClientRect();
+      log.info("kb", "\u5B9A\u4F4D\u8BCA\u65AD", {
+        bodyClass: document.body.className,
+        modalRect: mr ? { top: Math.round(mr.top), left: Math.round(mr.left), w: Math.round(mr.width), h: Math.round(mr.height) } : null,
+        containerRect: cr ? { top: Math.round(cr.top), left: Math.round(cr.left), w: Math.round(cr.width), h: Math.round(cr.height) } : null,
+        modalPosition: this.modalEl ? getComputedStyle(this.modalEl).position : null,
+        containerTransform: getComputedStyle(container).transform
+      });
+    }
     let keyboard = 0;
     const HEIGHT_INCREASE = 40;
     const modal = this.modalEl;
@@ -4091,10 +4102,10 @@ var CaptureModal = class extends import_obsidian18.Modal {
       if (vv == null ? void 0 : vv.height) raise(Math.max(0, window.innerHeight - vv.height));
     };
     this.keyboardPoll = window.setInterval(poll, 200);
-    (_f = window.visualViewport) == null ? void 0 : _f.addEventListener("resize", poll);
-    (_g = window.visualViewport) == null ? void 0 : _g.addEventListener("scroll", poll);
+    (_g = window.visualViewport) == null ? void 0 : _g.addEventListener("resize", poll);
+    (_h = window.visualViewport) == null ? void 0 : _h.addEventListener("scroll", poll);
     window.addEventListener("resize", poll);
-    (_h = this.textarea) == null ? void 0 : _h.addEventListener("focus", () => {
+    (_i = this.textarea) == null ? void 0 : _i.addEventListener("focus", () => {
       log.info("kb", "textarea focus \u89E6\u53D1");
       poll();
     });

@@ -175,6 +175,18 @@ export class CaptureModal extends Modal {
 			return;
 		}
 		log.info('kb', '容器与 modal', { container: container.className, modal: this.modalEl?.className });
+	// 诊断「卡片飞了」：body 是否有 is-mobile、modal 实际位置、容器 transform
+	{
+		const mr = this.modalEl?.getBoundingClientRect();
+		const cr = container.getBoundingClientRect();
+		log.info('kb', '定位诊断', {
+			bodyClass: document.body.className,
+			modalRect: mr ? { top: Math.round(mr.top), left: Math.round(mr.left), w: Math.round(mr.width), h: Math.round(mr.height) } : null,
+			containerRect: cr ? { top: Math.round(cr.top), left: Math.round(cr.left), w: Math.round(cr.width), h: Math.round(cr.height) } : null,
+			modalPosition: this.modalEl ? getComputedStyle(this.modalEl).position : null,
+			containerTransform: getComputedStyle(container).transform,
+		});
+	}
 
 		let keyboard = 0;
 		// 键盘弹出时，卡片在「原高度」基础上增高的量（用户要求 40px）

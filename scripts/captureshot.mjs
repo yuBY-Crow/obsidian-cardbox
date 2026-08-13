@@ -31,6 +31,7 @@ ${css}
 </body></html>`);
 
 await page.evaluate(async ({ mainJs, manifest }) => {
+	document.body.classList.add('is-mobile');
 	const applyOpts = (el, o) => {
 		if (!o) return el;
 		if (typeof o === 'string') { el.className = o; return el; }
