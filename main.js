@@ -3931,9 +3931,15 @@ var CaptureModal = class extends import_obsidian18.Modal {
     var _a, _b, _c;
     (_a = this.modalEl) == null ? void 0 : _a.addClass("cardbox-capture-modal");
     (_c = (_b = this.modalEl) == null ? void 0 : _b.parentElement) == null ? void 0 : _c.addClass("cardbox-capture-container");
+    this.titleEl.style.display = "none";
+    this.titleEl.style.height = "0";
+    this.titleEl.style.padding = "0";
+    this.titleEl.style.margin = "0";
+    if (this.modalEl) this.modalEl.style.padding = "0";
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
+    contentEl.style.padding = "0";
     this.titleInput = contentEl.createEl("input", {
       cls: "cardbox-capture-title",
       attr: {

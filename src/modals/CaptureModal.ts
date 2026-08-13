@@ -52,9 +52,19 @@ export class CaptureModal extends Modal {
 		// modal 容器（modalEl 的父级 = .modal-container）也标记，用于底部对齐
 		this.modalEl?.parentElement?.addClass('cardbox-capture-container');
 
+		// 用 JS 强制隐藏 Obsidian 默认标题栏、去掉 content 默认 padding，
+		// 让自定义标题 input 真正贴卡片顶部（CSS 可能被主题覆盖）
+		this.titleEl.style.display = 'none';
+		this.titleEl.style.height = '0';
+		this.titleEl.style.padding = '0';
+		this.titleEl.style.margin = '0';
+		// modal 本身也强制无 padding，确保关闭按钮 top:0 与标题框同高
+		if (this.modalEl) this.modalEl.style.padding = '0';
+
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('cardbox-capture');
+		contentEl.style.padding = '0';
 
 		// 标题：无边框大字输入，默认 = 创建时间到秒，可直接改
 		this.titleInput = contentEl.createEl('input', {
