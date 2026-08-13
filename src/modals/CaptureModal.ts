@@ -139,6 +139,18 @@ export class CaptureModal extends Modal {
 
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
+
+		// 诊断：标题框与关闭按钮的位置（渲染完成后打点，用于对齐排查）
+		requestAnimationFrame(() => {
+			const modalR = this.modalEl?.getBoundingClientRect();
+			const titleR = this.titleInput?.getBoundingClientRect();
+			const closeR = this.modalEl?.querySelector('.modal-close-button')?.getBoundingClientRect();
+			log.info('kb', '标题框/关闭按钮位置', {
+				modalTop: modalR ? Math.round(modalR.top) : null,
+				title: titleR ? { top: Math.round(titleR.top), bottom: Math.round(titleR.bottom), h: Math.round(titleR.height) } : null,
+				close: closeR ? { top: Math.round(closeR.top), bottom: Math.round(closeR.bottom), h: Math.round(closeR.height), right: Math.round(closeR.right) } : null,
+			});
+		});
 	}
 
 	/**

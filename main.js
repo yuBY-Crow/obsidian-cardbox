@@ -3998,6 +3998,17 @@ var CaptureModal = class extends import_obsidian18.Modal {
       this.textarea.focus();
     }
     this.bindKeyboard();
+    requestAnimationFrame(() => {
+      var _a2, _b2, _c2, _d;
+      const modalR = (_a2 = this.modalEl) == null ? void 0 : _a2.getBoundingClientRect();
+      const titleR = (_b2 = this.titleInput) == null ? void 0 : _b2.getBoundingClientRect();
+      const closeR = (_d = (_c2 = this.modalEl) == null ? void 0 : _c2.querySelector(".modal-close-button")) == null ? void 0 : _d.getBoundingClientRect();
+      log.info("kb", "\u6807\u9898\u6846/\u5173\u95ED\u6309\u94AE\u4F4D\u7F6E", {
+        modalTop: modalR ? Math.round(modalR.top) : null,
+        title: titleR ? { top: Math.round(titleR.top), bottom: Math.round(titleR.bottom), h: Math.round(titleR.height) } : null,
+        close: closeR ? { top: Math.round(closeR.top), bottom: Math.round(closeR.bottom), h: Math.round(closeR.height), right: Math.round(closeR.right) } : null
+      });
+    });
   }
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
