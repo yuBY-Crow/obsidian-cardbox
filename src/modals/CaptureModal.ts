@@ -133,6 +133,23 @@ export class CaptureModal extends Modal {
 
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
+
+		// 诊断：字体实际计算值，用于对比编辑器与 Obsidian 正文默认字体是否一致
+		window.setTimeout(() => {
+			const bodyCs = getComputedStyle(document.body);
+			const editorDom = this.editorView?.dom;
+			const contentEl2 = editorDom?.querySelector('.cm-content');
+			const lineEl = editorDom?.querySelector('.cm-line');
+			log.info('font', '字体诊断', {
+				bodyFont: bodyCs.fontFamily,
+				fontTextVar: bodyCs.getPropertyValue('--font-text').trim(),
+				fontInterfaceVar: bodyCs.getPropertyValue('--font-interface').trim(),
+				titleFont: this.titleInput ? getComputedStyle(this.titleInput).fontFamily : null,
+				editorFont: editorDom ? getComputedStyle(editorDom).fontFamily : null,
+				contentFont: contentEl2 ? getComputedStyle(contentEl2).fontFamily : null,
+				lineFont: lineEl ? getComputedStyle(lineEl).fontFamily : null,
+			});
+		}, 300);
 	}
 
 	/**

@@ -4090,6 +4090,22 @@ var CaptureModal = class extends import_obsidian18.Modal {
     addBtn.addEventListener("click", () => void this.save());
     this.editorView.focus();
     this.bindKeyboard();
+    window.setTimeout(() => {
+      var _a2;
+      const bodyCs = getComputedStyle(document.body);
+      const editorDom = (_a2 = this.editorView) == null ? void 0 : _a2.dom;
+      const contentEl2 = editorDom == null ? void 0 : editorDom.querySelector(".cm-content");
+      const lineEl = editorDom == null ? void 0 : editorDom.querySelector(".cm-line");
+      log.info("font", "\u5B57\u4F53\u8BCA\u65AD", {
+        bodyFont: bodyCs.fontFamily,
+        fontTextVar: bodyCs.getPropertyValue("--font-text").trim(),
+        fontInterfaceVar: bodyCs.getPropertyValue("--font-interface").trim(),
+        titleFont: this.titleInput ? getComputedStyle(this.titleInput).fontFamily : null,
+        editorFont: editorDom ? getComputedStyle(editorDom).fontFamily : null,
+        contentFont: contentEl2 ? getComputedStyle(contentEl2).fontFamily : null,
+        lineFont: lineEl ? getComputedStyle(lineEl).fontFamily : null
+      });
+    }, 300);
   }
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
