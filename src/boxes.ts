@@ -82,11 +82,6 @@ export function cardMatchesBox(card: Card, def: CardBoxDef, now: number = Date.n
 	return true;
 }
 
-/** 抓取落入卡片盒的全部卡片 */
-export function collectBoxCards(cards: Card[], def: CardBoxDef, now: number = Date.now()): Card[] {
-	return cards.filter((c) => cardMatchesBox(c, def, now));
-}
-
 /** 卡片盒条件摘要，用于 UI 提示（无条件时返回「全部卡片」） */
 export function describeBox(def: CardBoxDef): string {
 	const parts: string[] = [];

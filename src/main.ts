@@ -47,7 +47,7 @@ export default class CardBoxPlugin extends Plugin {
 			() => this.settings.writeTimestampFields,
 			() => this.settings.defaultProperties,
 		);
-		this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
+		this.index = new CardIndex(this.app, this.service);
 		this.index.attach();
 		log.info('init', 'setup 完成，视图与索引已注册');
 

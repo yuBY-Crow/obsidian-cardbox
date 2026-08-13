@@ -1215,10 +1215,9 @@ var SCAN_CONCURRENCY = 10;
 var UPDATE_BUMP_THRESHOLD_MS = 1e3;
 var UPDATE_BUMP_COOLDOWN_MS = 1500;
 var CardIndex = class {
-  constructor(app, service, getFolder) {
+  constructor(app, service) {
     this.app = app;
     this.service = service;
-    this.getFolder = getFolder;
     this.cardsById = /* @__PURE__ */ new Map();
     this.pathToId = /* @__PURE__ */ new Map();
     /**旧 id（frontmatter 残留）→ 当前 id，保证历史关联不断链 */
@@ -1880,7 +1879,6 @@ var TOGGLE_DEFS = [
 ];
 var FilterBar = class {
   constructor(filter, settings, index, cb) {
-    this.settings = settings;
     this.index = index;
     this.cb = cb;
     this.modeBtns = /* @__PURE__ */ new Map();
@@ -2101,7 +2099,6 @@ var FilterMenuModal = class extends import_obsidian7.Modal {
   constructor(app, filter, settings, index, cb) {
     super(app);
     this.filter = filter;
-    this.settings = settings;
     this.index = index;
     this.cb = cb;
     this.sort = settings.defaultSort;
@@ -4102,34 +4099,17 @@ var CaptureModal = class extends import_obsidian18.Modal {
     addBtn.addEventListener("click", () => void this.save());
     this.editorView.focus();
     this.bindKeyboard();
-    window.setTimeout(() => {
-      var _a2;
-      const bodyCs = getComputedStyle(document.body);
-      const editorDom = (_a2 = this.editorView) == null ? void 0 : _a2.dom;
-      const contentEl2 = editorDom == null ? void 0 : editorDom.querySelector(".cm-content");
-      const lineEl = editorDom == null ? void 0 : editorDom.querySelector(".cm-line");
-      log.info("font", "\u5B57\u4F53\u8BCA\u65AD", {
-        bodyFont: bodyCs.fontFamily,
-        fontTextVar: bodyCs.getPropertyValue("--font-text").trim(),
-        fontInterfaceVar: bodyCs.getPropertyValue("--font-interface").trim(),
-        titleFont: this.titleInput ? getComputedStyle(this.titleInput).fontFamily : null,
-        editorFont: editorDom ? getComputedStyle(editorDom).fontFamily : null,
-        contentFont: contentEl2 ? getComputedStyle(contentEl2).fontFamily : null,
-        lineFont: lineEl ? getComputedStyle(lineEl).fontFamily : null
-      });
-    }, 300);
   }
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
    *
-   * 上移手段：给 modal 容器（.modal-container）设 padding-bottom（纯布局
-   * 属性，不碰 transform，避开 Obsidian modal 进入动画的覆盖）。
+   * 上移手段：modal 手机端 fixed 定位到屏幕底部，键盘弹出时用
+   * modal.style.bottom = 键盘高度 顶起下沿；卡片高度 = 原高度 + 40px
+   * （正文区随之变大，上沿不顶到屏幕顶）。
    *
-   * 信号源（取最大值）：Capacitor keyboardWillShow 事件 / Platform
-   * .mobileKeyboardHeight / visualViewport 差值。
-   *
-   * 诊断全部走 console.log（[cardbox-kb] 前缀），因为 Notice 在真机上
-   * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
+   * 信号源（取最大值）：Capacitor keyboardWillShow/WillHide 事件 /
+   * Platform.mobileKeyboardHeight / visualViewport 差值；编辑器聚焦时
+   * 立即轮询一次。
    */
   bindKeyboard() {
     var _a, _b, _c, _d;
@@ -4756,7 +4736,7 @@ var CardBoxPlugin = class extends import_obsidian22.Plugin {
       () => this.settings.writeTimestampFields,
       () => this.settings.defaultProperties
     );
-    this.index = new CardIndex(this.app, this.service, () => this.settings.cardsFolder);
+    this.index = new CardIndex(this.app, this.service);
     this.index.attach();
     log.info("init", "setup \u5B8C\u6210\uFF0C\u89C6\u56FE\u4E0E\u7D22\u5F15\u5DF2\u6CE8\u518C");
     this.ctx = {

@@ -8,12 +8,3 @@ export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: numb
 		}, ms);
 	};
 }
-
-/** 下一帧执行（requestAnimationFrame，不可用时降级 setTimeout） */
-export function nextFrame(fn: () => void): void {
-	if (typeof requestAnimationFrame === 'function') {
-		requestAnimationFrame(() => fn());
-	} else {
-		window.setTimeout(fn, 16);
-	}
-}

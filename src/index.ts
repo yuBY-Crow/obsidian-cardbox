@@ -36,7 +36,6 @@ export class CardIndex {
 	constructor(
 		private app: App,
 		private service: CardService,
-		private getFolder: () => string,
 	) {}
 
 	attach(): void {

@@ -25,10 +25,6 @@ export interface CardTileOptions {
 	onKebab: (card: Card, anchor: HTMLElement) => void;
 }
 
-function firstLine(s: string): string {
-	return s.split('\n')[0].trim();
-}
-
 /** 取第一个非空行（正文常以空行开头，直接取第一行会得到空标题） */
 function firstNonEmptyLine(s: string): string {
 	for (const line of s.split('\n')) {

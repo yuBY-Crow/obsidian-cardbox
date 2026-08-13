@@ -10,8 +10,6 @@ import { createMarkdownEditor, getEditorText, setEditorText } from '../utils/pre
 export interface CaptureOptions {
 	/** 子卡片：保存后登记为父卡片 */
 	parent?: Card;
-	/** 占位提示 */
-	placeholder?: string;
 	/** 预填内容 */
 	prefill?: string;
 	/** 仅保存一次（用于创建子卡片） */
@@ -133,36 +131,18 @@ export class CaptureModal extends Modal {
 
 		// 手机端：下部实时贴合输入法键盘顶部
 		this.bindKeyboard();
-
-		// 诊断：字体实际计算值，用于对比编辑器与 Obsidian 正文默认字体是否一致
-		window.setTimeout(() => {
-			const bodyCs = getComputedStyle(document.body);
-			const editorDom = this.editorView?.dom;
-			const contentEl2 = editorDom?.querySelector('.cm-content');
-			const lineEl = editorDom?.querySelector('.cm-line');
-			log.info('font', '字体诊断', {
-				bodyFont: bodyCs.fontFamily,
-				fontTextVar: bodyCs.getPropertyValue('--font-text').trim(),
-				fontInterfaceVar: bodyCs.getPropertyValue('--font-interface').trim(),
-				titleFont: this.titleInput ? getComputedStyle(this.titleInput).fontFamily : null,
-				editorFont: editorDom ? getComputedStyle(editorDom).fontFamily : null,
-				contentFont: contentEl2 ? getComputedStyle(contentEl2).fontFamily : null,
-				lineFont: lineEl ? getComputedStyle(lineEl).fontFamily : null,
-			});
-		}, 300);
 	}
 
 	/**
 	 * 手机端让卡片下部贴合输入法键盘顶部。
 	 *
-	 * 上移手段：给 modal 容器（.modal-container）设 padding-bottom（纯布局
-	 * 属性，不碰 transform，避开 Obsidian modal 进入动画的覆盖）。
+	 * 上移手段：modal 手机端 fixed 定位到屏幕底部，键盘弹出时用
+	 * modal.style.bottom = 键盘高度 顶起下沿；卡片高度 = 原高度 + 40px
+	 * （正文区随之变大，上沿不顶到屏幕顶）。
 	 *
-	 * 信号源（取最大值）：Capacitor keyboardWillShow 事件 / Platform
-	 * .mobileKeyboardHeight / visualViewport 差值。
-	 *
-	 * 诊断全部走 console.log（[cardbox-kb] 前缀），因为 Notice 在真机上
-	 * 可能被 modal 遮挡看不到；日志在函数开头就输出，不依赖 focus 事件。
+	 * 信号源（取最大值）：Capacitor keyboardWillShow/WillHide 事件 /
+	 * Platform.mobileKeyboardHeight / visualViewport 差值；编辑器聚焦时
+	 * 立即轮询一次。
 	 */
 	private bindKeyboard(): void {
 		const pm = Platform as unknown as {

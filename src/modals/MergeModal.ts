@@ -1,4 +1,4 @@
-import { App, ButtonComponent, DropdownComponent, Modal, Notice, TFile, TextComponent } from 'obsidian';
+import { App, ButtonComponent, DropdownComponent, Modal, Notice, TextComponent } from 'obsidian';
 import { i18n } from '../i18n';
 import type { CardBoxContext } from '../context';
 import type { Card, MergeMode } from '../types';

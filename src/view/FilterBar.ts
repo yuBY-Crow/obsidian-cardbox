@@ -34,7 +34,7 @@ export class FilterBar {
 
 	constructor(
 		filter: FilterState,
-		private settings: CardBoxSettings,
+		settings: CardBoxSettings,
 		private index: CardIndex,
 		private cb: FilterBarCallbacks,
 	) {

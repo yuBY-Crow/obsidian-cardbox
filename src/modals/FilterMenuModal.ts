@@ -4,7 +4,6 @@ import type { CardBoxSettings, CardColor, FilterState, SortMode } from '../types
 import { CARD_COLORS } from '../types';
 import type { CardIndex } from '../index';
 import { debounce } from '../utils/dom';
-import { TagPickerModal } from './TagPickerModal';
 
 export interface FilterMenuCallbacks {
 	onFilterChange: () => void;
@@ -39,7 +38,7 @@ export class FilterMenuModal extends Modal {
 	constructor(
 		app: App,
 		private filter: FilterState,
-		private settings: CardBoxSettings,
+		settings: CardBoxSettings,
 		private index: CardIndex,
 		private cb: FilterMenuCallbacks,
 	) {
