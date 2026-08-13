@@ -118,14 +118,21 @@ const stats = await page.evaluate(() => {
 	return {
 		w: Math.round(r.width),
 		h: Math.round(r.height),
-		titleRowRect: (() => { const h = capture.querySelector('.cardbox-capture-title-row'); return h ? Math.round(h.getBoundingClientRect().height) : null; })(),
+		titleRect: (() => { const h = capture.querySelector('.cardbox-capture-title'); return h ? Math.round(h.getBoundingClientRect().height) : null; })(),
 		inputRect: (() => { const i = capture.querySelector('.cardbox-capture-input'); return i ? Math.round(i.getBoundingClientRect().height) : null; })(),
 		footerRect: (() => { const t = capture.querySelector('.cardbox-capture-footer'); return t ? Math.round(t.getBoundingClientRect().height) : null; })(),
 		modeInFooter: (() => { const f = capture.querySelector('.cardbox-capture-footer'); return !!f && !!f.querySelector('.cardbox-capture-mode'); })(),
+		// 扁平设计核心：所有元素都不应有边框
 		borders: {
-			titleInput: getComputedStyle(capture.querySelector('.cardbox-capture-input')).borderTopWidth,
-			titleRowBorder: getComputedStyle(capture.querySelector('.cardbox-capture-title-row')).borderBottomWidth,
-			footerBorder: getComputedStyle(capture.querySelector('.cardbox-capture-footer')).borderTopWidth,
+			capture: getComputedStyle(capture).borderTopWidth,
+			title: getComputedStyle(capture.querySelector('.cardbox-capture-title')).borderTopWidth,
+			input: getComputedStyle(capture.querySelector('.cardbox-capture-input')).borderTopWidth,
+			footer: getComputedStyle(capture.querySelector('.cardbox-capture-footer')).borderTopWidth,
+			mode: getComputedStyle(capture.querySelector('.cardbox-capture-mode')).borderTopWidth,
+		},
+		fontSizes: {
+			title: getComputedStyle(capture.querySelector('.cardbox-capture-title')).fontSize,
+			input: getComputedStyle(capture.querySelector('.cardbox-capture-input')).fontSize,
 		},
 		addRect: (() => { const a = capture.querySelector('.cardbox-capture-add'); return a ? Math.round(a.getBoundingClientRect().width) : null; })(),
 	};

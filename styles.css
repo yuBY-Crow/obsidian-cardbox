@@ -454,105 +454,86 @@
 
 /* ---------- 模态框 ---------- */
 
-/* ===== 沉浸式快速捕获（自适应 Obsidian 主题） ===== */
+/* ===== 快速记录（简单扁平：零边框，靠字号层级，正文最大化） ===== */
 
 .cardbox-capture {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
-	padding: 0;
-	/* 跟随 Obsidian 主题：浅色主题浅、深色主题深，自适应 */
-	background: var(--background-secondary);
+	/* 与编辑区同底色，整体是一张纯净的纸 */
+	background: var(--background-primary);
 	border: none;
+	padding: 0;
 }
 
-/* 顶部：标题输入框在界面最上层，尽量减少上方留白 */
-.cardbox-capture-title-row {
-	display: flex;
-	align-items: flex-start;
-	/* 标题贴顶：顶部仅留极小间距 */
-	padding: 6px 16px 4px;
+/* 标题：无边框大字，靠字号/字重与正文形成层级 */
+.cardbox-capture-title {
 	flex: none;
+	width: 100%;
+	padding: 18px 20px 6px;
 	background: transparent;
 	border: none;
-}
-
-.cardbox-capture-title {
-	/* 标题矩形 box，跟随主题 */
-	flex: none;
-	width: auto;
-	max-width: 72%;
-	background: var(--background-primary);
-	color: var(--text-normal);
-	border: 1px solid var(--background-modifier-border);
 	outline: none;
-	border-radius: 8px;
-	font-size: 15px;
-	font-weight: 500;
-	letter-spacing: 0.01em;
-	padding: 8px 14px;
+	color: var(--text-normal);
+	font-size: 20px;
+	font-weight: 600;
+	line-height: 1.35;
+	letter-spacing: -0.01em;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 .cardbox-capture-title::placeholder {
 	color: var(--text-faint);
-}
-.cardbox-capture-title:focus {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 2px rgba(91, 110, 225, 0.25);
+	font-weight: 500;
 }
 
-/* 编辑区：跟随主题的常规文字色，无边框 */
+/* 正文：撑满剩余空间的大输入区，无边框、无分割线 */
 .cardbox-capture-input {
 	flex: 1 1 auto;
-	min-height: 140px;
-	max-height: 45vh;
 	width: 100%;
-	padding: 12px 16px;
-	border: none;
+	min-height: 0;
+	padding: 6px 20px 20px;
 	background: transparent;
+	border: none;
+	outline: none;
 	color: var(--text-normal);
 	font-size: 16px;
-	line-height: 1.65;
+	line-height: 1.7;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-	outline: none;
 	resize: none;
 	overflow-y: auto;
 }
 .cardbox-capture-input::placeholder { color: var(--text-faint); }
 
-/* 底部一行：连续模式（左）+ 保存（右）
-   按钮高度与 0.6.19 一致：add padding 8px 22px / mode padding 8px 12px；
-   移动端 add 10px 26px + min-height 44px / mode 10px 12px + min-height 44px */
+/* 底部：两个功能按钮，无分割线（靠留白分区） */
 .cardbox-capture-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 10px;
-	padding: 12px 20px;
-	/* 按钮整体上移两个自身高度（比 0.6.19 再上移一个按钮高度） */
-	padding-bottom: max(12px, 104px);
+	gap: 12px;
 	flex: none;
+	padding: 12px 20px;
+	padding-bottom: max(12px, calc(12px + env(safe-area-inset-bottom, 0px)));
 	background: transparent;
 	border: none;
 }
 
-/* 连续模式轻触切换：跟随主题的标签 */
+/* 连续创建：无边框文字按钮（圆点表示开关状态） */
 .cardbox-capture-mode {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	font-size: 13px;
-	color: var(--text-muted);
+	gap: 7px;
+	font-size: 14px;
+	color: var(--text-faint);
 	cursor: pointer;
-	padding: 8px 12px;
+	padding: 10px 4px;
+	border: none;
 	border-radius: var(--radius-s);
+	background: transparent;
 	user-select: none;
-	background: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
 	line-height: 1;
+	transition: color 0.15s ease;
 }
-.cardbox-capture-mode:hover { background: var(--background-modifier-hover); }
 .cardbox-capture-mode-dot {
 	width: 8px;
 	height: 8px;
@@ -560,24 +541,26 @@
 	background: var(--text-faint);
 	transition: background 0.15s ease;
 }
+.cardbox-capture-mode.is-continuous { color: var(--interactive-accent); }
 .cardbox-capture-mode.is-continuous .cardbox-capture-mode-dot {
 	background: var(--interactive-accent);
 }
-.cardbox-capture-mode.is-continuous { color: var(--interactive-accent); }
 
-/* 保存按钮：主题色椭圆胶囊（与 0.6.19 同高度） */
+/* 保存：唯一的实心按钮（扁平胶囊，无阴影无边框） */
 .cardbox-capture-add {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 	border: none;
 	border-radius: 999px;
-	padding: 8px 22px;
+	padding: 10px 26px;
 	font-size: 15px;
 	font-weight: 600;
+	line-height: 1.2;
 	cursor: pointer;
+	transition: opacity 0.15s ease;
 }
-.cardbox-capture-add:hover { filter: brightness(1.05); }
-.cardbox-capture-add:active { transform: scale(0.96); }
+.cardbox-capture-add:hover { opacity: 0.88; }
+.cardbox-capture-add:active { transform: scale(0.97); }
 
 /* 隐藏 Obsidian modal 默认标题栏 + 关闭按钮（沉浸式全屏，无取消/关闭入口） */
 .cardbox-modal-hidden-chrome .modal-title,
@@ -592,28 +575,27 @@ body.is-mobile .cardbox-modal-hidden-chrome .modal-content {
 	min-height: 70vh;
 }
 
-/* 兼容手机端 */
+/* 手机端：字号略放大，按钮保证 44px 可点区域 */
 body.is-mobile .cardbox-capture-title {
-	font-size: 17px;
-	/* 输入框比标题字体上下各大 25px（与 PC 一致） */
-	padding: 25px 0;
+	font-size: 21px;
+	padding: 16px 18px 6px;
+}
+body.is-mobile .cardbox-capture-input {
+	font-size: 16px;
+	padding: 6px 18px 20px;
+}
+body.is-mobile .cardbox-capture-footer {
+	padding: 10px 18px;
+	padding-bottom: max(10px, calc(10px + env(safe-area-inset-bottom, 0px)));
 }
 body.is-mobile .cardbox-capture-add {
-	padding: 10px 26px;
+	padding: 12px 28px;
 	min-height: 44px;
 }
 body.is-mobile .cardbox-capture-mode {
-	padding: 10px 12px;
+	padding: 12px 6px;
 	min-height: 44px;
-}
-
-/* 旧的 footer 与 input 样式保留兼容（其他模块可能引用），但不再用于 CaptureModal */
-.cardbox-capture-footer {
-	background: var(--background-secondary);
-	padding: 10px;
-}
-.cardbox-capture-input:focus {
-	border-color: var(--interactive-accent);
+	font-size: 15px;
 }
 
 .cardbox-modal-footer {

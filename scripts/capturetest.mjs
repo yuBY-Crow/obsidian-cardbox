@@ -24,6 +24,8 @@ ${css}
 </body></html>`);
 
 const result = await page.evaluate(async ({ mainJs, manifest }) => {
+	// 手机端样式覆盖（min-height 44px 等）依赖这个类
+	document.body.classList.add('is-mobile');
 	const applyOpts = (el, o) => {
 		if (!o) return el;
 		if (typeof o === 'string') { el.className = o; return el; }
@@ -60,7 +62,7 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 	const obsidian = {
 		Plugin: class { constructor(a, m) { this.app = a; this.manifest = m; this._views = {}; } addRibbonIcon() {} addCommand() {} addSettingTab() {} registerView() {} async loadData() { return { continuousCaptureDefault: true }; } async saveData() {} },
 		ItemView: class { constructor(l) { this.leaf = l; this.contentEl = mk('div'); } addAction() {} },
-		Modal: class { constructor(a) { this.app = a; this.contentEl = mk('div'); this.titleEl = mk('div'); document.body.appendChild(this.contentEl); Object.defineProperty(this.titleEl, 'parentElement', { value: mk('div'), writable: true, configurable: true }); } open() { this.onOpen?.(); } close() { this.onClose?.(); } setTitle() {} },
+		Modal: class { constructor(a) { this.app = a; this.contentEl = mk('div'); this.titleEl = mk('div'); /* 模拟真机全屏 modal 容器，正文 flex 才能撑开 */ this.contentEl.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column'; document.body.appendChild(this.contentEl); Object.defineProperty(this.titleEl, 'parentElement', { value: mk('div'), writable: true, configurable: true }); } open() { this.onOpen?.(); } close() { this.onClose?.(); } setTitle() {} },
 		PluginSettingTab: class { constructor() {} },
 		Events: class { constructor() {} on() { return { ref: 0 }; } offref() {} },
 		Setting: class { constructor() {} },
@@ -111,44 +113,51 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 
 	return {
 		modalCls: document.querySelector('.cardbox-capture') ? 'yes' : 'no',
-		hasHeader: !!document.querySelector('.cardbox-capture-title-row'),
 		titleInput: (() => {
 			const i = document.querySelector('.cardbox-capture-title');
 			return i ? { tag: i.tagName, value: i.value, matchesTime: /^\d{4}-\d{2}-\d{2}-\d{6}$/.test(i.value), placeholder: i.getAttribute('placeholder') } : null;
-		})(),
-		titleRowStyle: (() => {
-			const el = document.querySelector('.cardbox-capture-title-row');
-			if (!el) return null;
-			const cs = getComputedStyle(el);
-			return { bg: cs.backgroundColor, h: Math.round(el.getBoundingClientRect().height), borderBottom: cs.borderBottomWidth };
 		})(),
 		titleStyle: (() => {
 			const el = document.querySelector('.cardbox-capture-title');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { color: cs.color, maxWidth: cs.maxWidth, flex: cs.flex, width: cs.width, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, bg: cs.backgroundColor, borderRadius: cs.borderRadius };
+			return { color: cs.color, bg: cs.backgroundColor, border: cs.borderTopWidth, fontSize: cs.fontSize, fontWeight: cs.fontWeight, h: Math.round(el.getBoundingClientRect().height) };
 		})(),
 		captureRootBg: (() => {
 			const el = document.querySelector('.cardbox-capture');
 			return el ? getComputedStyle(el).backgroundColor : null;
 		})(),
+		captureBorder: (() => {
+			const el = document.querySelector('.cardbox-capture');
+			return el ? getComputedStyle(el).borderTopWidth : null;
+		})(),
 		inputStyle: (() => {
 			const el = document.querySelector('.cardbox-capture-input');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { bg: cs.backgroundColor, color: cs.color };
+			return { bg: cs.backgroundColor, color: cs.color, border: cs.borderTopWidth, fontSize: cs.fontSize, h: Math.round(el.getBoundingClientRect().height) };
 		})(),
 		modeStyle: (() => {
 			const el = document.querySelector('.cardbox-capture-mode');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { bg: cs.backgroundColor, color: cs.color, padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}` };
+			return { bg: cs.backgroundColor, color: cs.color, border: cs.borderTopWidth, minHeight: cs.minHeight };
+		})(),
+		footerStyle: (() => {
+			const el = document.querySelector('.cardbox-capture-footer');
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return { border: cs.borderTopWidth, bg: cs.backgroundColor };
+		})(),
+		captureH: (() => {
+			const el = document.querySelector('.cardbox-capture');
+			return el ? Math.round(el.getBoundingClientRect().height) : null;
 		})(),
 		addStyle: (() => {
 			const el = document.querySelector('.cardbox-capture-add');
 			if (!el) return null;
 			const cs = getComputedStyle(el);
-			return { padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`, borderRadius: cs.borderRadius };
+			return { padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`, borderRadius: cs.borderRadius, minHeight: cs.minHeight };
 		})(),
 		hasInput: !!document.querySelector('.cardbox-capture-input'),
 		inputTag: document.querySelector('.cardbox-capture-input')?.tagName,
@@ -171,35 +180,46 @@ const result = await page.evaluate(async ({ mainJs, manifest }) => {
 let pass = 0, fail = 0;
 const t = (name, cond, got) => { if (cond) pass++; else { fail++; console.log('FAIL:', name, got !== undefined ? `→ ${JSON.stringify(got)}` : ''); } };
 
+// ---- 结构 ----
 t('CaptureModal 已打开（有 .cardbox-capture）', result.modalCls === 'yes', result.modalCls);
-t('顶部有标题行（.cardbox-capture-title-row）', result.hasHeader, result.hasHeader);
-t('标题行在卡片最顶部（第一个子元素）', result.order[0] === 'cardbox-capture-title-row', result.order);
-t('引导区有标题输入框（input）', result.titleInput?.tag === 'INPUT', result.titleInput);
+t('标题输入框在最顶部（第一个子元素）', result.order[0] === 'cardbox-capture-title', result.order);
+t('标题是可编辑 input', result.titleInput?.tag === 'INPUT', result.titleInput);
 t('标题默认值为创建时间（YYYY-MM-DD-HHmmss）', result.titleInput?.matchesTime === true, result.titleInput);
-t('有大编辑区（textarea）', result.hasInput && result.inputTag === 'TEXTAREA', result.inputTag);
-t('不再有自定义工具按钮', result.toolCount === 0, result.toolCount);
-t('有底部 footer（保存区）', result.hasFooter, result.hasFooter);
-t('有保存按钮（CTA）', result.hasAdd, result.hasAdd);
-t('保存按钮文字为「保存」', result.addText === '保存', result.addText);
-t('连续模式在 footer 内（与保存同行）', result.modeInFooter, result.hasMode);
-t('有连续模式轻触切换', result.hasMode, result.hasMode);
-t('连续模式文字为「连续模式」', result.modeText === '连续模式', result.modeText);
-t('隐藏了 Obsidian modal chrome（沉浸式）',
-	// mock 里 titleEl.parentElement 是 detached div，断言 CaptureModal 调了 addClass
-	true,
-	result.chromeHidden);
-t('布局顺序：title-row → input → footer', result.order.indexOf('cardbox-capture-title-row') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
-t('自适应主题：标题行无下边框（沉浸式）', result.titleRowStyle?.borderBottom === '0px', result.titleRowStyle);
-t('自适应主题：整个 modal 背景跟随主题（非硬编码纯黑 #2a2a2a）', result.captureRootBg && result.captureRootBg !== 'rgb(42, 42, 42)', result.captureRootBg);
-t('自适应主题：标题行背景透明（融入 modal）', result.titleRowStyle?.bg === 'rgba(0, 0, 0, 0)' || result.titleRowStyle?.bg === 'transparent', result.titleRowStyle);
-t('自适应主题：标题输入框有主题化背景 + 圆角 box', result.titleStyle?.bg && result.titleStyle.bg !== 'rgba(0, 0, 0, 0)' && (parseFloat(result.titleStyle?.borderRadius ?? '0') >= 6), result.titleStyle);
-t('自适应主题：标题文字用主题常规色', result.titleStyle?.color === 'rgb(34, 34, 34)' || result.titleStyle?.color === 'rgb(26, 26, 26)', result.titleStyle);
-t('自适应主题：编辑区背景透明', result.inputStyle?.bg === 'rgba(0, 0, 0, 0)' || result.inputStyle?.bg === 'transparent', result.inputStyle);
-t('自适应主题：编辑区文字用主题常规色（非硬编码浅色）', result.inputStyle?.color === 'rgb(34, 34, 34)' || result.inputStyle?.color === 'rgb(26, 26, 26)', result.inputStyle);
-t('标题在最上层（title-row 高度小 ≤50px）', (result.titleRowStyle?.h ?? 999) <= 50, result.titleRowStyle);
-t('保存按钮高度与 0.6.19 一致（垂直 8px + 水平 22px）', /^8px 22px 8px 22px$/.test(result.addStyle?.padding ?? ''), result.addStyle);
-t('保存按钮是椭圆胶囊（border-radius 999px）', parseFloat(result.addStyle?.borderRadius ?? '0') >= 100, result.addStyle);
-t('连续模式按钮高度与 0.6.19 一致（垂直 8px + 水平 12px）', /^8px 12px 8px 12px$/.test(result.modeStyle?.padding ?? ''), result.modeStyle);
+t('有正文输入区（textarea）', result.hasInput && result.inputTag === 'TEXTAREA', result.inputTag);
+t('有底部 footer', result.hasFooter, result.hasFooter);
+t('保留「保存」按钮', result.hasAdd && result.addText === '保存', result.addText);
+t('保留「连续创建」按钮', result.hasMode && result.modeText?.includes('连续创建'), result.modeText);
+t('两个功能按钮同在 footer 内', result.modeInFooter, result.modeInFooter);
+t('布局顺序：标题 → 正文 → footer', result.order.indexOf('cardbox-capture-title') < result.order.indexOf('cardbox-capture-input') && result.order.indexOf('cardbox-capture-input') < result.order.indexOf('cardbox-capture-footer'), result.order);
+t('无自定义工具按钮', result.toolCount === 0, result.toolCount);
+t('隐藏 Obsidian modal chrome（无关闭按钮）', true, result.chromeHidden);
+
+// ---- 简单扁平：零边框 ----
+t('扁平：容器无边框', result.captureBorder === '0px', result.captureBorder);
+t('扁平：标题无边框', result.titleStyle?.border === '0px', result.titleStyle);
+t('扁平：正文区无边框', result.inputStyle?.border === '0px', result.inputStyle);
+t('扁平：footer 无分割线', result.footerStyle?.border === '0px', result.footerStyle);
+t('扁平：连续创建按钮无边框', result.modeStyle?.border === '0px', result.modeStyle);
+t('扁平：标题背景透明（无框感）', result.titleStyle?.bg === 'rgba(0, 0, 0, 0)' || result.titleStyle?.bg === 'transparent', result.titleStyle);
+t('扁平：正文背景透明（无框感）', result.inputStyle?.bg === 'rgba(0, 0, 0, 0)' || result.inputStyle?.bg === 'transparent', result.inputStyle);
+t('扁平：连续创建按钮背景透明（文字按钮）', result.modeStyle?.bg === 'rgba(0, 0, 0, 0)' || result.modeStyle?.bg === 'transparent', result.modeStyle);
+
+// ---- 字号层级（无边框时靠字号区分标题/正文）----
+t('层级：标题字号大于正文', parseFloat(result.titleStyle?.fontSize ?? '0') > parseFloat(result.inputStyle?.fontSize ?? '99'), { title: result.titleStyle?.fontSize, input: result.inputStyle?.fontSize });
+t('层级：标题为粗体（≥600）', parseInt(result.titleStyle?.fontWeight ?? '0', 10) >= 600, result.titleStyle);
+
+// ---- 正文区要大 ----
+t('正文区占容器高度 ≥70%', (result.inputStyle?.h ?? 0) / (result.captureH || 1) >= 0.7, { input: result.inputStyle?.h, capture: result.captureH });
+
+// ---- 主题自适应 ----
+t('主题自适应：背景跟随主题（非硬编码深色）', result.captureRootBg && result.captureRootBg !== 'rgb(42, 42, 42)', result.captureRootBg);
+t('主题自适应：标题文字用主题色', result.titleStyle?.color === 'rgb(34, 34, 34)' || result.titleStyle?.color === 'rgb(26, 26, 26)', result.titleStyle);
+t('主题自适应：正文文字用主题色', result.inputStyle?.color === 'rgb(34, 34, 34)' || result.inputStyle?.color === 'rgb(26, 26, 26)', result.inputStyle);
+
+// ---- 移动端可点区域 ----
+t('保存按钮是扁平胶囊（border-radius 999px）', parseFloat(result.addStyle?.borderRadius ?? '0') >= 100, result.addStyle);
+t('保存按钮触摸区 ≥44px', parseFloat(result.addStyle?.minHeight ?? '0') >= 44, result.addStyle);
+t('连续创建按钮触摸区 ≥44px', parseFloat(result.modeStyle?.minHeight ?? '0') >= 44, result.modeStyle);
 
 await page.screenshot({ path: 'shot-capture.png' });
 console.log(`${pass} passed, ${fail} failed`);

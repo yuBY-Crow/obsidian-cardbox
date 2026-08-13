@@ -16,20 +16,22 @@ export interface CaptureOptions {
 }
 
 /**
- * 沉浸式快速捕获（Writeathon 风格）
+ * 快速记录（简单扁平设计）
  *
- * 布局：
- * - 顶部深色块：可编辑的「卡片标题」输入框（默认 = 笔记创建时间，精确到秒
- *   YYYY-MM-DD-HHmmss，与文件名方案一致，可随意修改）
- * - 中部大编辑区（textarea 自适应高度）
- * - 底部：仅「保存」CTA（Obsidian 默认编辑工具栏在完整编辑器中可用，
- *   快速记录保持轻量，不加自定义工具按钮）
+ * 设计原则：无边框、无框感，靠字号与字重区分层级，正文区最大化。
+ *
+ * 布局（自上而下）：
+ * - 标题：无边框大字输入，默认 = 创建时间到秒（YYYY-MM-DD-HHmmss），
+ *   可直接改；回车跳到正文
+ * - 正文：撑满剩余空间的无边框大输入区（主角）
+ * - 底部：连续创建（左，文字按钮）+ 保存（右，主色胶囊）
+ *
+ * 配色全部走 Obsidian 主题变量，自动适配浅色/深色主题。
  */
 export class CaptureModal extends Modal {
 	private titleInput: HTMLInputElement;
 	private textarea: HTMLTextAreaElement;
 	private continuous = true;
-	private autosize = () => this.autoSize();
 
 	constructor(
 		app: App,
@@ -41,7 +43,7 @@ export class CaptureModal extends Modal {
 	}
 
 	onOpen(): void {
-		// 隐藏 Obsidian 默认 modal 标题栏（沉浸式全屏），也没有取消/关闭按钮
+		// 沉浸式全屏：隐藏 Obsidian 默认标题栏与关闭按钮
 		this.titleEl.parentElement?.addClass('cardbox-modal-hidden-chrome');
 		if (this.modalEl) this.modalEl.addClass('cardbox-modal-no-close');
 
@@ -49,50 +51,51 @@ export class CaptureModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('cardbox-capture');
 
-		// 顶部深色块（Writeathon 风格）：标题在左上角小框，默认 = 创建时间到秒，可编辑
-		// placeholder 用 Writeathon 风格的灰色引导文「写作就像马拉松」让深色块不空
-		const titleRow = contentEl.createDiv({ cls: 'cardbox-capture-title-row' });
-		this.titleInput = titleRow.createEl('input', {
+		// 标题：无边框大字输入，默认 = 创建时间到秒，可直接改
+		this.titleInput = contentEl.createEl('input', {
 			cls: 'cardbox-capture-title',
 			attr: {
 				type: 'text',
 				value: defaultTitle(new Date()),
-				placeholder: i18n.captureSlogan,
+				placeholder: i18n.captureTitleLabel,
 				maxlength: '80',
 				spellcheck: 'false',
 				'aria-label': i18n.captureTitleLabel,
 			},
 		});
-		// 点击全选便于覆盖，输入失焦后自动裁剪空白
+		// 点击全选便于覆盖，失焦裁剪空白
 		this.titleInput.addEventListener('focus', () => this.titleInput.select());
 		this.titleInput.addEventListener('blur', () => {
 			this.titleInput.value = this.titleInput.value.trim();
 		});
+		// 标题按回车跳到正文
+		this.titleInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				this.textarea.focus();
+			}
+		});
 
-		// 正文编辑区：与标题栏之间无边框，自身也无边框
+		// 正文：撑满剩余空间的大输入区，无边框
 		this.textarea = contentEl.createEl('textarea', {
 			cls: 'cardbox-capture-input',
 			attr: {
-				rows: '3',
 				placeholder: this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
 				'aria-label': this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
 			},
 		});
 		if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-		this.textarea.addEventListener('input', this.autosize);
-		requestAnimationFrame(this.autosize);
 
-		// 底部一行：连续模式（左）+ 保存按钮（右），按钮整体上移一个自身高度
+		// 底部：连续创建（左，文字按钮）+ 保存（右，主色胶囊）
 		const footer = contentEl.createDiv({ cls: 'cardbox-capture-footer' });
 
 		if (!this.opts.parent && !this.opts.singleShot) {
 			const mode = footer.createEl('button', { cls: 'cardbox-capture-mode' });
 			mode.createSpan({ cls: 'cardbox-capture-mode-dot' });
-			mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
+			mode.createSpan({ text: i18n.continuousMode });
 			mode.addEventListener('click', () => {
 				this.continuous = !this.continuous;
 				mode.classList.toggle('is-continuous', this.continuous);
-				mode.querySelector('span:last-child')!.textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
 			});
 			mode.classList.toggle('is-continuous', this.continuous);
 		} else {
@@ -111,20 +114,13 @@ export class CaptureModal extends Modal {
 			}
 		});
 
-		// 默认聚焦正文，若正文为空但标题有值时聚焦标题
-		if (this.textarea.value.trim()) {
+		// 默认聚焦正文（正文是主角）；正文为空时先落在标题上方便改名
+		if (this.opts.prefill) {
 			this.textarea.focus();
 			this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
 		} else {
-			this.titleInput.focus();
-			this.titleInput.select();
+			this.textarea.focus();
 		}
-	}
-
-	private autoSize(): void {
-		const el = this.textarea;
-		el.style.height = 'auto';
-		el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
 	}
 
 	private async save(): Promise<void> {
@@ -154,10 +150,9 @@ export class CaptureModal extends Modal {
 
 		if (this.continuous) {
 			this.textarea.value = '';
-			// 连续模式：标题重置为新时间
+			// 连续创建：标题重置为新时间，光标回正文
 			this.titleInput.value = defaultTitle(new Date());
 			this.textarea.focus();
-			this.autosize();
 		} else {
 			this.close();
 		}

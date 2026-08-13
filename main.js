@@ -250,8 +250,8 @@ var i18n = {
   captureTitle: "\u8BB0\u5F55\u5361\u7247",
   captureTitleLabel: "\u6807\u9898",
   capturePlaceholder: "\u8F93\u5165\u5361\u7247\u5185\u5BB9\u2026",
-  continuousMode: "\u8FDE\u7EED\u6A21\u5F0F",
-  singleMode: "\u5355\u6B21\u6A21\u5F0F",
+  continuousMode: "\u8FDE\u7EED\u521B\u5EFA",
+  singleMode: "\u5355\u6B21\u521B\u5EFA",
   captureSlogan: "\u5199\u4F5C\u5C31\u50CF\u9A6C\u62C9\u677E",
   addChildHint: "\u4E3A\u8FD9\u5F20\u5361\u7247\u6DFB\u52A0\u5B50\u5361",
   toolTag: "\u6807\u7B7E",
@@ -3923,7 +3923,6 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.ctx = ctx;
     this.opts = opts;
     this.continuous = true;
-    this.autosize = () => this.autoSize();
     this.continuous = !opts.parent && !opts.singleShot && ctx.settings.continuousCaptureDefault;
   }
   onOpen() {
@@ -3933,13 +3932,12 @@ var CaptureModal = class extends import_obsidian18.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("cardbox-capture");
-    const titleRow = contentEl.createDiv({ cls: "cardbox-capture-title-row" });
-    this.titleInput = titleRow.createEl("input", {
+    this.titleInput = contentEl.createEl("input", {
       cls: "cardbox-capture-title",
       attr: {
         type: "text",
         value: defaultTitle(/* @__PURE__ */ new Date()),
-        placeholder: i18n.captureSlogan,
+        placeholder: i18n.captureTitleLabel,
         maxlength: "80",
         spellcheck: "false",
         "aria-label": i18n.captureTitleLabel
@@ -3949,26 +3947,28 @@ var CaptureModal = class extends import_obsidian18.Modal {
     this.titleInput.addEventListener("blur", () => {
       this.titleInput.value = this.titleInput.value.trim();
     });
+    this.titleInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this.textarea.focus();
+      }
+    });
     this.textarea = contentEl.createEl("textarea", {
       cls: "cardbox-capture-input",
       attr: {
-        rows: "3",
         placeholder: this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder,
         "aria-label": this.opts.parent ? i18n.childCapturePlaceholder : i18n.capturePlaceholder
       }
     });
     if (this.opts.prefill) this.textarea.value = this.opts.prefill;
-    this.textarea.addEventListener("input", this.autosize);
-    requestAnimationFrame(this.autosize);
     const footer = contentEl.createDiv({ cls: "cardbox-capture-footer" });
     if (!this.opts.parent && !this.opts.singleShot) {
       const mode = footer.createEl("button", { cls: "cardbox-capture-mode" });
       mode.createSpan({ cls: "cardbox-capture-mode-dot" });
-      mode.createSpan({ text: this.continuous ? i18n.continuousMode : i18n.singleMode });
+      mode.createSpan({ text: i18n.continuousMode });
       mode.addEventListener("click", () => {
         this.continuous = !this.continuous;
         mode.classList.toggle("is-continuous", this.continuous);
-        mode.querySelector("span:last-child").textContent = this.continuous ? i18n.continuousMode : i18n.singleMode;
       });
       mode.classList.toggle("is-continuous", this.continuous);
     } else {
@@ -3983,18 +3983,12 @@ var CaptureModal = class extends import_obsidian18.Modal {
         void this.save();
       }
     });
-    if (this.textarea.value.trim()) {
+    if (this.opts.prefill) {
       this.textarea.focus();
       this.textarea.setSelectionRange(this.textarea.value.length, this.textarea.value.length);
     } else {
-      this.titleInput.focus();
-      this.titleInput.select();
+      this.textarea.focus();
     }
-  }
-  autoSize() {
-    const el = this.textarea;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
   }
   async save() {
     const body = this.textarea.value.trim();
@@ -4022,7 +4016,6 @@ var CaptureModal = class extends import_obsidian18.Modal {
       this.textarea.value = "";
       this.titleInput.value = defaultTitle(/* @__PURE__ */ new Date());
       this.textarea.focus();
-      this.autosize();
     } else {
       this.close();
     }
