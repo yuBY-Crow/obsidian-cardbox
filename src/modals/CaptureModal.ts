@@ -133,58 +133,82 @@ export class CaptureModal extends Modal {
 	/**
 	 * 手机端让卡片下部贴合输入法键盘顶部。
 	 *
-	 * 键盘高度的信号源（按优先级）：
-	 * 1. Obsidian 内置 `Platform.mobileKeyboardHeight` /
-	 *    `mobileSoftKeyboardVisible` —— 由 Capacitor Keyboard 插件维护，
-	 *    微信输入法等特殊键盘也能正确上报高度（不依赖 WebView 的
-	 *    visualViewport，后者在 Android adjustResize 下差值为 0 会失效）。
-	 * 2. visualViewport 差值兜底（iOS / 标准 WebView）。
+	 * 关键：Obsidian 移动端 Android 用沉浸式全屏（edge-to-edge），触发
+	 * Capacitor 已知 bug —— 全屏模式下键盘无法调整 WebView 大小，所以
+	 * `window.innerHeight` / `visualViewport.height` 都不变，算不出键盘高度。
+	 * 唯一可靠的信号是 Capacitor Keyboard 事件（keyboardWillShow 的
+	 * info.keyboardHeight），社区插件均以此为准。
 	 *
-	 * 这两个是「属性」而非事件，用轮询读取；同时监听 resize 做即时响应。
-	 * 上移量 = 键盘高度 − 窗口已缩小量（Android adjustResize 下系统已把
-	 * 窗口压到键盘上沿，避免双重上移）。
+	 * 信号优先级：
+	 * 1. Capacitor `keyboardWillShow` / `keyboardWillHide` 事件（最权威）
+	 * 2. `Platform.mobileKeyboardHeight`（Obsidian 封装，轮询兜底）
+	 * 3. `visualViewport` 差值（iOS / 标准 WebView 兜底）
+	 *
+	 * 不做的：shrink 补偿（上版 bug 来源 —— `mobileDeviceHeight` 缺失时
+	 * 回退 `screen.height` 是物理像素，会让 translate 被 clamp 成 0）。
+	 * 直接上移完整键盘高度即可。
 	 */
 	private bindKeyboard(): void {
 		if (!Platform.isMobile) return;
 		const modal = this.modalEl;
 		if (!modal) return;
 
-		const p = Platform as unknown as {
-			mobileKeyboardHeight?: number;
-			mobileSoftKeyboardVisible?: boolean;
-			mobileDeviceHeight?: number;
-		};
-		const deviceHeight = p.mobileDeviceHeight ?? window.screen.height;
-
+		let keyboard = 0;
 		const apply = () => {
-			// 键盘高度：优先 Obsidian 内置值，兜底 visualViewport
-			let keyboard = 0;
-			if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === 'number') {
-				keyboard = p.mobileKeyboardHeight;
-			} else {
-				const vv = window.visualViewport;
-				if (vv) keyboard = Math.max(0, window.innerHeight - (vv.height ?? window.innerHeight));
-			}
-			// 系统已把窗口压小的量（adjustResize）；剩下的才需要手动上移
-			const shrunk = Math.max(0, deviceHeight - window.innerHeight);
-			const translate = Math.max(0, keyboard - shrunk);
-			modal.style.transform = translate > 0 ? `translateY(-${translate}px)` : '';
+			modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : '';
 			modal.style.transition = 'transform 0.15s ease-out';
 		};
+		// 取更大值（多信号并存时，宁可多上移一点也不要被键盘遮住）
+		const raise = (h: number) => {
+			if (h > keyboard) {
+				keyboard = h;
+				apply();
+			}
+		};
 
-		window.visualViewport?.addEventListener('resize', apply);
-		window.visualViewport?.addEventListener('scroll', apply);
-		window.addEventListener('resize', apply);
-		// 轮询兜底：属性值无事件，微信输入法等特殊键盘可能不触发 resize
-		this.keyboardPoll = window.setInterval(apply, 150);
-		apply();
+		// 信号 1：Capacitor Keyboard 事件（最权威、即时）
+		const cap = (window as unknown as {
+			Capacitor?: { Plugins?: { Keyboard?: {
+				addListener?: (event: string, cb: (info?: { keyboardHeight?: number }) => void) => Promise<{ remove?: () => void }>;
+			} } };
+		}).Capacitor;
+		const kb = cap?.Plugins?.Keyboard;
+		const handles: Array<{ remove?: () => void }> = [];
+		if (kb?.addListener) {
+			kb.addListener('keyboardWillShow', (info) => {
+				raise(toCssPx(info?.keyboardHeight ?? 0));
+			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
+			kb.addListener('keyboardWillHide', () => {
+				keyboard = 0;
+				apply();
+			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
+		}
+
+		// 信号 2 + 3：轮询兜底（Platform 内置值 + visualViewport）
+		const poll = () => {
+			const p = Platform as unknown as {
+				mobileKeyboardHeight?: number;
+				mobileSoftKeyboardVisible?: boolean;
+			};
+			if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === 'number') {
+				raise(p.mobileKeyboardHeight);
+			}
+			const vv = window.visualViewport;
+			if (vv?.height) raise(Math.max(0, window.innerHeight - vv.height));
+		};
+		this.keyboardPoll = window.setInterval(poll, 200);
+		window.visualViewport?.addEventListener('resize', poll);
+		window.visualViewport?.addEventListener('scroll', poll);
+		window.addEventListener('resize', poll);
+		poll();
 
 		this.keyboardCleanup = () => {
 			if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
 			this.keyboardPoll = null;
-			window.visualViewport?.removeEventListener('resize', apply);
-			window.visualViewport?.removeEventListener('scroll', apply);
-			window.removeEventListener('resize', apply);
+			window.visualViewport?.removeEventListener('resize', poll);
+			window.visualViewport?.removeEventListener('scroll', poll);
+			window.removeEventListener('resize', poll);
+			handles.forEach((h) => h?.remove?.());
 			modal.style.transform = '';
 		};
 	}
@@ -236,4 +260,13 @@ export class CaptureModal extends Modal {
 /** 默认标题 = 笔记创建时间，精确到秒（YYYY-MM-DD-HHmmss） */
 function defaultTitle(d: Date): string {
 	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+
+/** Capacitor 的 keyboardHeight 在 Android 是物理像素，转成 CSS 像素 */
+function toCssPx(px: number): number {
+	if (px <= 0) return 0;
+	if ((Platform as unknown as { isAndroidApp?: boolean }).isAndroidApp) {
+		return px / (window.devicePixelRatio || 1);
+	}
+	return px;
 }

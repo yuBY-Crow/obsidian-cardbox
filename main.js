@@ -3996,50 +3996,80 @@ var CaptureModal = class extends import_obsidian18.Modal {
   /**
    * 手机端让卡片下部贴合输入法键盘顶部。
    *
-   * 键盘高度的信号源（按优先级）：
-   * 1. Obsidian 内置 `Platform.mobileKeyboardHeight` /
-   *    `mobileSoftKeyboardVisible` —— 由 Capacitor Keyboard 插件维护，
-   *    微信输入法等特殊键盘也能正确上报高度（不依赖 WebView 的
-   *    visualViewport，后者在 Android adjustResize 下差值为 0 会失效）。
-   * 2. visualViewport 差值兜底（iOS / 标准 WebView）。
+   * 关键：Obsidian 移动端 Android 用沉浸式全屏（edge-to-edge），触发
+   * Capacitor 已知 bug —— 全屏模式下键盘无法调整 WebView 大小，所以
+   * `window.innerHeight` / `visualViewport.height` 都不变，算不出键盘高度。
+   * 唯一可靠的信号是 Capacitor Keyboard 事件（keyboardWillShow 的
+   * info.keyboardHeight），社区插件均以此为准。
    *
-   * 这两个是「属性」而非事件，用轮询读取；同时监听 resize 做即时响应。
-   * 上移量 = 键盘高度 − 窗口已缩小量（Android adjustResize 下系统已把
-   * 窗口压到键盘上沿，避免双重上移）。
+   * 信号优先级：
+   * 1. Capacitor `keyboardWillShow` / `keyboardWillHide` 事件（最权威）
+   * 2. `Platform.mobileKeyboardHeight`（Obsidian 封装，轮询兜底）
+   * 3. `visualViewport` 差值（iOS / 标准 WebView 兜底）
+   *
+   * 不做的：shrink 补偿（上版 bug 来源 —— `mobileDeviceHeight` 缺失时
+   * 回退 `screen.height` 是物理像素，会让 translate 被 clamp 成 0）。
+   * 直接上移完整键盘高度即可。
    */
   bindKeyboard() {
     var _a, _b, _c;
     if (!import_obsidian18.Platform.isMobile) return;
     const modal = this.modalEl;
     if (!modal) return;
-    const p = import_obsidian18.Platform;
-    const deviceHeight = (_a = p.mobileDeviceHeight) != null ? _a : window.screen.height;
+    let keyboard = 0;
     const apply = () => {
-      var _a2;
-      let keyboard = 0;
-      if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === "number") {
-        keyboard = p.mobileKeyboardHeight;
-      } else {
-        const vv = window.visualViewport;
-        if (vv) keyboard = Math.max(0, window.innerHeight - ((_a2 = vv.height) != null ? _a2 : window.innerHeight));
-      }
-      const shrunk = Math.max(0, deviceHeight - window.innerHeight);
-      const translate = Math.max(0, keyboard - shrunk);
-      modal.style.transform = translate > 0 ? `translateY(-${translate}px)` : "";
+      modal.style.transform = keyboard > 0 ? `translateY(-${keyboard}px)` : "";
       modal.style.transition = "transform 0.15s ease-out";
     };
-    (_b = window.visualViewport) == null ? void 0 : _b.addEventListener("resize", apply);
-    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("scroll", apply);
-    window.addEventListener("resize", apply);
-    this.keyboardPoll = window.setInterval(apply, 150);
-    apply();
+    const raise = (h) => {
+      if (h > keyboard) {
+        keyboard = h;
+        apply();
+      }
+    };
+    const cap = window.Capacitor;
+    const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
+    const handles = [];
+    if (kb == null ? void 0 : kb.addListener) {
+      kb.addListener("keyboardWillShow", (info) => {
+        var _a2;
+        raise(toCssPx((_a2 = info == null ? void 0 : info.keyboardHeight) != null ? _a2 : 0));
+      }).then((h) => {
+        if (h) handles.push(h);
+      }).catch(() => {
+      });
+      kb.addListener("keyboardWillHide", () => {
+        keyboard = 0;
+        apply();
+      }).then((h) => {
+        if (h) handles.push(h);
+      }).catch(() => {
+      });
+    }
+    const poll = () => {
+      const p = import_obsidian18.Platform;
+      if (p.mobileSoftKeyboardVisible && typeof p.mobileKeyboardHeight === "number") {
+        raise(p.mobileKeyboardHeight);
+      }
+      const vv = window.visualViewport;
+      if (vv == null ? void 0 : vv.height) raise(Math.max(0, window.innerHeight - vv.height));
+    };
+    this.keyboardPoll = window.setInterval(poll, 200);
+    (_b = window.visualViewport) == null ? void 0 : _b.addEventListener("resize", poll);
+    (_c = window.visualViewport) == null ? void 0 : _c.addEventListener("scroll", poll);
+    window.addEventListener("resize", poll);
+    poll();
     this.keyboardCleanup = () => {
       var _a2, _b2;
       if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
       this.keyboardPoll = null;
-      (_a2 = window.visualViewport) == null ? void 0 : _a2.removeEventListener("resize", apply);
-      (_b2 = window.visualViewport) == null ? void 0 : _b2.removeEventListener("scroll", apply);
-      window.removeEventListener("resize", apply);
+      (_a2 = window.visualViewport) == null ? void 0 : _a2.removeEventListener("resize", poll);
+      (_b2 = window.visualViewport) == null ? void 0 : _b2.removeEventListener("scroll", poll);
+      window.removeEventListener("resize", poll);
+      handles.forEach((h) => {
+        var _a3;
+        return (_a3 = h == null ? void 0 : h.remove) == null ? void 0 : _a3.call(h);
+      });
       modal.style.transform = "";
     };
   }
@@ -4084,6 +4114,13 @@ var CaptureModal = class extends import_obsidian18.Modal {
 };
 function defaultTitle(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+function toCssPx(px) {
+  if (px <= 0) return 0;
+  if (import_obsidian18.Platform.isAndroidApp) {
+    return px / (window.devicePixelRatio || 1);
+  }
+  return px;
 }
 
 // src/modals/CanvasSendModal.ts
