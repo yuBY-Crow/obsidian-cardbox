@@ -1,9 +1,10 @@
 {
 	"id": "cardbox",
 	"name": "CardBox 卡片盒",
-	"version": "0.6.49",
+	"version": "0.6.50",
 	"minAppVersion": "1.5.0",
 	"description": "Writeathon风格卡片盒：条件抓取卡片盒、色彩卡片、卡片置顶、PC 端瀑布流平铺、卡片扩展同屏视图（与 Obsidian 双链深度整合）、白板居中布局投放（左入右出、双链上下、双向箭头标色）、标题即链接、合并成文。移动端友好。",
-	"author": "CardBox",
+	"author": "yuBY-Crow",
+	"authorUrl": "https://github.com/yuBY-Crow",
 	"isDesktopOnly": false
 }
