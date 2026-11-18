@@ -37,8 +37,10 @@ export interface Card {
 	bodyLinks: string[];
 	/** 是否已归档（frontmatter archived: true） */
 	archived: boolean;
-	/** 眉头颜色标记 */
+	/** 眉头颜色标记（预设名） */
 	color?: CardColor;
+	/** 自定义眉头颜色（#RRGGBB），优先于 color 显示 */
+	customColor?: string;
 	/** 是否置顶（悬浮于列表顶部） */
 	pinned: boolean;
 	/** 正文前~200 字（列表显示 + 文本搜索） */

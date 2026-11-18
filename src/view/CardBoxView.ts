@@ -9,6 +9,7 @@ import { BoxBar } from './BoxBar';
 import { MobileHeader } from './MobileHeader';
 import { IncrementalList } from './IncrementalList';
 import { ConfirmModal } from '../modals/ConfirmModal';
+import { ColorPickerModal } from '../modals/ColorPickerModal';
 import { MergeModal } from '../modals/MergeModal';
 import { TagModal } from '../modals/TagModal';
 import { TagPickerModal } from '../modals/TagPickerModal';
@@ -815,7 +816,7 @@ export class CardBoxView extends ItemView {
 
 		// 调色盘：setSubmenu 属未公开 API，旧版Obsidian 上不存在。
 		// 支持则用子菜单（紧凑），否则平铺成「眉头颜色：红」等条目，保证任何版本都能用。
-		this.addColorMenuItems(menu, card);
+		this.addColorMenuItems(menu, card, anchor);
 
 		menu.addItem((item) =>
 			item
@@ -875,64 +876,50 @@ export class CardBoxView extends ItemView {
 	 * Menu.addItem 的 item 上setSubmenu 是未公开 API（官方 obsidian.d.ts 无此声明），
 	 * 旧版本客户端调用会抛异常导致整个菜单打不开，因此必须做能力探测并提供降级路径。
 	 */
-	private addColorMenuItems(menu: Menu, card: Card): void {
-		const apply = (color: CardColor | null) => void this.ctx.service.setColor([card], color);
-
-		// 手机端：Obsidian 的 setSubmenu() 在 1.5.12 上虽然存在、不抛异常，
-		// 但返回的子菜单不会挂进 DOM（点击/hover 都不展开），导致「眉头颜色」
-		// 点开没有任何可选项。直接在主菜单平铺颜色，保证触屏点击可用。
-		if (Platform.isMobile) {
-			for (const color of CARD_COLORS) {
-				menu.addItem((si) =>
-					si
-						.setTitle(`${i18n.colorLabel}：${i18n.colorNames[color] ?? color}`)
-						.setChecked(card.color === color)
-						.onClick(() => apply(color)),
-				);
-			}
-			menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
-			return;
-		}
-
-		let sub: Menu | undefined;
-		menu.addItem((item) => {
-			item.setTitle(i18n.colorLabel).setIcon('palette');
-			const withSub = item as unknown as { setSubmenu?: () => Menu };
-			if (typeof withSub.setSubmenu !== 'function') return;
-			try {
-				sub = withSub.setSubmenu();
-			} catch {
-				sub = undefined;
-			}
-		});
-
-		if (sub) {
-			for (const color of CARD_COLORS) {
-				sub.addItem((si) =>
-					si
-						.setTitle(i18n.colorNames[color] ?? color)
-						.setChecked(card.color === color)
-						.onClick(() => apply(color)),
-				);
-			}
-			sub.addSeparator();
-			sub.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
-			return;
-		}
-
-		// 降级：平铺进主菜单，标题带前缀以便区分
-		for (const color of CARD_COLORS) {
-			const name = i18n.colorNames[color] ?? color;
-			menu.addItem((si) =>
-				si
-					.setTitle(`${i18n.colorLabel}：${name}`)
-					.setChecked(card.color === color)
-					.onClick(() => apply(color)),
-			);
-		}
-		menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
+	private addColorMenuItems(menu: Menu, card: Card, anchor: HTMLElement): void {
+		// 二级菜单：点「眉头颜色」再打开一个独立 Menu，锚定在卡片 ⋮ 处。
+		// 不用 setSubmenu()：1.5.12 上它返回的子菜单不进 DOM，触屏点不开。
+		menu.addItem((item) =>
+			item
+				.setTitle(i18n.colorLabel)
+				.setIcon('palette')
+				.onClick(() => this.showColorSubmenu(card, anchor)),
+		);
 	}
 
+	private showColorSubmenu(card: Card, anchor: HTMLElement): void {
+		const rect = anchor.getBoundingClientRect();
+		const sub = new Menu();
+		// 写完后主动刷新索引：metadataCache 事件偶尔会漏，否则卡片颜色条不更新
+		const refresh = (p: Promise<void>): void => {
+			void p.then(() => this.ctx.index.refreshPaths([card.path]));
+		};
+		for (const color of CARD_COLORS) {
+			sub.addItem((si) =>
+				si
+					.setTitle(i18n.colorNames[color] ?? color)
+					.setChecked(!card.customColor && card.color === color)
+					.onClick(() => refresh(this.ctx.service.setColor([card], color))),
+			);
+		}
+		sub.addSeparator();
+		if (card.customColor) {
+			sub.addItem((si) => si.setTitle(`${i18n.colorCurrent}${card.customColor}`).setIcon('palette').onClick(() => {}));
+		}
+		sub.addItem((si) =>
+			si
+				.setTitle(i18n.colorCustom)
+				.setIcon('palette')
+				.onClick(() =>
+					new ColorPickerModal(this.app, card.customColor, (hex) => refresh(this.ctx.service.setCustomColor([card], hex))).open(),
+				),
+		);
+		// setColor(null) 会同时清掉 color 与 colorHex，无需再写一次
+		sub.addItem((si) =>
+			si.setTitle(i18n.colorClear).onClick(() => refresh(this.ctx.service.setColor([card], null))),
+		);
+		sub.showAtPosition({ x: rect.left, y: rect.bottom });
+	}
 	private linkExistingChild(parent: Card): void {
 		// 已是扩展卡片的（含正文双链）都排除，避免重复关联
 		const existing = this.ctx.index.extensionsOf(parent).map((e) => e.card.id);

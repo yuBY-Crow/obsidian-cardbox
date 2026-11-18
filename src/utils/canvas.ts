@@ -110,7 +110,7 @@ function buildNodes(cards: Card[], origin: { x: number; y: number }): CanvasNode
 			height: NODE_H,
 		};
 		if (card.color) {
-			const c = COLOR_MAP[card.color];
+			const c = card.customColor ?? COLOR_MAP[card.color];
 			if (c) node.color = c;
 		}
 		return node;
@@ -165,7 +165,7 @@ function makeFileNode(card: Card, x: number, y: number): CanvasNode {
 		height: NODE_H,
 	};
 	if (card.color) {
-		const c = COLOR_MAP[card.color];
+		const c = card.customColor ?? COLOR_MAP[card.color];
 		if (c) node.color = c;
 	}
 	return node;

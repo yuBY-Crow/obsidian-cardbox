@@ -60,6 +60,13 @@ function parseColor(v: unknown): CardColor | undefined {
 	return (CARD_COLORS as string[]).includes(c) ? (c as CardColor) : undefined;
 }
 
+/** 自定义颜色：只接受 #RGB / #RRGGBB */
+function parseCustomColor(v: unknown): string | undefined {
+	if (typeof v !== 'string') return undefined;
+	const c = v.trim();
+	return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c) ? c : undefined;
+}
+
 
 /**
  * CardService：卡片创建 / 读取 / 变更的唯一入口。
@@ -137,6 +144,7 @@ export class CardService {
 			bodyLinks: [],
 			archived: data?.archived === true,
 			color: parseColor(data?.color),
+			customColor: parseCustomColor(data?.colorHex),
 			pinned: data?.pinned === true,
 			snippet: trimmed.slice(0, SNIPPET_LENGTH),
 			searchText: `${title ?? ''} ${tags.join(' ')} ${trimmed}`.slice(0, SEARCH_TEXT_LENGTH).toLowerCase(),
@@ -297,6 +305,23 @@ export class CardService {
 			await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 				if (color === null) delete fm.color;
 				else fm.color = color;
+				delete fm.colorHex; // 选预设色时清掉自定义色
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
+			});
+		}
+	}
+
+	/** 自定义眉头颜色；hex 传 null 表示清除 */
+	async setCustomColor(cards: Card[], hex: string | null): Promise<void> {
+		for (const card of cards) {
+			const file = this.getFile(card.path);
+			if (!file) continue;
+			await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+				if (hex === null) delete fm.colorHex;
+				else {
+					fm.colorHex = hex;
+					delete fm.color; // 自定义色优先，清掉预设名
+				}
 				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
