@@ -1,7 +1,7 @@
 {
 	"id": "cardbox-mobile",
 	"name": "Slipbox",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"minAppVersion": "1.5.0",
 	"description": "A Writeathon-style slip box for quick capture, with condition-based card boxes, wikilinks and backlinks, a masonry waterfall view, Canvas whiteboard placement, and merging cards into an article. Mobile-friendly.",
 	"author": "yuBY-Crow",
