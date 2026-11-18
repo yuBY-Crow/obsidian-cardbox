@@ -3970,6 +3970,18 @@ var CardBoxView = class extends import_obsidian16.ItemView {
   addColorMenuItems(menu, card) {
     var _a;
     const apply = (color) => void this.ctx.service.setColor([card], color);
+    if (import_obsidian16.Platform.isMobile) {
+      for (const color of CARD_COLORS) {
+        menu.addItem(
+          (si) => {
+            var _a2;
+            return si.setTitle(`${i18n.colorLabel}\uFF1A${(_a2 = i18n.colorNames[color]) != null ? _a2 : color}`).setChecked(card.color === color).onClick(() => apply(color));
+          }
+        );
+      }
+      menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
+      return;
+    }
     let sub;
     menu.addItem((item) => {
       item.setTitle(i18n.colorLabel).setIcon("palette");

@@ -878,6 +878,22 @@ export class CardBoxView extends ItemView {
 	private addColorMenuItems(menu: Menu, card: Card): void {
 		const apply = (color: CardColor | null) => void this.ctx.service.setColor([card], color);
 
+		// 手机端：Obsidian 的 setSubmenu() 在 1.5.12 上虽然存在、不抛异常，
+		// 但返回的子菜单不会挂进 DOM（点击/hover 都不展开），导致「眉头颜色」
+		// 点开没有任何可选项。直接在主菜单平铺颜色，保证触屏点击可用。
+		if (Platform.isMobile) {
+			for (const color of CARD_COLORS) {
+				menu.addItem((si) =>
+					si
+						.setTitle(`${i18n.colorLabel}：${i18n.colorNames[color] ?? color}`)
+						.setChecked(card.color === color)
+						.onClick(() => apply(color)),
+				);
+			}
+			menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));
+			return;
+		}
+
 		let sub: Menu | undefined;
 		menu.addItem((item) => {
 			item.setTitle(i18n.colorLabel).setIcon('palette');
