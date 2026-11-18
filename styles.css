@@ -927,16 +927,29 @@ body.is-mobile .cardbox-boxbar-add {
 	--cardbox-color: var(--text-faint, #8d8d8d);
 }
 
-/* 眉头颜色 = 卡片自身的上边框：随 border-radius 完整贴合卡片圆角，
-   左右两端不再因 border 内缩而露出缝隙（旧的颜色条 div 已不再创建） */
-body.is-mobile .cardbox-list.is-masonry .cardbox-tile.has-color {
-	border-top: 4px solid var(--cardbox-color);
+/* 眉头颜色与置顶标记：都改为卡片内侧的圆润色条。
+   不再用 border 着色——border 沿 border-radius 会收成尖角，且置顶竖线与
+   颜色条斜切交界尤其突兀；色条两端 999px 圆角、互不接触，收尾干净。 */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile { position: relative; }
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.has-color::before {
+	content: '';
+	position: absolute;
+	top: 6px; left: 14px; right: 14px;
+	height: 4px;
+	border-radius: 999px;
+	background: var(--cardbox-color);
+	z-index: 1;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-pinned::after {
+	content: '';
+	position: absolute;
+	top: 14px; bottom: 14px; left: 6px;
+	width: 3px;
+	border-radius: 999px;
+	background: #A1D4CA;
+	z-index: 1;
 }
 .cardbox-tile-colorbar { display: none; }
-
-.cardbox-tile.is-pinned {
-	border-color: var(--interactive-accent);
-}
 
 .cardbox-tile-icon.is-pin {
 	color: var(--interactive-accent);
@@ -2072,7 +2085,7 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-parent {
 	font-size: 12px; opacity: 0.5;
 	border-top: 1px solid var(--background-modifier-border); padding-top: 8px; margin-top: 8px;
 }
-body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-pinned { border-left: 3px solid #A1D4CA; }
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-pinned { /* 置顶标记见 ::after 圆润竖条 */ }
 body.is-mobile .cardbox-tile.is-selected { outline: 1px solid #A1D4CA; }
 /* ===== v0.6.54 手机端 P0：图标按钮重置（对标方案 2/4/8/9/12） =====
    Obsidian 手机端给 <button> 默认 padding:4px 12px + 灰底 + 阴影，
