@@ -15,7 +15,7 @@ export const i18n = {
 	empty: '还没有卡片。点击「+」或使用「快速记录卡片」命令开始收集灵感。',
 	noMatch: '没有符合条件的卡片',
 	cardMode: '列表',
-	masonryMode: '平铺',
+	masonryMode: '双排信息流',
 	timelineMode: '时间线',
 	searchPlaceholder: '搜索卡片…',
 	hasTag: '有标签',
@@ -225,7 +225,7 @@ export const i18n = {
 	confirm: '确认',
 
 	// 设置
-	settingsTitle: 'CardBox 设置',
+	settingsTitle: 'Slipbox 设置',
 	cardsFolderName: '卡片存放文件夹',
 	cardsFolderDesc: '卡片笔记存放的文件夹（相对 Vault 根，无需首尾斜杠）。改动后自动重建索引。',
 	mergeFolderName: '合并输出文件夹',
@@ -250,7 +250,7 @@ export const i18n = {
 	canvasDirectionName: '白板默认引用方向',
 	canvasDrawEdgesName: '白板画出引用连线',
 	masonryWidthName: '平铺最小列宽',
-	masonryWidthDesc: 'PC 端平铺视图的每列最小宽度（px），越小列数越多。窄屏会自动降为单列。',
+	masonryWidthDesc: '桌面端信息流每列最小宽度（px），越小列数越多；手机端固定双排。',
 	defaultTagsName: '新建卡片默认标签',
 	viewModeName: '默认视图',
 	sortName: '默认排序',
@@ -275,7 +275,7 @@ export const i18n = {
 	childCreated: '已创建子卡片',
 
 	// 诊断日志
-	logTitle: 'CardBox 诊断日志',
+	logTitle: 'Slipbox 诊断日志',
 	logLevel: (lv: string) =>
 		lv === 'all' ? '全部' : lv === 'error' ? '仅错误' : lv === 'warn' ? '警告+' : lv === 'info' ? '信息+' : '调试+',
 	logRefresh: '刷新',
@@ -283,5 +283,36 @@ export const i18n = {
 	logClear: '清空',
 	logEmpty: '暂无日志。若问题复现，先操作一遍再回来复制。',
 	logCopied: '日志已复制',
-	openLogs: '打开 CardBox 诊断日志',
+	openLogs: '打开 Slipbox 诊断日志',
+
+	// 日期与分组文案（供 format.ts / article.ts 使用，集中在此便于切换语言）
+	monthDay: (m: number, d: number) => `${m}月${d}日`,
+	yearMonthDay: (y: number, m: number, d: number) => `${y}年${m}月${d}日`,
+	weekdays: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+	dayHeader: (date: string, weekday: string) => `${date}（${weekday}）`,
+	cardFragment: '卡片片段',
+	canvasName: '白板',
+	articleCollection: (d: string) => `卡片合集 ${d}`,
+	sourceCardLine: (id: string) => `> 📎 来源卡片：[[${id}]]`,
+	clearFilters: '清除筛选',
+
+	// 全局搜索（独立界面）与筛选（独立面板）拆分
+	searchTitle: '全局搜索',
+	searchPlaceholder2: '搜索标题 / 正文 / 标签…',
+	searchHint: '输入关键词，自动匹配标题、正文与标签',
+	searchNoResults: '没有找到匹配的卡片',
+	searchCount: (n: number, q: string) => `「${q}」共命中 ${n} 张卡片`,
+	searchCatTitle: '标题匹配',
+	searchCatBody: '正文匹配',
+	searchCatTag: '标签匹配',
+	hitTitle: '标题',
+	hitBody: '正文',
+	hitTag: '标签',
+	filterTitle: '筛选',
+	filterGroupTags: '标签',
+	filterGroupColors: '颜色',
+	filterGroupQuick: '快捷筛选',
+	filterGroupSort: '排序',
+	tagSearchPlaceholder: '在所有标签中搜索…',
+	tagSearchEmpty: '没有匹配的标签',
 };

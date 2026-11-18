@@ -1,4 +1,4 @@
-import { App, TFile, parseYaml, stringifyYaml } from 'obsidian';
+import { App, TFile, Vault, parseYaml, stringifyYaml } from 'obsidian';
 import type { Card, CardColor } from './types';
 import { CARD_COLORS } from './types';
 import { generateId, deriveFileBase, normalizeTags } from './utils/format';
@@ -12,7 +12,7 @@ export function splitFrontmatter(content: string): { data: Record<string, unknow
 	const m = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(content);
 	if (m) {
 		try {
-			const parsed = parseYaml(m[1]);
+			const parsed: unknown = parseYaml(m[1]);
 			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
 				return { data: parsed as Record<string, unknown>, body: content.slice(m[0].length) };
 			}
@@ -88,7 +88,11 @@ export class CardService {
 
 	isCardPath(path: string): boolean {
 		const f = this.folder();
-		return f.length > 0 && path.startsWith(f + '/') && path.endsWith('.md');
+		if (f.length === 0 || !path.endsWith('.md') || !path.startsWith(f + '/')) return false;
+		// 卡片 id = 文件名（basename）。允许子目录会让 Cards/a/x.md 与 Cards/b/x.md
+		// 撞成同一个 id 并在索引里互相覆盖，因此只认文件夹下的直接子文件。
+		const rest = path.slice(f.length + 1);
+		return rest.length > 0 && !rest.includes('/');
 	}
 
 	/** 确保文件夹存在（不存在则创建） */
@@ -197,9 +201,15 @@ export class CardService {
 			fm.updated = now;
 		}
 		// 默认属性预设：用户配置的键值对，创建时自动写入
+		// 保留字会破坏卡片模型（如 tags/title/pinned），不能让用户预设覆盖
+		const RESERVED = new Set([
+			'id', 'title', 'tags', 'parent', 'children', 'created', 'updated',
+			'archived', 'color', 'pinned', 'bodyLinks',
+		]);
 		for (const [key, value] of Object.entries(this.getDefaultProperties())) {
-			if (!key.trim()) continue;
-			fm[key.trim()] = value;
+			const k = key.trim();
+			if (!k || RESERVED.has(k)) continue;
+			fm[k] = value;
 		}
 		if (opts.title) fm.title = opts.title;
 		if (opts.tags && opts.tags.length) fm.tags = opts.tags;
@@ -244,9 +254,9 @@ export class CardService {
 		for (const card of cards) {
 			const file = this.getFile(card.path);
 			if (!file) continue;
-			await this.app.fileManager.processFrontMatter(file, (fm) => {
+			await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 				fm.tags = [...new Set([...normalizeTags(fm.tags), ...clean])];
-				fm.updated = Date.now();
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
 	}
@@ -256,9 +266,9 @@ export class CardService {
 		for (const card of cards) {
 			const file = this.getFile(card.path);
 			if (!file) continue;
-			await this.app.fileManager.processFrontMatter(file, (fm) => {
+			await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 				fm.archived = archived;
-				fm.updated = Date.now();
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
 	}
@@ -267,7 +277,7 @@ export class CardService {
 	async deleteCards(cards: Card[]): Promise<void> {
 		for (const card of cards) {
 			const file = this.getFile(card.path);
-			if (file) await this.app.vault.trash(file, false);
+			if (file) await this.app.fileManager.trashFile(file);
 		}
 	}
 
@@ -276,10 +286,10 @@ export class CardService {
 		for (const card of cards) {
 			const file = this.getFile(card.path);
 			if (!file) continue;
-			await this.app.fileManager.processFrontMatter(file, (fm) => {
+			await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 				if (color === null) delete fm.color;
 				else fm.color = color;
-				fm.updated = Date.now();
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
 	}
@@ -289,10 +299,10 @@ export class CardService {
 		for (const card of cards) {
 			const file = this.getFile(card.path);
 			if (!file) continue;
-			await this.app.fileManager.processFrontMatter(file, (fm) => {
+			await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 				if (pinned) fm.pinned = true;
 				else delete fm.pinned;
-				fm.updated = Date.now();
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
 	}
@@ -304,11 +314,11 @@ export class CardService {
 	async addChild(parent: Card, child: Card): Promise<void> {
 		const file = this.getFile(parent.path);
 		if (!file) return;
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			const ids = parseLinkList(fm.children);
 			if (!ids.includes(child.id)) ids.push(child.id);
 			fm.children = toLinkList(ids);
-			fm.updated = Date.now();
+			if (this.getWriteTimestamps()) fm.updated = Date.now();
 		});
 	}
 
@@ -321,9 +331,9 @@ export class CardService {
 		await this.addChild(parent, child);
 		const childFile = this.getFile(child.path);
 		if (!childFile) return;
-		await this.app.fileManager.processFrontMatter(childFile, (fm) => {
+		await this.app.fileManager.processFrontMatter(childFile, (fm: Record<string, unknown>) => {
 			fm.parent = toWikilink(parent.id);
-			fm.updated = Date.now();
+			if (this.getWriteTimestamps()) fm.updated = Date.now();
 		});
 	}
 
@@ -331,18 +341,18 @@ export class CardService {
 	async unlinkChild(parent: Card, child: Card): Promise<void> {
 		const parentFile = this.getFile(parent.path);
 		if (parentFile) {
-			await this.app.fileManager.processFrontMatter(parentFile, (fm) => {
+			await this.app.fileManager.processFrontMatter(parentFile, (fm: Record<string, unknown>) => {
 				const ids = parseLinkList(fm.children).filter((id) => id !== child.id);
 				if (ids.length) fm.children = toLinkList(ids);
 				else delete fm.children;
-				fm.updated = Date.now();
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
 		const childFile = this.getFile(child.path);
 		if (childFile) {
-			await this.app.fileManager.processFrontMatter(childFile, (fm) => {
+			await this.app.fileManager.processFrontMatter(childFile, (fm: Record<string, unknown>) => {
 				delete fm.parent;
-				fm.updated = Date.now();
+				if (this.getWriteTimestamps()) fm.updated = Date.now();
 			});
 		}
 	}
@@ -351,9 +361,9 @@ export class CardService {
 	async reorderChildren(parent: Card, orderedIds: string[]): Promise<void> {
 		const file = this.getFile(parent.path);
 		if (!file) return;
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			fm.children = toLinkList(orderedIds);
-			fm.updated = Date.now();
+			if (this.getWriteTimestamps()) fm.updated = Date.now();
 		});
 	}
 
@@ -365,16 +375,21 @@ export class CardService {
 	async appendBodyLink(card: Card, targetId: string): Promise<boolean> {
 		const file = this.getFile(card.path);
 		if (!file) return false;
-		const content = await this.app.vault.read(file);
-		const { data, body } = splitFrontmatter(content);
 		const link = toWikilink(targetId);
-		// 已有相同链接（含别名/路径写法）则跳过
-		const existing = new RegExp(`\\[\\[[^\\]]*${escapeRegExp(targetId)}[^\\]]*\\]\\]`);
-		if (existing.test(body)) return false;
-		const trimmed = body.replace(/\s+$/, '');
+		const content = await this.app.vault.cachedRead(file);
+		const { body } = splitFrontmatter(content);
+		// 按解析后的完整 id 比较，避免 [[xabc]] 把 [[abc]] 误判为「已存在」
+		const exists = (body.match(/\[\[[^\]\n]+\]\]/g) ?? []).some((raw) => parseLinkTarget(raw) === targetId);
+		if (exists) return false;
+		const trimmed = body.replace(/^\s+|\s+$/g, '');
 		const nextBody = trimmed ? `${trimmed}\n\n${link}\n` : `${link}\n`;
-		const nextContent = data ? buildCardContent({ ...data, updated: Date.now() }, nextBody) : nextBody;
-		await this.app.vault.modify(file, nextContent);
+		// 原子改写：保留原始 frontmatter 文本（不做 parseYaml→stringifyYaml 往返），
+		// 只替换正文，并固定 frontmatter 与正文之间恰好一个空行，避免空行累积。
+		await atomicModify(this.app.vault, file, (raw) => {
+			const m = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(raw);
+			if (!m) return nextBody;
+			return `${m[0].replace(/\r?\n$/, '')}\n\n${nextBody}`;
+		});
 		return true;
 	}
 
@@ -389,10 +404,21 @@ export class CardService {
 
 	/** 将卡片 updated 刷新为当前时间（由索引在检测到正文变更时调用） */
 	async bumpUpdated(card: Card): Promise<void> {
+		if (!this.getWriteTimestamps()) return;
 		const file = this.getFile(card.path);
 		if (!file) return;
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.updated = Date.now();
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			if (this.getWriteTimestamps()) fm.updated = Date.now();
 		});
 	}
+}
+
+/** vault.process 在旧版 Obsidian / 测试 mock 中可能不可用，回退到 read + modify */
+async function atomicModify(vault: Vault, file: TFile, fn: (raw: string) => string): Promise<void> {
+	const v = vault as Vault & { process?: (f: TFile, cb: (s: string) => string) => Promise<string> };
+	if (typeof v.process === 'function') {
+		await v.process(file, fn);
+		return;
+	}
+	await v.modify(file, fn(await v.read(file)));
 }

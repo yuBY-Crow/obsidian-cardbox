@@ -1,15 +1,15 @@
 // 生成手机端友好的 zip：强制正斜杠分隔符（PowerShell Compress-Archive 会写反斜杠，
-// 部分 Android/iOS 解压工具会解成名为 "cardbox\main.js" 的单个文件而非文件夹）。
+// 部分 Android/iOS 解压工具会解成名为 "cardbox-mobile\main.js" 的单个文件而非文件夹）。
 // 无第三方依赖，手写 store（不压缩）zip，兼容性最好。
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { crc32 } from 'node:zlib';
 import path from 'node:path';
 
 const FILES = ['main.js', 'manifest.json', 'styles.css'];
-const PREFIX = 'cardbox/';
+const PREFIX = 'cardbox-mobile/';
 // 版本号从 manifest 读取，避免升版本后忘记改这里
 const VERSION = JSON.parse(await readFile('manifest.json', 'utf8')).version;
-const OUT = `release/cardbox-${VERSION}-mobile.zip`;
+const OUT = `release/cardbox-mobile-${VERSION}.zip`;
 
 function dosDateTime(d = new Date()) {
 	const time = ((d.getHours() & 0x1f) << 11) | ((d.getMinutes() & 0x3f) << 5) | ((d.getSeconds() / 2) & 0x1f);

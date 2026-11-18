@@ -33,6 +33,8 @@ interface ViewHeader {
 	getMode(): ViewMode;
 	getSort(): SortMode;
 	refreshTags?(): void;
+	/** 释放内部定时器（目前仅 PC 端 FilterBar 需要） */
+	destroy?(): void;
 }
 
 export class CardBoxView extends ItemView {
@@ -48,6 +50,12 @@ export class CardBoxView extends ItemView {
 	private expandedIds = new Set<string>();
 	private renderKey = '';
 	private raf = 0;
+	/** checkTileTitles 的 rAF 句柄，onClose 需取消（对比主渲染的 this.raf） */
+	private titleRaf = 0;
+	/** 从笔记页返回时待恢复的滚动锚点（第一张可见卡片 + 偏移量） */
+	private pendingRestore: { id: string; offset: number } | null = null;
+	/** 视图是否已关闭，供异步回调判断 */
+	private closed = false;
 	private list!: IncrementalList<RenderItem>;
 	private listEl!: HTMLElement;
 	private placeholderEl!: HTMLElement;
@@ -75,7 +83,76 @@ export class CardBoxView extends ItemView {
 		return 'boxes';
 	}
 
+	/** 把筛选条件写进 leaf history，返回时 setState 恢复 */
+	getState(): Record<string, unknown> {
+		return {
+			filter: {
+				query: this.filter.query,
+				tags: [...this.filter.selectedTags],
+				colors: [...this.filter.selectedColors],
+				hasTag: this.filter.hasTag,
+				noTag: this.filter.noTag,
+				emptyContent: this.filter.emptyContent,
+				hasTaskList: this.filter.hasTaskList,
+				pinnedOnly: this.filter.pinnedOnly,
+				showArchived: this.filter.showArchived,
+			},
+		};
+	}
+
+	async setState(state: unknown): Promise<void> {
+		const s = state as { filter?: Record<string, unknown> } | undefined;
+		const f = s?.filter;
+		if (f) {
+			this.filter.query = typeof f.query === 'string' ? f.query : '';
+			this.filter.selectedTags = new Set(Array.isArray(f.tags) ? (f.tags as string[]) : []);
+			this.filter.selectedColors = new Set(Array.isArray(f.colors) ? (f.colors as CardColor[]) : []);
+			for (const k of ['hasTag', 'noTag', 'emptyContent', 'hasTaskList', 'pinnedOnly', 'showArchived'] as const) {
+				(this.filter as unknown as Record<string, boolean>)[k] = !!f[k];
+			}
+			this.renderKey = '';
+			this.scheduleRender();
+		}
+	}
+
+	/** 记录第一张可见卡片作为滚动锚点（列表是增量渲染，不能直接存 scrollTop） */
+	getEphemeralState(): Record<string, unknown> {
+		const top = this.listEl?.getBoundingClientRect().top ?? 0;
+		const tiles = this.listEl?.querySelectorAll<HTMLElement>('.cardbox-tile[data-card-id]');
+		if (!tiles) return {};
+		for (const t of Array.from(tiles)) {
+			const r = t.getBoundingClientRect();
+			if (r.bottom > top) return { cbAnchor: t.dataset.cardId ?? '', cbOffset: r.top - top };
+		}
+		return {};
+	}
+
+	setEphemeralState(state: unknown): void {
+		const e = state as { cbAnchor?: string; cbOffset?: number } | undefined;
+		if (e?.cbAnchor) this.pendingRestore = { id: e.cbAnchor, offset: e.cbOffset ?? 0 };
+	}
+
+	/** setItems 之后把列表渲染到锚点卡片并校正滚动位置 */
+	private applyRestore(items: RenderItem[]): void {
+		const p = this.pendingRestore;
+		if (!p) return;
+		this.pendingRestore = null;
+		const idx = items.findIndex((it) => it.kind === 'card' && it.card.id === p.id);
+		if (idx < 0) return;
+		this.list.renderUntil(idx);
+		window.requestAnimationFrame(() => {
+			if (this.closed) return;
+			let sel = '';
+			try { sel = `[data-card-id="${CSS.escape(p.id)}"]`; } catch { sel = `[data-card-id="${p.id.replace(/"/g, '\\"')}"]`; }
+			const el = this.listEl.querySelector<HTMLElement>(sel);
+			if (!el) return;
+			const delta = el.getBoundingClientRect().top - this.listEl.getBoundingClientRect().top - p.offset;
+			this.listEl.scrollTop += delta;
+		});
+	}
+
 	async onOpen(): Promise<void> {
+		this.closed = false;
 		const root = this.contentEl;
 		root.empty();
 		root.addClass('cardbox-root');
@@ -106,6 +183,12 @@ export class CardBoxView extends ItemView {
 						.open();
 				},
 				onPickBox: (anchor) => this.showBoxMenu(anchor),
+			onOpenCard: (card) => void this.openCard(card),
+				// 手机端排序变更：持久化 defaultSort，避免重开筛选面板显示旧值
+				onSortChange: (sort) => {
+					this.ctx.settings.defaultSort = sort;
+					void this.ctx.saveSettings();
+				},
 			});
 			this.mobileHeader.build(root, (icon, title, cb) => this.addAction(icon, title, cb));
 			this.filterBar = this.mobileHeader;
@@ -209,20 +292,26 @@ export class CardBoxView extends ItemView {
 
 	/**
 	 * 视图尺寸变化（窗口缩放、侧栏拖宽等）时重算瀑布流列数。
-	 * 只有列数真的变了才重排——setColumnCount 内部已做相等判断。
+	 * setColumnCount 现在只更新列数、不重建；统一交给 render() 里的
+	 * setItems 完成重排，所以这里只需打破 renderKey 让 render() 不被短路。
 	 */
 	onResize(): void {
 		if (this.filterBar?.getMode() !== 'masonry') return;
 		const next = this.masonryColumns();
 		if (next !== this.list.getColumnCount()) {
-			this.list.setColumnCount(next);
+			this.renderKey = '';
+			this.scheduleRender();
 		}
 	}
 
 	onClose(): Promise<void> {
+		this.closed = true;
 		this.ctx.index.offChanged(this.indexChangedCb);
 		this.list?.destroy();
 		if (this.raf) window.cancelAnimationFrame(this.raf);
+		if (this.titleRaf) window.cancelAnimationFrame(this.titleRaf);
+		// PC 端 FilterBar 持有搜索 debounce 定时器，需显式取消
+		this.filterBar?.destroy?.();
 		return Promise.resolve();
 	}
 
@@ -359,22 +448,16 @@ export class CardBoxView extends ItemView {
 	}
 
 	/**
-	 * 瀑布流列数。
-	 * 手机端固定双列（屏幕窄，再多列每张卡就没法读了）；
-	 * PC 端按容器实际宽度除以设置的最小列宽，至少 1 列。
+	 * 瀑布流列数：手机与桌面统一按容器实际宽度除以最小列宽计算，
+	 * 至少 1 列（窄屏自然落到 1 列），masonryMinColumnWidth 设置对两端都生效。
 	 */
 	private masonryColumns(): number {
-		// 手机端固定双列（屏幕窄，再多列每张卡就没法读了）。
-		// 用 body.is-mobile 兜底：个别环境下 Platform.isMobile 可能不准，
-		// 一旦误判为 PC 会走 clientWidth 分支，窄屏算成 1 列（用户看到的「变单列」）
-		const isMobile = Platform.isMobile || document.body.classList.contains('is-mobile');
-		if (isMobile) return 2;
+		// 手机端固定双排信息流（小红书 / 写拉松式卡片盒）
+		if (Platform.isMobile) return 2;
 		const width = this.listEl.clientWidth;
 		const min = Math.max(160, this.ctx.settings.masonryMinColumnWidth);
-		// clientWidth 为 0 说明还没布局完（首次渲染），先给 2 列，
-		// 后续 resize 会纠正
 		if (!width) return 2;
-		return Math.max(1, Math.floor(width / min));
+		return Math.max(2, Math.floor(width / min));
 	}
 
 	private render(): void {
@@ -445,10 +528,17 @@ export class CardBoxView extends ItemView {
 
 		const items = mode === 'timeline' ? this.buildDayItems(filtered) : this.buildCardItems(filtered);
 		this.list.setItems(items);
+		this.applyRestore(items);
 		log.info('render', '渲染完成', { mode, columns: this.list.getColumnCount(), defaultViewMode: this.ctx.settings.defaultViewMode, isMobile: Platform.isMobile, cards: filtered.length, items: items.length, expandedIds: this.expandedIds.size });
 		// 标题可见性检查：等布局完成后验证标题元素实际渲染状态
 		// （用户反馈「卡片没有显示标题」，需要区分：提取为空 / 渲染不可见 / 正常）
-		window.requestAnimationFrame(() => this.checkTileTitles());
+		// 句柄必须保存，onClose 才能取消；回调开头判断视图已关闭则直接返回
+		if (this.titleRaf) window.cancelAnimationFrame(this.titleRaf);
+		this.titleRaf = window.requestAnimationFrame(() => {
+			this.titleRaf = 0;
+			if (this.closed) return;
+			this.checkTileTitles();
+		});
 	}
 
 	/**
@@ -509,13 +599,20 @@ export class CardBoxView extends ItemView {
 		// 扩展卡片 = frontmatter 显式关联 + 正文双链，与扩展视图口径一致
 		const extIds = (card: Card) => this.ctx.index.extensionsOf(card).map((e) => e.card.id);
 		let counted = 0;
-		const visit = (card: Card, depth: number) => {
+		/**
+		 * 展开深度上限 + 沿路径的 seen 集合。
+		 * 原实现每次递归前 visited.delete(child.id)，A↔B 互链且都展开时
+		 * depth 会无限递增导致栈溢出；用一条「只增不删」的路径集合拦住成环。
+		 */
+		const maxExpandDepth = 12;
+		const visit = (card: Card, depth: number, seen: Set<string> = new Set<string>()) => {
+			if (seen.has(card.id)) return;
 			if (visited.has(card.id)) return;
 			visited.add(card.id);
 			const children = extIds(card)
 				.map((id) => byId.get(id))
 				.filter((c): c is Card => !!c);
-			const isExpanded = children.length > 0 && expanded.has(card.id);
+			const isExpanded = children.length > 0 && expanded.has(card.id) && depth < maxExpandDepth;
 			// 只记录前几张带子卡的，避免日志刷屏
 			if (children.length > 0 && counted < 10) {
 				counted++;
@@ -524,19 +621,25 @@ export class CardBoxView extends ItemView {
 			result.push({ kind: 'card', card, depth, expanded: isExpanded, hasVisibleChildren: children.length > 0 });
 			// 父卡展开：子卡从默认位置（depth 0）移除并以 depth+1 重新加入
 			if (isExpanded) {
+				const path = new Set(seen);
+				path.add(card.id);
 				const childIds = new Set(children.map((c) => c.id));
 				const removed: string[] = [];
 				for (let i = result.length - 1; i >= 0; i--) {
 					const r = result[i];
-					if (r.kind === 'card' && childIds.has(r.card.id) && r.depth === 0) {
+					// 祖先节点（成环时会出现在自己子卡的 childIds 里）不能被移走，
+					// 否则该卡片会从列表里彻底消失
+					if (r.kind === 'card' && childIds.has(r.card.id) && r.depth === 0 && !path.has(r.card.id)) {
 						result.splice(i, 1);
 						removed.push(r.card.id);
 					}
 				}
 				log.info('render', '展开：子卡从默认位置移走', { id: card.id, removed });
 				for (const child of children) {
+					// 沿路径已出现的卡片不再展开，避免成环导致无限递归
+					if (path.has(child.id)) continue;
 					visited.delete(child.id);
-					visit(child, depth + 1);
+					visit(child, depth + 1, path);
 				}
 			}
 		};
@@ -632,7 +735,22 @@ export class CardBoxView extends ItemView {
 	}
 
 	private updateTileInDom(id: string): void {
-		const tile = this.listEl.querySelector<HTMLElement>(`[data-card-id="${id}"]`);
+		let tile: HTMLElement | null = null;
+		// id 来自文件名，可能含引号/括号等特殊字符，必须转义后再进属性选择器
+		try {
+			tile = this.listEl.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(id)}"]`);
+		} catch {
+			// CSS.escape 不可用或选择器仍非法时忽略，走下面的遍历兜底
+			tile = null;
+		}
+		if (!tile) {
+			for (const el of this.listEl.querySelectorAll<HTMLElement>('[data-card-id]')) {
+				if (el.getAttribute('data-card-id') === id) {
+					tile = el;
+					break;
+				}
+			}
+		}
 		if (tile) updateTileSelection(tile, this.selectedIds.has(id));
 	}
 
@@ -671,7 +789,7 @@ export class CardBoxView extends ItemView {
 
 	private async openCard(card: Card): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(card.path);
-		if (file instanceof TFile) await this.ctx.openFile(file);
+		if (file instanceof TFile) await this.ctx.openFile(file, this.leaf);
 	}
 
 	private showCardMenu(card: Card, anchor: HTMLElement): void {
@@ -693,6 +811,7 @@ export class CardBoxView extends ItemView {
 				.onClick(() => void this.ctx.openExtendView(card.id)),
 		);
 		menu.addItem((item) => item.setTitle(i18n.tag).setIcon('tag').onClick(() => new TagModal(this.app, this.ctx, [card]).open()));
+		menu.addSeparator();
 
 		// 调色盘：setSubmenu 属未公开 API，旧版Obsidian 上不存在。
 		// 支持则用子菜单（紧凑），否则平铺成「眉头颜色：红」等条目，保证任何版本都能用。
@@ -724,6 +843,7 @@ export class CardBoxView extends ItemView {
 			);
 		}
 
+		menu.addSeparator();
 		menu.addItem((item) =>
 			item
 				.setTitle(i18n.sendToCanvas)
@@ -738,6 +858,7 @@ export class CardBoxView extends ItemView {
 				.onClick(() => void this.ctx.renameByTitle([card])),
 		);
 
+		menu.addSeparator();
 		menu.addItem((item) =>
 			item
 				.setTitle(card.archived ? i18n.unarchive : i18n.archive)

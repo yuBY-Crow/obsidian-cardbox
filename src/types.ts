@@ -119,7 +119,7 @@ export interface CardBoxSettings {
 	mergeOutputFolder: string;
 	/** Canvas 文件输出文件夹 */
 	canvasOutputFolder: string;
-	/** 文件名方案（MVP 仅 datetime） */
+	/** 文件名方案：title（标题，默认）/ datetime（时间戳） */
 	filenameFormat: 'datetime' | 'title';
 	/** 新建卡片默认标签 */
 	defaultTags: string[];
@@ -131,7 +131,7 @@ export interface CardBoxSettings {
 	continuousCaptureDefault: boolean;
 	/** 卡片盒中是否显示归档卡片 */
 	showArchived: boolean;
-	/** 归档方式（MVP 仅 frontmatter 标记） */
+	/** 归档方式（当前仅 frontmatter 标记） */
 	archiveMethod: 'flag';
 	/** 用户定义的卡片盒（持久化在插件 data.json） */
 	boxes: CardBoxDef[];
@@ -167,7 +167,6 @@ export const PROPERTY_PRESETS: { key: string; value: string }[] = [
 	{ key: 'project', value: '' },
 	{ key: 'author', value: '' },
 	{ key: 'priority', value: '' },
-	{ key: 'tags', value: '' },
 	{ key: 'mood', value: '' },
 	{ key: 'date', value: '' },
 	{ key: 'location', value: '' },

@@ -29,6 +29,8 @@ export class CardIndex {
 	private refreshQueues = new Map<string, Promise<unknown>>();
 	private debounceTimers = new Map<string, number>();
 	private lastBump = new Map<string, number>();
+	/** 反向引用索引缓存：图遍历（白板投放）会多次查询，避免 O(n²) 全表扫描 */
+	private incomingCache: Map<string, string[]> | null = null;
 
 	isIndexing = false;
 	ready = false;
@@ -44,8 +46,14 @@ export class CardIndex {
 			this.eventRefs.push({ emitter, ref });
 			return ref;
 		};
-		// 'ready' 是真实事件但未在类型定义中列出
-		register(metadataCache, metadataCache.on('ready' as any, () => void this.build()));
+		// 'resolved' 是类型中合法且语义等价的缓存就绪事件；只触发一次全量构建，
+		// 后续文件变化由下面的 'changed' 走增量刷新。
+		let builtOnReady = false;
+		register(metadataCache, metadataCache.on('resolved', () => {
+			if (builtOnReady) return;
+			builtOnReady = true;
+			void this.build();
+		}));
 		register(
 			metadataCache,
 			metadataCache.on('changed', (file) => {
@@ -84,11 +92,28 @@ export class CardIndex {
 		this.eventRefs = [];
 		for (const timer of this.debounceTimers.values()) window.clearTimeout(timer);
 		this.debounceTimers.clear();
+		this.refreshQueues.clear();
+		this.lastBump.clear();
+		this.listeners.clear();
+		this.incomingCache = null;
 	}
 
 	// ---------- 全量构建 ----------
 
+	/** 防重入：metadataCache 'ready' 与 onLayoutReady 会几乎同时触发 build() */
+	private buildPromise: Promise<void> | null = null;
+
 	async build(): Promise<void> {
+		if (this.buildPromise) return this.buildPromise;
+		this.buildPromise = this.doBuild();
+		try {
+			await this.buildPromise;
+		} finally {
+			this.buildPromise = null;
+		}
+	}
+
+	private async doBuild(): Promise<void> {
 		this.isIndexing = true;
 		this.notify();
 		const files = this.app.vault.getMarkdownFiles().filter((f) => this.service.isCardPath(f.path));
@@ -119,6 +144,7 @@ export class CardIndex {
 			this.addTagCounts(card, +1);
 		}
 		this.needsSort = true;
+		this.incomingCache = null;
 		this.isIndexing = false;
 		this.ready = true;
 		this.notify();
@@ -265,6 +291,7 @@ export class CardIndex {
 		if (card.legacyId) this.aliasToId.set(card.legacyId, card.id);
 		this.addTagCounts(card, +1);
 		this.needsSort = true;
+		this.incomingCache = null;
 		this.notify();
 	}
 
@@ -277,7 +304,13 @@ export class CardIndex {
 			this.addTagCounts(card, -1);
 		}
 		this.pathToId.delete(path);
+		this.refreshQueues.delete(path);
+		const timer = this.debounceTimers.get(path);
+		if (timer !== undefined) window.clearTimeout(timer);
+		this.debounceTimers.delete(path);
+		this.lastBump.delete(path);
 		this.needsSort = true;
+		this.incomingCache = null;
 		this.notify();
 	}
 
@@ -332,18 +365,6 @@ export class CardIndex {
 		return aliased ? this.cardsById.get(aliased) : undefined;
 	}
 
-	/** 一张卡片可能被别人用哪些 id 引用（当前文件名 + 残留的旧 id） */
-	private idsOf(card: Card): string[] {
-		return card.legacyId ? [card.id, card.legacyId] : [card.id];
-	}
-
-	/** 判断 other 是否引用了 card（兼容旧 id 写法） */
-	private referencesCard(other: Card, card: Card): boolean {
-		for (const id of this.idsOf(card)) {
-			if (other.children.includes(id) || other.bodyLinks.includes(id)) return true;
-		}
-		return false;
-	}
 
 	/**
 	 * 取一张卡片的全部扩展卡片。
@@ -380,9 +401,9 @@ export class CardIndex {
 	backlinksOf(card: Card): Card[] {
 		const forward = new Set(this.extensionsOf(card).map((e) => e.card.id));
 		const out: Card[] = [];
-		for (const other of this.cardsById.values()) {
-			if (other.id === card.id || forward.has(other.id)) continue;
-			if (this.referencesCard(other, card)) out.push(other);
+		for (const id of this.allIncomingIds(card)) {
+			const other = this.cardsById.get(id);
+			if (other && other.id !== card.id && !forward.has(other.id)) out.push(other);
 		}
 		out.sort((a, b) => b.created - a.created);
 		return out;
@@ -390,12 +411,27 @@ export class CardIndex {
 
 	/** 全部引用当前卡片的卡片 id（不做 forward 排除，供图遍历使用） */
 	private allIncomingIds(card: Card): string[] {
-		const out: string[] = [];
+		return this.computeIncoming().get(card.id) ?? [];
+	}
+
+	/**
+	 * 一次性构建「被谁引用」的反向索引。
+	 * 图遍历会对每个节点查一次 incomingIds，逐次全表扫描是 O(n²)；
+	 * 缓存随索引变更失效，一次 BFS 只付一次构建成本。
+	 */
+	private computeIncoming(): Map<string, string[]> {
+		if (this.incomingCache) return this.incomingCache;
+		const map = new Map<string, string[]>();
 		for (const other of this.cardsById.values()) {
-			if (other.id === card.id) continue;
-			if (this.referencesCard(other, card)) out.push(other.id);
+			for (const e of this.extensionsOf(other)) {
+				const id = e.card.id;
+				const list = map.get(id);
+				if (list) list.push(other.id);
+				else map.set(id, [other.id]);
+			}
 		}
-		return out;
+		this.incomingCache = map;
+		return map;
 	}
 
 	/**

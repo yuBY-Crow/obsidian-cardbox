@@ -6,6 +6,10 @@ import { normalizeTag } from '../utils/format';
 
 /** 为选中卡片批量追加标签（支持嵌套标签 a/b/c） */
 export class TagModal extends Modal {
+	/** 防止双击/连点把批量打标签执行两遍 */
+	private submitting = false;
+	private applyBtn?: ButtonComponent;
+
 	constructor(
 		app: App,
 		private ctx: CardBoxContext,
@@ -39,23 +43,31 @@ export class TagModal extends Modal {
 
 		const actions = contentEl.createDiv({ cls: 'cardbox-modal-actions' });
 		new ButtonComponent(actions).setButtonText(i18n.cancel).onClick(() => this.close());
-		new ButtonComponent(actions)
+		this.applyBtn = new ButtonComponent(actions)
 			.setButtonText(i18n.apply)
-			.setCta()
-			.onClick(() => void this.apply(input.getValue()));
+			.setCta();
+		this.applyBtn.onClick(() => void this.apply(input.getValue()));
 
 		input.inputEl.focus();
 	}
 
 	private async apply(raw: string): Promise<void> {
+		if (this.submitting) return;
 		const tag = normalizeTag(raw);
 		if (!tag) {
 			new Notice(i18n.emptyCaptureHint, 1500);
 			return;
 		}
-		await this.ctx.service.setTags(this.cards, [tag]);
-		this.ctx.index.refreshPaths(this.cards.map((c) => c.path));
-		new Notice(i18n.tagApplied(this.cards.length, tag), 2000);
-		this.close();
+		this.submitting = true;
+		this.applyBtn?.setDisabled(true);
+		try {
+			await this.ctx.service.setTags(this.cards, [tag]);
+			this.ctx.index.refreshPaths(this.cards.map((c) => c.path));
+			new Notice(i18n.tagApplied(this.cards.length, tag), 2000);
+			this.close();
+		} finally {
+			this.submitting = false;
+			this.applyBtn?.setDisabled(false);
+		}
 	}
 }

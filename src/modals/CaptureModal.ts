@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Platform } from 'obsidian';
+import { App, Modal, Notice, Platform, setIcon } from 'obsidian';
 import type { EditorView } from '@codemirror/view';
 import { i18n } from '../i18n';
 import type { CardBoxContext } from '../context';
@@ -36,6 +36,9 @@ export class CaptureModal extends Modal {
 	private keyboardCleanup: (() => void) | null = null;
 	private keyboardPoll: number | null = null;
 	private keyboardFocusHandler: (() => void) | null = null;
+	private saving = false;
+	private closed = false;
+	private layoutTimer: number | null = null;
 
 	constructor(
 		app: App,
@@ -55,22 +58,10 @@ export class CaptureModal extends Modal {
 		// 用 JS 强制隐藏 Obsidian 默认标题栏（真实 class 是 .modal-header，
 		// 真机日志确认 modal 子元素为 [.modal-header-button, .modal-header, .modal-content]），
 		// 去掉 content 默认 padding，让自定义标题 input 真正贴卡片顶部
-		this.titleEl.style.display = 'none';
-		this.titleEl.style.height = '0';
-		this.titleEl.style.padding = '0';
-		this.titleEl.style.margin = '0';
-		const headerEl = this.modalEl?.querySelector('.modal-header') as HTMLElement | null;
-		if (headerEl) {
-			headerEl.style.display = 'none';
-			headerEl.style.height = '0';
-		}
-		// modal 本身也强制无 padding，确保关闭按钮 top:0 与标题框同高
-		if (this.modalEl) this.modalEl.style.padding = '0';
-
+		// 静态样式全部放到 CSS class 里（避免直接写 element.style.xxx）
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('cardbox-capture');
-		contentEl.style.padding = '0';
 
 		// 标题：无边框大字输入，默认 = 创建时间到秒，可直接改
 		this.titleInput = contentEl.createEl('input', {
@@ -106,25 +97,37 @@ export class CaptureModal extends Modal {
 			highlight: this.ctx.settings.capturePreview,
 		});
 
-		// 底部：连续创建（左，文字按钮）+ 保存（右，主色胶囊）
-		const footer = contentEl.createDiv({ cls: 'cardbox-capture-footer' });
-
-		if (!this.opts.parent && !this.opts.singleShot) {
-			const mode = footer.createEl('button', { cls: 'cardbox-capture-mode' });
-			mode.createSpan({ cls: 'cardbox-capture-mode-dot' });
-			mode.createSpan({ text: i18n.continuousMode });
-			mode.addEventListener('click', () => {
-				this.continuous = !this.continuous;
-				mode.classList.toggle('is-continuous', this.continuous);
+		// 写拉松式工具栏：紧贴键盘上沿的一行图标 + 右端薄荷绿「发送」
+		// 参考官网 wt-mobile.png：# · 图片 · 铅笔 · 键盘 · 图钉 · 时钟 · 发送
+		const toolbar = contentEl.createDiv({ cls: 'cardbox-capture-toolbar' });
+		const tool = (icon: string, label: string, fn: () => void): HTMLButtonElement => {
+			const b = toolbar.createEl('button', {
+				cls: 'cardbox-capture-tool',
+				attr: { type: 'button', 'aria-label': label, title: label },
 			});
-			mode.classList.toggle('is-continuous', this.continuous);
-		} else {
-			footer.createDiv({ cls: 'cardbox-spacer' });
-		}
-
-		const addBtn = footer.createEl('button', { cls: 'cardbox-capture-add', attr: { 'aria-label': i18n.save } });
-		addBtn.createSpan({ text: i18n.save });
-		addBtn.addEventListener('click', () => void this.save());
+			setIcon(b, icon);
+			b.addEventListener('click', (e) => { e.preventDefault(); fn(); });
+			return b;
+		};
+		tool('hash', i18n.addTag, () => this.insertText('#'));
+		tool('image', '插入图片', () => this.insertText('![]()'));
+		tool('pencil', '继续编辑', () => this.editorView?.focus());
+		tool('keyboard', '收起键盘', () => (this.editorView?.contentDOM as HTMLElement | undefined)?.blur());
+		const pin = tool('pin', i18n.continuousMode, () => {
+			this.continuous = !this.continuous;
+			pin.toggleClass('is-active', this.continuous);
+		});
+		pin.toggleClass('is-active', this.continuous);
+		tool('clock', '插入时间', () => {
+			const d = new Date();
+			this.insertText(`${pad2(d.getHours())}:${pad2(d.getMinutes())}`);
+		});
+		const send = toolbar.createEl('button', {
+			cls: 'cardbox-capture-send cardbox-capture-add',
+			attr: { type: 'button', 'aria-label': i18n.save, title: i18n.save },
+		});
+		setIcon(send, 'send');
+		send.addEventListener('click', () => void this.save());
 
 		// 默认聚焦正文（正文是主角）
 		this.editorView.focus();
@@ -137,7 +140,7 @@ export class CaptureModal extends Modal {
 	 * 手机端让卡片下部贴合输入法键盘顶部。
 	 *
 	 * 上移手段：modal 手机端 fixed 定位到屏幕底部，键盘弹出时用
-	 * modal.style.bottom = 键盘高度 顶起下沿；卡片高度 = 原高度 + 40px
+	 * modal 的 bottom 取键盘上沿偏移；卡片高度按可视区比例计算
 	 * （正文区随之变大，上沿不顶到屏幕顶）。
 	 *
 	 * 信号源（取最大值）：Capacitor keyboardWillShow/WillHide 事件 /
@@ -146,11 +149,8 @@ export class CaptureModal extends Modal {
 	 */
 	private bindKeyboard(): void {
 		const pm = Platform as unknown as {
-			isMobileApp?: boolean;
-			isAndroidApp?: boolean;
 			mobileKeyboardHeight?: number;
 			mobileSoftKeyboardVisible?: boolean;
-			mobileDeviceHeight?: number;
 		};
 		const cap = (window as unknown as {
 			Capacitor?: { Plugins?: { Keyboard?: {
@@ -167,72 +167,95 @@ export class CaptureModal extends Modal {
 			return;
 		}
 
-		let keyboard = 0;
-		// 键盘弹出时，卡片在「原高度」基础上增高的量（用户要求 40px）
-		const HEIGHT_INCREASE = 40;
 		const modal = this.modalEl;
 		const capture = this.contentEl;
-		// 记录无键盘时的卡片原高度（offsetHeight 强制同步布局，值准确）
-		let originalH = capture.offsetHeight || 0;
+		const vv = window.visualViewport;
+		// 各信号源写入的键盘高度；每次 apply 重新测量，避免「只增不减」
+		let reported = 0;
+		let lastApplied = -1;
+		let suppressUntil = 0;
 
-		const apply = () => {
-			if (keyboard > 0 && modal) {
-				// 下沿：贴键盘上沿（modal fixed 定位，直接设 bottom）
-				modal.style.bottom = `${keyboard}px`;
-				// 卡片高度 = 原高度 + 40（而非撑满屏幕），正文区 flex:1 自适应
-				const cardH = Math.max(120, originalH + HEIGHT_INCREASE);
-				capture.style.height = `${cardH}px`;
-				capture.style.minHeight = '0';
-				modal.style.maxHeight = 'none';
-				// 打点：记录设置值与实际布局矩形，便于定位「没生效」的层级
-				log.info('kb', '上移+缩放 apply', {
-					keyboard,
-					cardH,
-					bottom: modal.style.bottom,
-					height: capture.style.height,
-				});
-				window.setTimeout(() => {
-					const r = capture.getBoundingClientRect();
-					log.info('kb', '卡片实际位置', { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), innerH: window.innerHeight });
-				}, 80);
+		const reset = (): void => {
+			if (modal) {
+				for (const p of ['--cb-bottom', '--cb-height', '--cb-max-height']) modal.style.removeProperty(p);
+				modal.removeClass('is-keyboard-open');
+			}
+			capture.style.removeProperty('--cb-capture-height');
+			capture.style.removeProperty('--cb-capture-min-height');
+		};
+
+		/**
+		 * 关键：键盘高度 ≠ 卡片需要上移的距离。
+		 * - adjustResize（本机型）：WebView 布局视口已被压到键盘上沿，
+		 *   innerHeight == visualViewport.height，卡片应贴 WebView 底部（inset = 0）。
+		 * - adjustPan：WebView 不变、键盘盖在下面，inset = innerHeight - vv.height，
+		 *   卡片才需要上移这么多。
+		 * 之前直接把 Capacitor 报的 keyboardHeight 当 bottom，在 adjustResize 机型上
+		 * 等于多抬了一个键盘高度，编辑区就跑到屏幕最顶、离键盘很远。
+		 */
+		const keyboardState = (): { visible: boolean; inset: number } => {
+			if (Date.now() < suppressUntil) return { visible: false, inset: 0 };
+			const layoutH = window.innerHeight;
+			const visibleBottom = vv ? (vv.offsetTop || 0) + vv.height : layoutH;
+			const inset = Math.max(0, Math.round(layoutH - visibleBottom));
+			const visible = reported > 0 || pm.mobileSoftKeyboardVisible === true || inset > 40;
+			return { visible, inset };
+		};
+
+		const apply = (force = false): void => {
+			const { visible, inset } = keyboardState();
+			const key = visible ? inset : -1;
+			if (!force && key === lastApplied) return;
+			lastApplied = key;
+			if (visible && modal) {
+				// 卡片只占键盘上方约一半空间，上沿留出压暗背景（写拉松参考图），
+				// 底边连同图标工具栏正好落在键盘上沿，光标不再跑到屏幕最顶。
+				const layoutH = window.innerHeight;
+				const usable = Math.max(160, layoutH - inset);
+				const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
+				modal.style.setProperty('--cb-bottom', `${inset}px`);
+				modal.style.setProperty('--cb-height', `${cardH}px`);
+				modal.style.setProperty('--cb-max-height', 'none');
+				modal.addClass('is-keyboard-open');
+				capture.style.setProperty('--cb-capture-height', '100%');
+				capture.style.setProperty('--cb-capture-min-height', '0');
+				log.debug('kb', '贴合键盘', { inset, cardH, usable });
 			} else {
-				if (modal) {
-					modal.style.bottom = '';
-					modal.style.maxHeight = '';
-				}
-				capture.style.height = '';
-				capture.style.minHeight = '';
+				reset();
 			}
 		};
-		const raise = (h: number) => {
-			if (h > keyboard) {
-				keyboard = h;
-				apply();
-			}
+		const sync = (h?: number): void => {
+			if (typeof h === 'number') reported = Math.max(0, h);
+			apply();
 		};
 
 		// 信号 1：Capacitor Keyboard 事件
 		const handles: Array<{ remove?: () => void }> = [];
+		let listenersClosed = false;
+		// addListener 的 Promise 可能晚于 onClose 才兑现：
+		// 若已关闭则立即移除后到的句柄，避免全局键盘监听泄漏。
+		const track = (p: Promise<{ remove?: () => void }>) => {
+			p.then((h) => {
+				if (!h) return;
+				if (listenersClosed) h.remove?.();
+				else handles.push(h);
+			}).catch(() => {});
+		};
 		if (kb?.addListener) {
-			kb.addListener('keyboardWillShow', (info) => {
-				log.info('kb', '键盘弹出', { height: toCssPx(info?.keyboardHeight ?? 0) });
-				raise(toCssPx(info?.keyboardHeight ?? 0));
-			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
-			kb.addListener('keyboardWillHide', () => {
-				log.info('kb', '键盘收起');
-				keyboard = 0;
-				apply();
-			}).then((h) => { if (h) handles.push(h); }).catch(() => {});
+			track(kb.addListener('keyboardWillShow', (info) => {
+				log.debug('kb', '键盘弹出', { height: info?.keyboardHeight ?? 0 });
+				sync(info?.keyboardHeight ?? 0);
+			}));
+			track(kb.addListener('keyboardWillHide', () => {
+				log.debug('kb', '键盘收起');
+				reported = 0;
+				suppressUntil = Date.now() + 1000;
+				apply(true);
+			}));
 		}
 
 		// 信号 2 + 3：Platform 内置值 + visualViewport 差值
-		const poll = () => {
-			if (pm.mobileSoftKeyboardVisible && typeof pm.mobileKeyboardHeight === 'number') {
-				raise(pm.mobileKeyboardHeight);
-			}
-			const vv = window.visualViewport;
-			if (vv?.height) raise(Math.max(0, window.innerHeight - vv.height));
-		};
+		const poll = () => { apply(); };
 		this.keyboardPoll = window.setInterval(poll, 200);
 		window.visualViewport?.addEventListener('resize', poll);
 		window.visualViewport?.addEventListener('scroll', poll);
@@ -244,6 +267,7 @@ export class CaptureModal extends Modal {
 		poll();
 
 		this.keyboardCleanup = () => {
+			listenersClosed = true;
 			if (this.keyboardPoll) window.clearInterval(this.keyboardPoll);
 			this.keyboardPoll = null;
 			window.visualViewport?.removeEventListener('resize', poll);
@@ -251,52 +275,69 @@ export class CaptureModal extends Modal {
 			window.removeEventListener('resize', poll);
 			this.keyboardFocusHandler = null;
 			handles.forEach((h) => h?.remove?.());
-			if (modal) {
-				modal.style.bottom = '';
-				modal.style.maxHeight = '';
-			}
-			capture.style.height = '';
-			capture.style.minHeight = '';
+			if (this.layoutTimer !== null) window.clearTimeout(this.layoutTimer);
+			this.layoutTimer = null;
+			reset();
 		};
 	}
 
-	private async save(): Promise<void> {
-		if (!this.editorView) return;
-		const body = getEditorText(this.editorView).trim();
-		if (!body) {
-			new Notice(i18n.emptyCaptureHint, 1500);
-			return;
-		}
-		const title = this.titleInput.value.trim() || undefined;
-		const file = await this.ctx.service.createCard({
-			body,
-			title,
-			tags: this.ctx.settings.defaultTags,
+	/** 在光标处插入文本（工具栏快捷输入用） */
+	private insertText(text: string): void {
+		const view = this.editorView;
+		if (!view) return;
+		const sel = view.state.selection.main;
+		view.dispatch({
+			changes: { from: sel.from, to: sel.to, insert: text },
+			selection: { anchor: sel.from + text.length },
 		});
-		if (!file) return;
+		view.focus();
+	}
 
-		if (this.opts.parent) {
-			try {
-				const child = await this.ctx.service.readCard(file);
-				await this.ctx.service.addChild(this.opts.parent, child);
-			} catch {
-				/* 子卡片登记失败不阻塞 */
+	private async save(): Promise<void> {
+		if (this.saving || this.closed || !this.editorView) return;
+		this.saving = true;
+		try {
+			const body = getEditorText(this.editorView).trim();
+			if (!body) {
+				new Notice(i18n.emptyCaptureHint, 1500);
+				return;
 			}
-			this.close();
-			return;
-		}
+			const title = this.titleInput.value.trim() || undefined;
+			const file = await this.ctx.service.createCard({
+				body,
+				title,
+				tags: this.ctx.settings.defaultTags,
+			});
+			// await 期间用户可能已关闭弹窗，editorView 已被 destroy 并置 null
+			if (this.closed || !this.editorView) return;
+			if (!file) return;
 
-		if (this.continuous) {
-			setEditorText(this.editorView, '');
-			// 连续创建：标题重置为新时间，光标回正文
-			this.titleInput.value = defaultTitle(new Date());
-			this.editorView.focus();
-		} else {
-			this.close();
+			if (this.opts.parent) {
+				try {
+					const child = await this.ctx.service.readCard(file);
+					await this.ctx.service.addChild(this.opts.parent, child);
+				} catch {
+					/* 子卡片登记失败不阻塞 */
+				}
+				this.close();
+				return;
+			}
+
+			if (this.continuous) {
+				setEditorText(this.editorView, '');
+				// 连续创建：标题重置为新时间，光标回正文
+				this.titleInput.value = defaultTitle(new Date());
+				this.editorView.focus();
+			} else {
+				this.close();
+			}
+		} finally {
+			this.saving = false;
 		}
 	}
 
 	onClose(): void {
+		this.closed = true;
 		this.keyboardCleanup?.();
 		this.keyboardCleanup = null;
 		this.keyboardFocusHandler = null;
@@ -319,6 +360,3 @@ function defaultTitle(d: Date): string {
  * （真机日志验证：innerH=890、dpr=3 时 raw=319，319/890≈36% 正是键盘占比；
  * 若当作物理像素除以 3 得 106px，上移量严重不足，看起来像「没上移」。）
  */
-function toCssPx(px: number): number {
-	return px;
-}

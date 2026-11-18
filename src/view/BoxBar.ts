@@ -3,6 +3,9 @@ import { i18n } from '../i18n';
 import type { CardBoxDef } from '../types';
 import type { CardIndex } from '../index';
 
+/** 长按阈值（ms） */
+const LONG_PRESS_MS = 500;
+
 export interface BoxBarCallbacks {
 	/** 切换当前卡片盒；id为空字符串表示「全部卡片」 */
 	onSelect: (id: string) => void;
@@ -67,7 +70,13 @@ export class BoxBar {
 				cls: 'cardbox-boxtab-count',
 				text: String(this.index.countBox(def, showArchived)),
 			});
+			// 长按/右键触发编辑后，紧随的 click 会再切换卡片盒；用标志抑制一次
+			let suppressClick = false;
 			tab.addEventListener('click', () => {
+				if (suppressClick) {
+					suppressClick = false;
+					return;
+				}
 				// 已选中时再次点击进入编辑，省一个按钮
 				if (isActive) this.cb.onEdit(def);
 				else this.cb.onSelect(def.id);
@@ -81,17 +90,22 @@ export class BoxBar {
 				}
 			};
 			tab.addEventListener('pointerdown', () => {
+				// 新一次按压重置抑制标志
+				suppressClick = false;
 				clear();
 				timer = window.setTimeout(() => {
 					timer = undefined;
+					suppressClick = true;
 					this.cb.onEdit(def);
-				}, 500);
+				}, LONG_PRESS_MS);
 			});
 			tab.addEventListener('pointerup', clear);
 			tab.addEventListener('pointercancel', clear);
 			tab.addEventListener('pointerleave', clear);
 			tab.addEventListener('contextmenu', (e) => {
 				e.preventDefault();
+				clear();
+				suppressClick = true;
 				this.cb.onEdit(def);
 			});
 		}

@@ -8,6 +8,9 @@ import { sanitizeFileName, toDayKey } from '../utils/format';
 /** 将选中卡片合并生成一篇新文章 */
 export class MergeModal extends Modal {
 	private mode: MergeMode = 'simple';
+	/** 防止双击/连点生成两篇文章 */
+	private submitting = false;
+	private mergeBtn?: ButtonComponent;
 
 	constructor(
 		app: App,
@@ -23,7 +26,7 @@ export class MergeModal extends Modal {
 		contentEl.empty();
 
 		const titleInput = new TextComponent(contentEl);
-		titleInput.setPlaceholder(i18n.articleTitlePlaceholder).setValue(`卡片合集 ${toDayKey(Date.now())}`);
+		titleInput.setPlaceholder(i18n.articleTitlePlaceholder).setValue(i18n.articleCollection(toDayKey(Date.now())));
 		titleInput.inputEl.addClass('cardbox-modal-search');
 		titleInput.inputEl.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
@@ -46,29 +49,47 @@ export class MergeModal extends Modal {
 
 		const actions = contentEl.createDiv({ cls: 'cardbox-modal-actions' });
 		new ButtonComponent(actions).setButtonText(i18n.cancel).onClick(() => this.close());
-		new ButtonComponent(actions)
+		this.mergeBtn = new ButtonComponent(actions)
 			.setButtonText(i18n.mergeButton)
-			.setCta()
-			.onClick(() => void this.merge(titleInput.getValue()));
+			.setCta();
+		this.mergeBtn.onClick(() => void this.merge(titleInput.getValue()));
 	}
 
 	private async merge(rawTitle: string): Promise<void> {
-		const title = rawTitle.trim() || `卡片合集 ${toDayKey(Date.now())}`;
-		const bodies = await Promise.all(this.cards.map((c) => this.ctx.service.readBody(c)));
-		const content = this.buildArticle(title, bodies);
-
-		const folder = this.ctx.settings.mergeOutputFolder.trim().replace(/^\/+|\/+$/g, '');
-		const fileName = sanitizeFileName(title) || toDayKey(Date.now());
-		const path = `${folder}/${fileName}.md`;
-
+		if (this.submitting) return;
+		this.submitting = true;
+		this.mergeBtn?.setDisabled(true);
 		try {
-			await this.ctx.service.ensureFolder(folder);
-			const file = await this.app.vault.create(path, content);
-			new Notice(i18n.mergedNotice(title), 2000);
-			await this.ctx.openFile(file);
-			this.close();
-		} catch (err) {
-			new Notice(String(err));
+			const title = rawTitle.trim() || i18n.articleCollection(toDayKey(Date.now()));
+			const bodies = await Promise.all(this.cards.map((c) => this.ctx.service.readBody(c)));
+			const content = this.buildArticle(title, bodies);
+
+			// 输出文件夹为空时回退到卡片文件夹，仍为空则直接写到 vault 根目录，
+			// 避免拼出 "/xxx.md" 这样的非法路径
+			let folder = this.ctx.settings.mergeOutputFolder.trim().replace(/^\/+|\/+$/g, '');
+			if (!folder) {
+				folder = this.ctx.settings.cardsFolder.trim().replace(/^\/+|\/+$/g, '');
+				if (folder) {
+					new Notice(`合并输出文件夹为空，已改用卡片文件夹「${folder}」`, 2500);
+				} else {
+					new Notice('合并输出文件夹为空，已改存到 Vault 根目录', 2500);
+				}
+			}
+			const fileName = sanitizeFileName(title) || toDayKey(Date.now());
+			const path = folder ? `${folder}/${fileName}.md` : `${fileName}.md`;
+
+			try {
+				if (folder) await this.ctx.service.ensureFolder(folder);
+				const file = await this.app.vault.create(path, content);
+				new Notice(i18n.mergedNotice(title), 2000);
+				await this.ctx.openFile(file);
+				this.close();
+			} catch (err) {
+				new Notice(String(err));
+			}
+		} finally {
+			this.submitting = false;
+			this.mergeBtn?.setDisabled(false);
 		}
 	}
 
@@ -85,7 +106,7 @@ export class MergeModal extends Modal {
 				.join('\n\n');
 		} else {
 			body = this.cards
-				.map((card, i) => `> 📎 来源卡片：[[${card.id}]]\n\n${bodies[i].trim()}`)
+				.map((card, i) => `${i18n.sourceCardLine(card.id)}\n\n${bodies[i].trim()}`)
 				.join('\n\n---\n\n');
 		}
 		return `${buildCardContent(fm, `# ${title}\n\n${body}`)}`;

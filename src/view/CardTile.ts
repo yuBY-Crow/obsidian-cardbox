@@ -4,6 +4,7 @@ import { i18n } from '../i18n';
 import { formatRelativeTime } from '../utils/format';
 import { setKebabIcon } from '../utils/icon';
 import { log } from '../utils/logger';
+import { renderSnippet } from '../utils/snippet';
 
 const HOLD_MS = 500;
 
@@ -119,17 +120,32 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	// 正文区
 	const body = main.createDiv({ cls: 'cardbox-tile-body' });
 
+	// 写拉松式：平铺模式把薄荷绿 #标签 放在卡片顶部（正文之前），
+	// 列表模式仍保持原 meta 行布局。
+	if (opts.rich && card.tags.length) {
+		const tagRow = body.createDiv({ cls: 'cardbox-tile-tags' });
+		for (const tag of card.tags.slice(0, 4)) {
+			tagRow.createSpan({ cls: 'cardbox-chip cardbox-chip-sm', text: `#${tag}` });
+		}
+	}
+
 	// 扩展卡片：标题下方显示指向主卡的箭头
 	if (opts.parentTitle) {
 		body.createDiv({ cls: 'cardbox-tile-parent', text: i18n.extendParentArrow(opts.parentTitle) });
 	}
 
 	const textRow = body.createDiv({ cls: 'cardbox-tile-text' });
+	const titleText = extractTitle(card);
+	// #7 写拉松式：时间戳文件名不是标题，卡面直接从正文开始
+	const timestampTitle = /^\d{4}-\d{2}-\d{2}-\d{6}/.test(titleText);
 	const titleEl = textRow.createSpan({ cls: 'cardbox-tile-title' });
-	titleEl.setText(extractTitle(card));
-	if (titleEl.textContent === i18n.emptyContent) titleEl.addClass('is-empty');
+	if (timestampTitle) titleEl.addClass('is-timestamp');
+	else {
+		titleEl.setText(titleText);
+		if (titleText === i18n.emptyContent) titleEl.addClass('is-empty');
+	}
 	// 标题提取的输入输出都记 info：真机对照用（snippet 前 40 字 → 渲染出的标题）
-	log.info('tile', '标题提取', {
+	log.debug('tile', '标题提取', {
 		id: card.id,
 		hasTitleField: !!card.title,
 		renderedTitle: titleEl.textContent?.slice(0, 30),
@@ -142,14 +158,14 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		// 无 frontmatter title → 优先显示标题之后的剩余行；
 		// 若只有一行（剩余为空），直接显示全文——内容不能被丢
 		let rest: string;
-		if (card.title) {
+		if (timestampTitle || card.title) {
 			rest = card.snippet.trim();
 		} else {
 			const lines = card.snippet.split('\n');
 			rest = lines.slice(1).join('\n').trim().replace(/^\s*\n/, '').trim();
 			if (!rest) rest = card.snippet.trim();
 		}
-		if (rest) body.createDiv({ cls: 'cardbox-tile-snippet' }).setText(rest);
+		if (rest) renderSnippet(body.createDiv({ cls: 'cardbox-tile-snippet' }), rest);
 	} else if (card.title && card.snippet.trim()) {
 		body.createSpan({ cls: 'cardbox-tile-snippet' }).setText(card.snippet.trim());
 	}
@@ -176,8 +192,10 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	// 平铺模式：展开数字放 meta 行与时间同行（不再单独占一行）
 	// meta 行：标签 + 展开数字 + 时间
 	const meta = body.createDiv({ cls: 'cardbox-tile-meta' });
-	for (const tag of card.tags.slice(0, 4)) {
-		meta.createSpan({ cls: 'cardbox-chip cardbox-chip-sm', text: `#${tag}` });
+	if (!opts.rich) {
+		for (const tag of card.tags.slice(0, 4)) {
+			meta.createSpan({ cls: 'cardbox-chip cardbox-chip-sm', text: `#${tag}` });
+		}
 	}
 	if (opts.rich) buildExpandCount(meta);
 	meta.createSpan({ cls: 'cardbox-tile-time', text: formatRelativeTime(card.created) });
@@ -201,8 +219,12 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	});
 
 	// 点击：主区域
+	// 长按触发后浏览器仍会派发一次 click，用带超时的抑制窗口吃掉它，
+	// 否则「长按进入多选」会被随后的 click 立刻取消选择。
+	let suppressClickUntil = 0;
 	main.addEventListener('click', (e) => {
 		e.stopPropagation();
+		if (Date.now() < suppressClickUntil) return;
 		if ((e.target as HTMLElement).closest('button')) return;
 		opts.onClick(card);
 	});
@@ -232,6 +254,7 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 			pressTimer = undefined;
 			if (pressed) {
 				pressed = false;
+				suppressClickUntil = Date.now() + 700;
 				opts.onLongPress(card);
 			}
 		}, HOLD_MS);

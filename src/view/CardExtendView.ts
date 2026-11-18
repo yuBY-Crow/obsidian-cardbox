@@ -9,6 +9,9 @@ import { setKebabIcon } from '../utils/icon';
 
 export const CARD_EXTEND_VIEW_TYPE = 'cardbox-extend';
 
+/** 扩展分支递归最大深度，配合 seen 集合防止 A↔B 互链爆栈 */
+const MAX_BRANCH_DEPTH = 12;
+
 interface ExtendState {
 	rootId: string;
 }
@@ -30,7 +33,17 @@ export class CardExtendView extends ItemView {
 	private collapsedSections = new Set<string>();
 	private raf = 0;
 	private bodyCache = new Map<string, string>();
-	private indexChangedCb = () => this.scheduleRender();
+	/** 渲染世代：每次 render / 数据失效递增，作废旧 readBody 结果 */
+	private renderId = 0;
+	/** 视图是否已关闭 */
+	private closed = false;
+	private indexChangedCb = () => {
+		// 编辑卡片后索引变化：清空全文缓存并让进行中的异步读取结果失效，
+		// 否则扩展视图仍显示旧全文、旧请求还可能把旧内容回填进缓存
+		this.bodyCache.clear();
+		this.renderId += 1;
+		this.scheduleRender();
+	};
 
 	constructor(leaf: WorkspaceLeaf, ctx: CardBoxContext) {
 		super(leaf);
@@ -65,16 +78,23 @@ export class CardExtendView extends ItemView {
 		this.rootId = rootId;
 		this.expandedIds.clear();
 		this.bodyCache.clear();
+		this.renderId += 1;
+		// 切换主卡后标签页标题（getDisplayText）不会自动刷新，
+		// 触发 workspace 布局事件让 Obsidian 重新读取标题（不会重建视图、不丢滚动）
+		this.app.workspace.trigger('layout-change');
 		this.scheduleRender();
 	}
 
 	async onOpen(): Promise<void> {
+		this.closed = false;
 		this.contentEl.addClass('cardbox-extend-root');
 		this.ctx.index.onChanged(this.indexChangedCb);
 		this.scheduleRender();
 	}
 
 	onClose(): Promise<void> {
+		this.closed = true;
+		this.renderId += 1;
 		this.ctx.index.offChanged(this.indexChangedCb);
 		if (this.raf) window.cancelAnimationFrame(this.raf);
 		return Promise.resolve();
@@ -95,6 +115,8 @@ export class CardExtendView extends ItemView {
 	// ---------- 渲染 ----------
 
 	private render(): void {
+		// 每次重渲染递增世代，使上一次渲染里发出的异步 readBody 结果失效
+		this.renderId += 1;
 		const el = this.contentEl;
 		el.empty();
 
@@ -212,16 +234,30 @@ export class CardExtendView extends ItemView {
 	}
 
 	/** 递归构建分支（扩展卡片也可以有自己的扩展卡片） */
-	private buildBranch(parent: Card, card: Card, depth: number, source: 'explicit' | 'body' = 'explicit'): HTMLElement {
+	private buildBranch(
+		parent: Card,
+		card: Card,
+		depth: number,
+		source: 'explicit' | 'body' = 'explicit',
+		seen: Set<string> = new Set<string>(),
+	): HTMLElement {
 		const branch = createDiv({ cls: 'cardbox-extend-branch' });
 		branch.setAttribute('data-card-id', card.id);
 		branch.style.setProperty('--depth', String(depth));
 		branch.appendChild(this.buildPanel(card, false, parent, source));
 
+		// A↔B 互链且都展开时递归会爆栈：沿当前路径记录已出现的卡片，命中或超深即停止展开
+		if (seen.has(card.id) || depth >= MAX_BRANCH_DEPTH) return branch;
+		const path = new Set(seen);
+		path.add(card.id);
+
 		const subs = this.ctx.index.extensionsOf(card);
 		if (subs.length && this.expandedIds.has(card.id)) {
 			const subList = branch.createDiv({ cls: 'cardbox-extend-sublist' });
-			for (const sub of subs) subList.appendChild(this.buildBranch(card, sub.card, depth + 1, sub.source));
+			for (const sub of subs) {
+				if (path.has(sub.card.id)) continue;
+				subList.appendChild(this.buildBranch(card, sub.card, depth + 1, sub.source, path));
+			}
 			this.enableDragSort(subList, card);
 		}
 		return branch;
@@ -295,9 +331,14 @@ export class CardExtendView extends ItemView {
 			const bodyEl = panel.createDiv({ cls: 'cardbox-extend-body' });
 			bodyEl.setText(this.bodyCache.get(card.id) ?? '…');
 			if (!this.bodyCache.has(card.id)) {
+				// 记录本次渲染世代：await 回来时面板可能已被 el.empty() 移除或视图已关闭，
+				// 过期结果必须丢弃（也不回填缓存，避免旧全文覆盖新数据）
+				const requestId = this.renderId;
 				void this.ctx.service.readBody(card).then((body) => {
-					this.bodyCache.set(card.id, body.trim());
-					bodyEl.setText(body.trim());
+					if (this.closed || requestId !== this.renderId) return;
+					const text = body.trim();
+					this.bodyCache.set(card.id, text);
+					if (bodyEl.isConnected) bodyEl.setText(text);
 				});
 			}
 			bodyEl.addEventListener('click', () => void this.openCard(card));
@@ -358,6 +399,8 @@ export class CardExtendView extends ItemView {
 								const ok = await this.ctx.service.appendBodyLink(parent, card.id);
 								if (ok) new Notice(i18n.extendLinkInserted, 1500);
 								this.bodyCache.delete(parent.id);
+								// 作废旧 readBody 结果，避免把插入双链之前的旧全文回填进缓存
+								this.renderId += 1;
 								this.scheduleRender();
 							})();
 						}),
@@ -408,7 +451,7 @@ export class CardExtendView extends ItemView {
 
 	private async openCard(card: Card): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(card.path);
-		if (file instanceof TFile) await this.ctx.openFile(file);
+		if (file instanceof TFile) await this.ctx.openFile(file, this.leaf);
 	}
 
 	private linkExisting(parent: Card): void {
@@ -439,32 +482,48 @@ export class CardExtendView extends ItemView {
 			let startY = 0;
 			let pointerId = -1;
 
+			// 拖拽开始时一次性缓存兄弟中线，避免每次 pointermove 都读 getBoundingClientRect 触发强制同步布局
+			let siblingMids: { el: HTMLElement; mid: number }[] = [];
+			let lastTarget: HTMLElement | null | undefined = undefined;
+
 			const onMove = (e: PointerEvent) => {
 				if (!dragging) {
 					if (Math.abs(e.clientY - startY) < 8) return;
 					dragging = true;
 					item.addClass('is-dragging');
 					listEl.addClass('is-sorting');
+					siblingMids = (Array.from(listEl.children) as HTMLElement[])
+						.filter((c) => c !== item)
+						.map((el) => {
+							const r = el.getBoundingClientRect();
+							return { el, mid: r.top + r.height / 2 };
+						});
 				}
 				e.preventDefault();
-				const siblings = (Array.from(listEl.children) as HTMLElement[]).filter((c) => c !== item);
-				let placed = false;
-				for (const sib of siblings) {
-					const rect = sib.getBoundingClientRect();
-					if (e.clientY < rect.top + rect.height / 2) {
-						listEl.insertBefore(item, sib);
-						placed = true;
+				let target: HTMLElement | null = null;
+				for (const s of siblingMids) {
+					if (e.clientY < s.mid) {
+						target = s.el;
 						break;
 					}
 				}
-				if (!placed) listEl.appendChild(item);
+				// 目标位置未变则不重复 insertBefore，减少无谓的 DOM 写入
+				if (target === lastTarget) return;
+				lastTarget = target;
+				if (target) listEl.insertBefore(item, target);
+				else listEl.appendChild(item);
 			};
 
 			const onUp = () => {
-				handle.releasePointerCapture?.(pointerId);
+				// 先移除监听，避免 releasePointerCapture 抛错时跳过清理导致重复回调
 				handle.removeEventListener('pointermove', onMove);
 				handle.removeEventListener('pointerup', onUp);
 				handle.removeEventListener('pointercancel', onUp);
+				try {
+					handle.releasePointerCapture?.(pointerId);
+				} catch {
+					// 指针已释放或捕获失效时忽略
+				}
 				if (!dragging) return;
 				dragging = false;
 				item.removeClass('is-dragging');

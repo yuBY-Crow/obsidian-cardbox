@@ -2,11 +2,10 @@ name: Release Obsidian Plugin
 
 on:
   push:
-    tags:
-      - "*"
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
 
 env:
-  PLUGIN_NAME: cardbox
+  PLUGIN_NAME: cardbox-mobile
 
 permissions:
   contents: write
@@ -22,15 +21,24 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Verify tag matches manifest version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node -e "const v = require('./manifest.json').version; if (v === process.env.TAG) { console.log('version OK: ' + v); } else { console.error('tag ' + process.env.TAG + ' does not match manifest version ' + v); process.exit(1); }"
+
       - name: Build
         id: build
         run: |
-          npm install
+          npm ci
           npm run build
           mkdir ${{ env.PLUGIN_NAME }}
           cp main.js manifest.json styles.css ${{ env.PLUGIN_NAME }}
           zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
           ls -la
+
+      - name: Test
+        run: npm test
 
       - name: Create Release
         env:

@@ -1,4 +1,4 @@
-import type { TFile } from 'obsidian';
+import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type { Card, CardBoxDef, CardBoxSettings } from './types';
 import type { CardIndex } from './index';
 import type { CardService } from './frontmatter';
@@ -8,7 +8,8 @@ export interface CardBoxContext {
 	settings: CardBoxSettings;
 	index: CardIndex;
 	service: CardService;
-	openFile(file: TFile): Promise<void>;
+	/** 手机端传 from=当前 leaf，在同一标签页打开，返回键可一次回到卡片盒 */
+	openFile(file: TFile, from?: WorkspaceLeaf): Promise<void>;
 	openCapture(prefill?: string, parent?: Card): void;
 	saveSettings(): Promise<void>;
 	/** 打开卡片扩展同屏视图，聚焦到指定主卡片 */

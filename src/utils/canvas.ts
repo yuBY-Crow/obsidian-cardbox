@@ -1,4 +1,4 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice, TFile, Vault } from 'obsidian';
 import { i18n } from '../i18n';
 import type { Card, CardColor } from '../types';
 import type { GraphEdge, GraphNode } from './graph';
@@ -50,6 +50,7 @@ interface CanvasEdge {
 interface CanvasData {
 	nodes: CanvasNode[];
 	edges: CanvasEdge[];
+	[key: string]: unknown;
 }
 
 /** 卡片颜色 → Canvas 预设色号（1红2橙 3黄 4绿 5青 6紫） */
@@ -69,16 +70,16 @@ function randomNodeId(): string {
 	return s;
 }
 
-function parseCanvas(raw: string): CanvasData {
-	try {
-		const data = JSON.parse(raw) as Partial<CanvasData>;
-		return {
-			nodes: Array.isArray(data.nodes) ? (data.nodes as CanvasNode[]) : [],
-			edges: Array.isArray(data.edges) ? (data.edges as CanvasEdge[]) : [],
-		};
-	} catch {
-		return { nodes: [], edges: [] };
+/** 解析白板：失败必须抛出（由调用方取消投放），绝不能当成空白板覆盖原文件 */
+function parseCanvas(raw: string): { data: CanvasData; nodes: CanvasNode[]; edges: CanvasEdge[] } {
+	const parsed: unknown = JSON.parse(raw);
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+		throw new Error('Invalid canvas file');
 	}
+	const data = parsed as CanvasData;
+	const nodes = Array.isArray(data.nodes) ? data.nodes : [];
+	const edges = Array.isArray(data.edges) ? data.edges : [];
+	return { data, nodes, edges };
 }
 
 /** 在已有节点下方按网格排布新节点，避免与现有内容重叠 */
@@ -353,30 +354,41 @@ export async function sendCardsToCanvas(
 		return { nodes: buildNodes(targets, origin), edges: [], offsetX: 0 };
 	};
 
-	// 追加到当前打开的白板
+	// 追加到当前打开的白板：用 vault.process 原子改写，
+	// 保留白板其它顶层字段；解析失败时中止投放，绝不覆盖损坏的白板。
 	if (opts.activeCanvas) {
-		const raw = await app.vault.read(opts.activeCanvas);
-		const data = parseCanvas(raw);
-		const existing = new Set(data.nodes.filter((n) => n.type === 'file').map((n) => n.file));
-		const fresh = cards.filter((c) => !existing.has(c.path));
-		if (!fresh.length) {
-			new Notice(i18n.canvasCreated(opts.activeCanvas.basename));
+		try {
+			await atomicModify(app.vault, opts.activeCanvas, (raw) => {
+				const parsed = parseCanvas(raw);
+				const existing = new Set(parsed.nodes.filter((n) => n.type === 'file').map((n) => n.file));
+				const fresh = cards.filter((c) => !existing.has(c.path));
+				if (!fresh.length) return raw;
+				const base = nextOrigin(parsed.nodes);
+				const built = layout(fresh, base);
+				// 居中布局会向左扩展出若干列（相对 base 的最左位置为 -offsetX）。
+				// 整体右移，让最左一列落到已有内容右侧并留出间距，避免重叠。
+				if (built.offsetX > 0) {
+					let maxOldRight = -Infinity;
+					for (const n of parsed.nodes) maxOldRight = Math.max(maxOldRight, (n.x ?? 0) + (n.width ?? 0));
+					const minNewX = base.x - built.offsetX;
+					const shift = Math.max(0, maxOldRight + GAP - minNewX);
+					for (const n of built.nodes) n.x += shift;
+				}
+				return JSON.stringify(
+					{
+						...parsed.data,
+						nodes: [...parsed.nodes, ...built.nodes],
+						edges: [...parsed.edges, ...built.edges],
+					},
+					null,
+					2,
+				);
+			});
+		} catch (e) {
+			console.error('[Slipbox] 白板解析失败，已取消投放', e);
+			new Notice('白板文件无法解析，已取消投放（原文件未改动）', 5000);
 			return opts.activeCanvas;
 		}
-		const base = nextOrigin(data.nodes);
-		const built = layout(fresh, base);
-		// 居中布局会向左扩展出若干列（相对 base 的最左位置为 -offsetX）。
-		// 整体右移，让最左一列落到已有内容右侧并留出间距，避免重叠。
-		if (built.offsetX > 0) {
-			let maxOldRight = -Infinity;
-			for (const n of data.nodes) maxOldRight = Math.max(maxOldRight, (n.x ?? 0) + (n.width ?? 0));
-			const minNewX = base.x - built.offsetX;
-			const shift = Math.max(0, maxOldRight + GAP - minNewX);
-			for (const n of built.nodes) n.x += shift;
-		}
-		data.nodes.push(...built.nodes);
-		data.edges.push(...built.edges);
-		await app.vault.modify(opts.activeCanvas, JSON.stringify(data, null, 2));
 		new Notice(i18n.canvasCreated(opts.activeCanvas.basename));
 		return opts.activeCanvas;
 	}
@@ -384,7 +396,7 @@ export async function sendCardsToCanvas(
 	// 新建白板
 	const folder = opts.folder.trim().replace(/^\/+|\/+$/g, '');
 	await opts.ensureFolder(folder);
-	const base = sanitizeFileName(`白板 ${toDayKey(Date.now())}`);
+	const base = sanitizeFileName(`${i18n.canvasName} ${toDayKey(Date.now())}`);
 	let path = folder ? `${folder}/${base}.canvas` : `${base}.canvas`;
 	if (app.vault.getAbstractFileByPath(path)) {
 		const suffix = Date.now();
@@ -414,4 +426,14 @@ export async function readCanvasCardPaths(app: App, file: TFile): Promise<string
 		.filter((n) => n.type === 'file' && typeof n.file === 'string' && n.file.endsWith('.md'))
 		.sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0))
 		.map((n) => n.file as string);
+}
+
+/** vault.process 在旧版 Obsidian / 测试 mock 中可能不可用，回退到 read + modify */
+async function atomicModify(vault: Vault, file: TFile, fn: (raw: string) => string): Promise<void> {
+	const v = vault as Vault & { process?: (f: TFile, cb: (s: string) => string) => Promise<string> };
+	if (typeof v.process === 'function') {
+		await v.process(file, fn);
+		return;
+	}
+	await v.modify(file, fn(await v.read(file)));
 }

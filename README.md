@@ -1,6 +1,14 @@
-# CardBox 卡片盒（Obsidian 插件）
-本插件灵感来自Writeathon，结合了Obsidian双链功能。
-主要使用WorkBuddy实现此插件功能
+# Slipbox
+
+> Writeathon-style slip box plugin for Obsidian
+
+**Slipbox** is a mobile-first Obsidian plugin inspired by Writeathon. It follows a simple flow: **capture ideas → organize cards → assemble articles**. Cards are plain Markdown notes with wikilinks, shown in a two-column masonry feed. It only uses Obsidian's official APIs and needs no third-party plugins such as Dataview.
+
+Key features: quick capture with a keyboard-hugging editor, global search across titles/bodies/tags with category-grouped results, condition-based card boxes and tag filtering, child cards backed by standard [[wikilinks]], a masonry/列表/timeline view switcher, Canvas whiteboard placement, and merging cards into an article.
+
+> Writeathon 风格卡片盒 · Obsidian 插件
+
+本插件灵感来自 Writeathon，结合了 Obsidian 双链功能。
 
 Writeathon 风格卡片盒：**记录灵感 → 整理卡片 → 组合成文**。移动端优先，PC 端支持全卡片平铺；自包含（只依赖 Obsidian 官方 API，无需 Dataview 等第三方插件）。
 
@@ -58,7 +66,7 @@ parent: "[[卡片笔记写作法：核心框架]]"
 
 ### 视图
 - 📋 **列表模式**：紧凑，适合快速浏览
--🧱 **瀑布流平铺**：PC 端多列铺开全部卡片，显示更多正文；列宽可配置，窄屏自动降为单列
+- 🧱 **瀑布流平铺**：PC 端多列铺开全部卡片，显示更多正文；列宽可配置，窄屏自动降为单列
 - 📅 **时间线模式**：按天分组
 - 🌳 **卡片扩展同屏视图**：左侧固定主卡片、右侧扩展卡片分支列表；展开看全文（按钮旁显示关联数量）、点击编辑、**拖拽排序**、解除关联；「扩展卡片」与「引用此卡片」两个分区可整体收起
 
@@ -109,8 +117,8 @@ pinned: true
 ## 安装
 
 ### 桌面端
-1. `npm install && npm run build`，或将 `main.js` / `manifest.json` / `styles.css` 放进 `<你的库>/.obsidian/plugins/cardbox/`
-2. Obsidian → 设置 → 第三方插件 → 启用 **CardBox 卡片盒**
+1. 从 GitHub Release 下载 `main.js` / `manifest.json` / `styles.css`，放进 `<vault>/.obsidian/plugins/cardbox-mobile/`（**目录名必须等于 `manifest.json` 的 `id`**）；或本地 `npm install && npm run build` 后取用这三个文件
+2. Obsidian → 设置 → 第三方插件 → 启用 **Slipbox**
 
 ### 移动端
 1. 把 vault 同步到手机（Obsidian Sync / iCloud / 手动复制）
@@ -122,23 +130,27 @@ pinned: true
 ## 开发
 
 ```bash
-npm run dev   # esbuild watch（配合 pjeby Hot Reload 插件热重载）
-npm run build # tsc 类型检查 + 生产构建
+npm ci                     # 按 package-lock.json 安装依赖（与 CI 一致）
+npm run dev                # esbuild watch（配合 pjeby Hot Reload 插件热重载）
+npm run build              # tsc 类型检查 + 生产构建
+npm test                   # 链接解析/抓取引擎/Canvas/图遍历/文件名/加载场景等测试
+npm run preview            # 生成 preview.html 视觉预览（真实 CSS）
+npm run zip:mobile         # 打包手机端友好 zip（正斜杠路径）
 
 node scripts/seed.mjs <vault路径> <数量>   # 生成测试卡片（含颜色/置顶/扩展关系）
-npm run seed:links test-vault             # 生成双链示例卡片（图谱可见）
-npm test                                  # 单元测试：链接解析/抓取引擎/Canvas/图遍历/文件名/加载场景
-npm run test:dom                          # 真实 DOM 渲染测试（playwright）
-npm run test:links                        # 双链整合测试（正文双链/反向链接/写入格式）
-npm run test:count                        # 关联数量渲染测试（含位置断言 + 截图）
-npm run test:title                        # 标题作文件名 + 重命名后链接跟随（端到端）
-npm run test:depth                        # 白板按引用层级投放（用测试库真实卡片）
-npm run preview:canvas                    # 白板布局视觉预览（SVG 示意图）
-npm run zip:mobile                        # 打包手机端友好 zip（正斜杠路径）
-node scripts/preview.mjs                  # 生成 preview.html 视觉预览（真实 CSS）
+npm run seed:links test-vault               # 生成双链示例卡片（图谱可见）
+npm run test:dom            # 真实 DOM 渲染测试（playwright）
+npm run test:links          # 双链整合测试（正文双链/反向链接/写入格式）
+npm run test:count          # 关联数量渲染测试（含位置断言 + 截图）
+npm run test:title          # 标题作文件名 + 重命名后链接跟随（端到端）
+npm run test:depth          # 白板按引用层级投放（用测试库真实卡片）
+npm run test:touch          # 手机触摸交互测试
+npm run test:masonry        # 手机平铺层级测试
+npm run test:expand         # 卡片扩展视图测试
+npm run test:load           # 加载场景测试
+npm run preview:canvas      # 白板布局视觉预览（SVG 示意图）
 ```
 
 ### 测试 Vault
-仓库内的 `test-vault/` 已预置插件与400+ 张测试卡片，可直接用 Obsidian 打开（设置 → 第三方插件 → 启用 CardBox 卡片盒）。
 
-
+`test-vault/` 不随仓库分发（已被 `.gitignore` 忽略，git 未跟踪）。需要时在本地用 `node scripts/seed.mjs <vault路径> <数量>` 与 `npm run seed:links` 生成测试卡片，再用 Obsidian 打开该目录并启用 **Slipbox** 即可。

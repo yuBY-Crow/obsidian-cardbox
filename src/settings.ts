@@ -1,3 +1,4 @@
+import type { SettingDefinitionItem } from 'obsidian';
 import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import type { CardBoxSettings, SortMode, ViewMode } from './types';
 import { PROPERTY_PRESETS } from './types';
@@ -9,7 +10,7 @@ export const DEFAULT_SETTINGS: CardBoxSettings = {
 	canvasOutputFolder: 'Cards',
 	filenameFormat: 'title',
 	defaultTags: [],
-	defaultViewMode: 'card',
+	defaultViewMode: 'masonry',
 	defaultSort: 'created-desc',
 	continuousCaptureDefault: true,
 	showArchived: false,
@@ -34,6 +35,10 @@ export interface SettingAccess {
 }
 
 export class CardBoxSettingTab extends PluginSettingTab {
+	/** 1.13+ 声明式设置 API：保持 display() 渲染，仅为设置搜索提供入口 */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [];
+	}
 	private tagsEl: HTMLDivElement;
 	private propsEl!: HTMLDivElement;
 	private access: SettingAccess;
@@ -52,7 +57,7 @@ export class CardBoxSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.createEl('h2', { text: i18n.settingsTitle });
+		new Setting(containerEl).setName(i18n.settingsTitle).setClass('cardbox-settings-heading');
 		const s = this.access.settings;
 
 		new Setting(containerEl)
@@ -60,7 +65,7 @@ export class CardBoxSettingTab extends PluginSettingTab {
 			.setDesc(i18n.cardsFolderDesc)
 			.addText((text) => {
 				text.setPlaceholder(i18n.folderPlaceholder).setValue(s.cardsFolder).onChange(async (value) => {
-					s.cardsFolder = value.trim().replace(/^\/+|\/+$/g, '');
+					s.cardsFolder = value.trim().replace(/^\/+|\/+$/g, '') || DEFAULT_SETTINGS.cardsFolder;
 					await this.access.saveSettings();
 					this.access.onFolderChanged();
 				});
@@ -71,7 +76,7 @@ export class CardBoxSettingTab extends PluginSettingTab {
 			.setDesc(i18n.mergeFolderDesc)
 			.addText((text) => {
 				text.setPlaceholder(i18n.folderPlaceholder).setValue(s.mergeOutputFolder).onChange(async (value) => {
-					s.mergeOutputFolder = value.trim().replace(/^\/+|\/+$/g, '');
+					s.mergeOutputFolder = value.trim().replace(/^\/+|\/+$/g, '') || DEFAULT_SETTINGS.mergeOutputFolder;
 					await this.access.saveSettings();
 				});
 			});
@@ -81,7 +86,7 @@ export class CardBoxSettingTab extends PluginSettingTab {
 			.setDesc(i18n.canvasFolderDesc)
 			.addText((text) => {
 				text.setPlaceholder(i18n.folderPlaceholder).setValue(s.canvasOutputFolder).onChange(async (value) => {
-					s.canvasOutputFolder = value.trim().replace(/^\/+|\/+$/g, '');
+					s.canvasOutputFolder = value.trim().replace(/^\/+|\/+$/g, '') || DEFAULT_SETTINGS.canvasOutputFolder;
 					await this.access.saveSettings();
 				});
 			});
@@ -275,7 +280,7 @@ export class CardBoxSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl).setName(i18n.archiveMethodName).setDesc(i18n.archiveMethodDesc);
+		// 归档方式目前固定为 frontmatter 标记，无需暴露设置项
 	}
 
 	private renderTags(): void {
@@ -306,7 +311,7 @@ export class CardBoxSettingTab extends PluginSettingTab {
 				cls: 'cardbox-prop-value',
 				attr: { placeholder: i18n.propertyValuePlaceholder, value },
 			});
-			keyInput.addEventListener('change', async () => {
+			keyInput.addEventListener('change', () => {
 				const newKey = keyInput.value.trim();
 				if (!newKey || newKey === key) {
 					keyInput.value = key;
@@ -314,18 +319,16 @@ export class CardBoxSettingTab extends PluginSettingTab {
 				}
 				delete s.defaultProperties[key];
 				s.defaultProperties[newKey] = valueInput.value;
-				await this.access.saveSettings();
-				this.renderProperties();
+				void this.access.saveSettings().then(() => this.renderProperties());
 			});
-			valueInput.addEventListener('change', async () => {
+			valueInput.addEventListener('change', () => {
 				s.defaultProperties[key] = valueInput.value;
-				await this.access.saveSettings();
+				void this.access.saveSettings();
 			});
 			const remove = row.createEl('button', { cls: 'cardbox-prop-remove', text: '×' });
-			remove.addEventListener('click', async () => {
+			remove.addEventListener('click', () => {
 				delete s.defaultProperties[key];
-				await this.access.saveSettings();
-				this.renderProperties();
+				void this.access.saveSettings().then(() => this.renderProperties());
 			});
 		}
 	}

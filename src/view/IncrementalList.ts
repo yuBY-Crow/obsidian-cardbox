@@ -9,6 +9,9 @@
  *   （grid 做不到：行高由该行最高卡片决定；CSS columns 也不行：
  *   在固定高度的滚动容器里会横向分页。）
  */
+/** 单张卡片的估算高度，仅用于一个 chunk 内的分配决策，误差在批量测量时校正 */
+const ESTIMATED_ITEM_HEIGHT = 160;
+
 export class IncrementalList<T> {
 	private sentinel: HTMLElement;
 	private observer: IntersectionObserver | null = null;
@@ -19,6 +22,8 @@ export class IncrementalList<T> {
 	/** 瀑布流列数；0 表示不启用瀑布流 */
 	private columnCount = 0;
 	private columns: HTMLElement[] = [];
+	/** 各列估算高度；chunk 批量追加后统一测量一次校正，避免逐卡 reflow */
+	private columnHeights: number[] = [];
 	/** 当前瀑布流下正在使用的「整行组」，整行元素之后的卡片要放进新的一组列 */
 	private groupEl: HTMLElement | null = null;
 
@@ -43,18 +48,20 @@ export class IncrementalList<T> {
 
 	/**
 	 * 设置瀑布流列数。传 0 关闭瀑布流（回到普通顺序追加）。
-	 * 列数变化会触发重排，所以调用方应在列数确实改变时才调用。
+	 * 只更新列数、不重建：由调用方随后统一调用 setItems 完成重排，
+	 * 避免 setColumnCount + setItems 各重建一次。
 	 */
 	setColumnCount(n: number): void {
-		const next = Math.max(0, Math.floor(n));
-		if (next === this.columnCount) return;
-		this.columnCount = next;
-		// 列数变了必须整体重排，否则新旧列混杂
-		if (this.items.length) this.setItems(this.items);
+		this.columnCount = Math.max(0, Math.floor(n));
 	}
 
 	getColumnCount(): number {
 		return this.columnCount;
+	}
+
+	/** 渲染到指定下标（返回卡片盒时把锚点卡片之前的项补齐，才能滚到位） */
+	renderUntil(index: number): void {
+		while (this.rendered <= index && this.rendered < this.items.length) this.appendNext();
 	}
 
 	setItems(items: T[]): void {
@@ -62,6 +69,7 @@ export class IncrementalList<T> {
 		this.rendered = 0;
 		this.container.empty();
 		this.columns = [];
+		this.columnHeights = [];
 		this.groupEl = null;
 		this.container.appendChild(this.sentinel);
 		if (this.observer) {
@@ -76,21 +84,35 @@ export class IncrementalList<T> {
 		const end = Math.min(this.rendered + this.chunk, this.items.length);
 
 		if (this.columnCount > 1) {
-			//瀑布流：逐个追加到当前最短的列。
-			// 必须逐个（而非用 fragment 批量）——每次都要读上一张的实际高度，
-			// 才能算出真正最短的列。
+			// 瀑布流：一个 chunk 内按「当前最短列 + 估算增量」把卡片分配到各列的 fragment，
+			// 批量追加后统一测量一次各列真实高度；不再逐卡读 getBoundingClientRect 触发强制同步布局。
+			// 续接上一 chunk 的列组时也要先备好各列 fragment。
+			let frags: DocumentFragment[] = this.groupEl
+				? this.columns.map(() => document.createDocumentFragment())
+				: [];
 			for (let i = this.rendered; i < end; i++) {
 				const item = this.items[i];
 				const el = this.renderItem(item, i);
 				if (this.isFullRow(item)) {
+					this.landFragments(frags);
+					frags = [];
 					// 整行元素：直接挂容器，并让后续卡片重新开一组列
 					this.container.insertBefore(el, this.sentinel);
 					el.addClass('cardbox-masonry-full');
 					this.groupEl = null;
+					this.columns = [];
+					this.columnHeights = [];
 				} else {
-					this.ensureGroup().appendChild(el);
+					if (!this.groupEl) {
+						this.ensureGroup();
+						frags = this.columns.map(() => document.createDocumentFragment());
+					}
+					const idx = this.shortestColumnIndex();
+					frags[idx].appendChild(el);
+					this.columnHeights[idx] += ESTIMATED_ITEM_HEIGHT;
 				}
 			}
+			this.landFragments(frags);
 		} else {
 			const frag = document.createDocumentFragment();
 			for (let i = this.rendered; i < end; i++) {
@@ -102,28 +124,41 @@ export class IncrementalList<T> {
 		this.rendered = end;
 	}
 
-	/** 取当前列组里最短的列；没有列组则新建一组 */
-	private ensureGroup(): HTMLElement {
-		if (!this.groupEl) {
-			this.groupEl = this.container.createDiv({ cls: 'cardbox-masonry-group' });
-			this.container.insertBefore(this.groupEl, this.sentinel);
-			this.columns = [];
-			for (let i = 0; i < this.columnCount; i++) {
-				this.columns.push(this.groupEl.createDiv({ cls: 'cardbox-masonry-col' }));
-			}
+	/**
+	 * 把一个 chunk 里攒下的各列 fragment 批量落地，并统一测量一次各列真实高度。
+	 * 先全部写入、再全部读取：整个过程只触发一次同步布局。
+	 */
+	private landFragments(frags: DocumentFragment[]): void {
+		if (!frags.length) return;
+		for (let c = 0; c < this.columns.length; c++) {
+			this.columns[c].appendChild(frags[c]);
 		}
-		return this.shortestColumn();
+		for (let c = 0; c < this.columns.length; c++) {
+			this.columnHeights[c] = this.columns[c].getBoundingClientRect().height;
+		}
 	}
 
-	/** 找当前内容高度最小的列；等高时取最左，保证阅读顺序自然 */
-	private shortestColumn(): HTMLElement {
-		let best = this.columns[0];
-		let bestH = best.getBoundingClientRect().height;
-		for (let i = 1; i < this.columns.length; i++) {
-			const h = this.columns[i].getBoundingClientRect().height;
-			if (h < bestH) {
-				best = this.columns[i];
-				bestH = h;
+	/** 取当前列组（没有则新建一组），列高从 0 起算 */
+	private ensureGroup(): void {
+		if (this.groupEl) return;
+		this.groupEl = this.container.createDiv({ cls: 'cardbox-masonry-group' });
+		this.container.insertBefore(this.groupEl, this.sentinel);
+		this.columns = [];
+		this.columnHeights = [];
+		for (let i = 0; i < this.columnCount; i++) {
+			this.columns.push(this.groupEl.createDiv({ cls: 'cardbox-masonry-col' }));
+			this.columnHeights.push(0);
+		}
+	}
+
+	/** 找当前估算高度最小的列；等高时取最左，保证阅读顺序自然 */
+	private shortestColumnIndex(): number {
+		let best = 0;
+		let bestH = this.columnHeights[0];
+		for (let i = 1; i < this.columnHeights.length; i++) {
+			if (this.columnHeights[i] < bestH) {
+				best = i;
+				bestH = this.columnHeights[i];
 			}
 		}
 		return best;

@@ -212,7 +212,25 @@ const result = await page.evaluate(
 
 		// ---- 加载插件 ----
 		const mod = { exports: {} };
-		const req = (n) => { if (n === 'obsidian') return obsidian; throw new Error('未知模块 ' + n); };
+		// main.js 把 CodeMirror 模块 external 了，浏览器里给最小 mock：
+		// 测试中不会打开 CaptureModal，这些 API 不会被真正调用。
+		const cmView = {
+			Decoration: { mark: () => ({}) },
+			DecorationSet: {},
+			EditorView: { lineWrapping: {}, updateListener: { of: () => ({}) }, domEventHandlers: () => ({}) },
+			ViewPlugin: { fromClass: () => ({}) },
+			ViewUpdate: {},
+		};
+		const cmState = {
+			EditorState: { create: () => ({}) },
+			RangeSet: { of: () => ({}) },
+		};
+		const req = (n) => {
+			if (n === 'obsidian') return obsidian;
+			if (n === '@codemirror/view') return cmView;
+			if (n === '@codemirror/state') return cmState;
+			throw new Error('未知模块 ' + n);
+		};
 		new Function('exports', 'require', 'module', code)(mod.exports, req, mod);
 		const PluginClass = mod.exports.default || mod.exports;
 		const plugin = new PluginClass(app, manifest);

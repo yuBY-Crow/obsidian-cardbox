@@ -1,5 +1,5 @@
 /**
- * 轻量诊断日志：内存环形缓冲 + 控制台镜像。
+ * 轻量诊断日志：内存环形缓冲 + 可选控制台镜像。
  *
  * 背景：移动端真机问题（如「点击数字展开没反应」「标题不显示」）在
  * mock 环境无法复现，必须靠真机日志定位。手机端 Obsidian 无法像桌面
@@ -11,6 +11,8 @@
  *   log.error('render', '渲染异常', err);
  *
  * 级别过滤：默认记录 info+；可通过日志面板的级别切换看到更细的 debug。
+ * 控制台镜像默认关闭：几百张卡片逐条 log 会刷屏并带来序列化开销，
+ * 需要时可在日志面板里临时打开。
  */
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -29,8 +31,8 @@ class Logger {
 	private buffer: LogEntry[] = [];
 	/** 运行时级别：debug 会输出更多细节 */
 	minLevel: LogLevel = 'info';
-	/** 是否同时输出到 console（真机不方便看，但桌面调试有用） */
-	mirrorToConsole = true;
+	/** 是否同时输出到 console（默认关闭，避免生产环境刷屏） */
+	mirrorToConsole = false;
 
 	private push(level: LogLevel, tag: string, msg: string, data?: unknown): void {
 		if (LEVEL_ORDER[level] < LEVEL_ORDER[this.minLevel]) return;
@@ -38,7 +40,7 @@ class Logger {
 		this.buffer.push(entry);
 		if (this.buffer.length > MAX) this.buffer.splice(0, this.buffer.length - MAX);
 		if (this.mirrorToConsole) {
-			const line = `[CardBox:${tag}] ${msg}`;
+			const line = `[Slipbox:${tag}] ${msg}`;
 			const extra = data === undefined ? '' : data instanceof Error ? ` ${String(data.stack || data)}` : ` ${JSON.stringify(data)}`;
 			if (level === 'error') console.error(line + extra);
 			else if (level === 'warn') console.warn(line + extra);

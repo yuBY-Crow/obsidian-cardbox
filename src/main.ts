@@ -1,6 +1,7 @@
-import { Notice, Platform, Plugin, TFile } from 'obsidian';
+import { MarkdownView, Notice, Platform, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
 import { CardBoxSettingTab, DEFAULT_SETTINGS } from './settings';
 import type { Card, CardBoxDef, CardBoxSettings } from './types';
+import { defaultBoxDef } from './types';
 import { CardService } from './frontmatter';
 import { CardIndex } from './index';
 import { CardBoxView, CARD_BOX_VIEW_TYPE } from './view/CardBoxView';
@@ -20,6 +21,7 @@ export default class CardBoxPlugin extends Plugin {
 	service!: CardService;
 	index!: CardIndex;
 	private ctx!: CardBoxContext;
+	private foldTimer: number | null = null;
 
 	/**
 	 * onload 只要抛出异常，Obsidian 就会静默回滚启用开关
@@ -31,8 +33,8 @@ export default class CardBoxPlugin extends Plugin {
 			await this.setup();
 		} catch (e) {
 			log.error('init', '插件初始化失败', e);
-			console.error('[CardBox] 插件初始化失败', e);
-			new Notice('CardBox 初始化失败，请查看控制台（Ctrl+Shift+I）获取详情', 8000);
+			console.error('[Slipbox] 插件初始化失败', e);
+			new Notice('Slipbox 初始化失败，请查看控制台（Ctrl+Shift+I）获取详情', 8000);
 		}
 	}
 
@@ -49,13 +51,22 @@ export default class CardBoxPlugin extends Plugin {
 		);
 		this.index = new CardIndex(this.app, this.service);
 		this.index.attach();
+
+		// 卡片笔记页净化：隐藏属性区与文件名标题，只留正文（对标写拉松）
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', (leaf) => {
+				const v = leaf?.view;
+				const isCard = v instanceof MarkdownView && v.file && this.index.byPath(v.file.path);
+				v?.containerEl.toggleClass('cardbox-card-note', !!isCard);
+			}),
+		);
 		log.info('init', 'setup 完成，视图与索引已注册');
 
 		this.ctx = {
 			settings: this.settings,
 			index: this.index,
 			service: this.service,
-			openFile: (file) => this.openFile(file),
+			openFile: (file, from) => this.openFile(file, from),
 			openCapture: (prefill, parent) => this.openCapture(prefill, parent),
 			saveSettings: () => this.saveSettings(),
 			openExtendView: (rootId) => this.openExtendView(rootId),
@@ -113,7 +124,7 @@ export default class CardBoxPlugin extends Plugin {
 				try {
 					this.foldCardProperties(file);
 				} catch (e) {
-					console.error('[CardBox] 折叠属性失败', e);
+					console.error('[Slipbox] 折叠属性失败', e);
 				}
 			}),
 		);
@@ -122,8 +133,8 @@ export default class CardBoxPlugin extends Plugin {
 		// onload 阶段 vault 可能尚未完全可写，在此写文件会导致插件加载失败。
 		// onLayoutReady 在个别版本/环境下不可用，因此做能力探测并回退到直接执行。
 		const deferred = () => {
-			void this.ensureCardsFolder().catch((e) => console.error('[CardBox] 创建卡片文件夹失败', e));
-			if (!this.index.ready) void this.index.build().catch((e) => console.error('[CardBox] 索引构建失败', e));
+			void this.ensureCardsFolder().catch((e) => console.error('[Slipbox] 创建卡片文件夹失败', e));
+			if (!this.index.ready) void this.index.build().catch((e) => console.error('[Slipbox] 索引构建失败', e));
 		};
 		const ws = this.app.workspace as unknown as { onLayoutReady?: (cb: () => void) => void };
 		if (typeof ws.onLayoutReady === 'function') ws.onLayoutReady(deferred);
@@ -134,7 +145,8 @@ export default class CardBoxPlugin extends Plugin {
 	private foldCardProperties(file: TFile | null): void {
 		if (!file || file.extension !== 'md' || !this.service.isCardPath(file.path)) return;
 		// 等属性面板渲染出来再操作
-		window.setTimeout(() => {
+		this.foldTimer = window.setTimeout(() => {
+			this.foldTimer = null;
 			const leaf = document.querySelector('.workspace-leaf.mod-active');
 			if (!leaf) return;
 			const collapsed = leaf.querySelector('.metadata-container.is-collapsed');
@@ -148,10 +160,14 @@ export default class CardBoxPlugin extends Plugin {
 
 	onunload(): void {
 		// 卸载期异常会导致 Obsidian 报错且残留监听，这里兜底
+		if (this.foldTimer !== null) {
+			window.clearTimeout(this.foldTimer);
+			this.foldTimer = null;
+		}
 		try {
 			this.index?.detach();
 		} catch (e) {
-			console.error('[CardBox] 卸载时清理索引失败', e);
+			console.error('[Slipbox] 卸载时清理索引失败', e);
 		}
 	}
 
@@ -212,10 +228,9 @@ export default class CardBoxPlugin extends Plugin {
 			name: i18n.canvasMergeFromCanvas,
 			checkCallback: (checking) => {
 				const file = this.app.workspace.getActiveFile();
-				const isCanvas = file?.extension === 'canvas';
-				if (!isCanvas) return false;
+				if (!file || file.extension !== 'canvas') return false;
 				if (checking) return true;
-				void this.mergeFromCanvas(file as TFile);
+				void this.mergeFromCanvas(file);
 				return true;
 			},
 		});
@@ -239,7 +254,9 @@ export default class CardBoxPlugin extends Plugin {
 	private activeView(): CardBoxView | null {
 		const leaves = this.app.workspace.getLeavesOfType(CARD_BOX_VIEW_TYPE);
 		if (!leaves.length) return null;
-		const view = leaves[0].view;
+		const active = this.app.workspace.activeLeaf;
+		const target = active && leaves.includes(active) ? active : leaves[0];
+		const view = target.view;
 		return view instanceof CardBoxView ? view : null;
 	}
 
@@ -248,12 +265,12 @@ export default class CardBoxPlugin extends Plugin {
 	async openCardBoxView(): Promise<void> {
 		const leaves = this.app.workspace.getLeavesOfType(CARD_BOX_VIEW_TYPE);
 		if (leaves.length) {
-			this.app.workspace.revealLeaf(leaves[0]);
+			this.app.workspace.setActiveLeaf(leaves[0]);
 			return;
 		}
 		const leaf = this.app.workspace.getLeaf(true);
 		await leaf.setViewState({ type: CARD_BOX_VIEW_TYPE, active: true });
-		this.app.workspace.revealLeaf(leaf);
+		this.app.workspace.setActiveLeaf(leaf);
 	}
 
 	/** 打开卡片扩展同屏视图（复用已存在的扩展视图，只切换主卡片） */
@@ -262,12 +279,12 @@ export default class CardBoxPlugin extends Plugin {
 		if (leaves.length) {
 			const view = leaves[0].view;
 			if (view instanceof CardExtendView) view.setRoot(rootId);
-			this.app.workspace.revealLeaf(leaves[0]);
+			this.app.workspace.setActiveLeaf(leaves[0]);
 			return;
 		}
 		const leaf = this.app.workspace.getLeaf(true);
 		await leaf.setViewState({ type: CARD_EXTEND_VIEW_TYPE, active: true, state: { rootId } });
-		this.app.workspace.revealLeaf(leaf);
+		this.app.workspace.setActiveLeaf(leaf);
 	}
 
 	/**
@@ -275,7 +292,13 @@ export default class CardBoxPlugin extends Plugin {
 	 * 保证每次都落在**新标签页**而不是复用当前 tab——
 	 * 从卡片盒/扩展视图连续点开多张卡片时，互相不覆盖。
 	 */
-	async openFile(file: TFile): Promise<void> {
+	async openFile(file: TFile, from?: WorkspaceLeaf): Promise<void> {
+		// 手机端：在卡片盒所在的 leaf 打开，卡片盒会进入 back history，
+		// 返回键 / 返回手势 / 底栏「<」都能一次回到卡片盒，也不再堆积标签页。
+		if (Platform.isMobile && from) {
+			await from.openFile(file, { active: true });
+			return;
+		}
 		await this.app.workspace.openLinkText(file.path, '', 'tab');
 	}
 
@@ -352,8 +375,6 @@ export default class CardBoxPlugin extends Plugin {
 				ok++;
 				lastFrom = r.from;
 				lastTo = r.to;
-			} else if (r.reason && !['same', 'empty', 'notfound'].includes(r.reason)) {
-				reasons.push(r.reason);
 			} else if (r.reason) {
 				reasons.push(r.reason);
 			}
@@ -412,12 +433,31 @@ export default class CardBoxPlugin extends Plugin {
 			loaded = (await this.loadData()) as Partial<CardBoxSettings> | null;
 		} catch (e) {
 			// data.json 损坏时不能让插件整体加载失败，退回默认设置
-			console.error('[CardBox] 读取设置失败，已使用默认设置', e);
+			console.error('[Slipbox] 读取设置失败，已使用默认设置', e);
 		}
+		// 0.6.51 起插件 id 由 cardbox 改为 cardbox-mobile：
+		// 从旧目录升级时 loadData() 读不到旧 data.json，这里主动迁移一次。
+		if (!loaded) loaded = await this.loadLegacyData();
+
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded ?? {});
-		// 兼容旧版本数据：boxes 缺失或类型异常时归位
-		if (!Array.isArray(this.settings.boxes)) this.settings.boxes = [];
-		this.settings.boxes = this.settings.boxes.filter((b): b is CardBoxDef => !!b && typeof b.id === 'string');
+		// 兼容旧版本/损坏数据：逐字段深合并，避免嵌套字段缺失导致视图或弹窗构造期崩溃
+		const rawBoxes = Array.isArray(this.settings.boxes) ? this.settings.boxes : [];
+		this.settings.boxes = rawBoxes
+			.filter((b): b is CardBoxDef => !!b && typeof b === 'object' && typeof b.id === 'string')
+			.map((b) => {
+				const d = defaultBoxDef(b.id, typeof b.name === 'string' ? b.name : b.id);
+				const t = b.time && typeof b.time === 'object' ? b.time : d.time;
+				return {
+					...d,
+					...b,
+					time: { ...d.time, ...t },
+					tags: Array.isArray(b.tags) ? b.tags.filter((x): x is string => typeof x === 'string') : [],
+					keywords: Array.isArray(b.keywords) ? b.keywords.filter((x): x is string => typeof x === 'string') : [],
+					colors: Array.isArray(b.colors) ? b.colors : [],
+					keywordMatch: b.keywordMatch === 'all' ? 'all' : 'any',
+					pinnedOnly: b.pinnedOnly === true,
+				};
+			});
 		if (typeof this.settings.activeBoxId !== 'string') this.settings.activeBoxId = '';
 		// 旧版默认视图值 'card' 仍有效；非法值回落
 		if (!['card', 'masonry', 'timeline'].includes(this.settings.defaultViewMode)) {
@@ -447,6 +487,35 @@ export default class CardBoxPlugin extends Plugin {
 		if (typeof this.settings.writeTimestampFields !== 'boolean') {
 			this.settings.writeTimestampFields = DEFAULT_SETTINGS.writeTimestampFields;
 		}
+		// 其余字段：类型校验；三个输出文件夹禁止清空（清空会让索引恒空或生成非法路径）
+		for (const key of ['cardsFolder', 'mergeOutputFolder', 'canvasOutputFolder'] as const) {
+			const v = this.settings[key];
+			if (typeof v !== 'string' || !v.trim()) this.settings[key] = DEFAULT_SETTINGS[key];
+		}
+		if (!Array.isArray(this.settings.defaultTags) || this.settings.defaultTags.some((t) => typeof t !== 'string')) {
+			this.settings.defaultTags = [];
+		}
+		if (!['created-desc', 'created-asc', 'updated-desc', 'title'].includes(this.settings.defaultSort)) {
+			this.settings.defaultSort = DEFAULT_SETTINGS.defaultSort;
+		}
+		for (const key of ['showArchived', 'continuousCaptureDefault', 'capturePreview'] as const) {
+			if (typeof this.settings[key] !== 'boolean') this.settings[key] = DEFAULT_SETTINGS[key];
+		}
+	}
+
+	/** 读取 0.6.51 之前旧插件目录（plugins/cardbox）的 data.json，用于升级迁移 */
+	private async loadLegacyData(): Promise<Partial<CardBoxSettings> | null> {
+		try {
+			const adapter = this.app.vault.adapter;
+			if (!adapter || typeof adapter.exists !== 'function') return null;
+			const legacy = '.obsidian/plugins/cardbox/data.json';
+			if (await adapter.exists(legacy)) {
+				return JSON.parse(await adapter.read(legacy)) as Partial<CardBoxSettings>;
+			}
+		} catch (e) {
+			console.error('[Slipbox] 读取旧版设置失败', e);
+		}
+		return null;
 	}
 
 	async saveSettings(): Promise<void> {

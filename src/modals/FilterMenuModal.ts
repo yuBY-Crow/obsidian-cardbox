@@ -1,9 +1,8 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, TextComponent } from 'obsidian';
 import { i18n } from '../i18n';
 import type { CardBoxSettings, CardColor, FilterState, SortMode } from '../types';
 import { CARD_COLORS } from '../types';
 import type { CardIndex } from '../index';
-import { debounce } from '../utils/dom';
 
 export interface FilterMenuCallbacks {
 	onFilterChange: () => void;
@@ -27,13 +26,18 @@ const SORT_OPTIONS: [SortMode, string][] = [
 	['title', i18n.sortTitle],
 ];
 
+/** 标签模糊搜索最多展示的 chip 数 */
+const MAX_TAG_CHIPS = 60;
+
 /**
- * 手机端汉堡菜单：筛选面板（搜索 / 标签 / 颜色 / 快速开关 / 排序）。
- * 直接操作视图持有的同一个 FilterState，关闭后由 onFilterChange 触发重渲染。
+ * 独立的筛选面板：标签（全库模糊搜索）/ 颜色 / 快捷开关 / 排序 / 重置。
+ * 全局搜索已拆到 SearchModal，这里不再有搜索框，也不改 filter.query。
+ * 视觉与瀑布流卡片一致（白卡片 + 圆角 + 细边框 + 轻投影）。
  */
 export class FilterMenuModal extends Modal {
 	private sort: SortMode;
-	private searchDebounced: (q: string) => void;
+	private tagQuery = '';
+	private chipWrap!: HTMLElement;
 
 	constructor(
 		app: App,
@@ -41,106 +45,120 @@ export class FilterMenuModal extends Modal {
 		settings: CardBoxSettings,
 		private index: CardIndex,
 		private cb: FilterMenuCallbacks,
+		currentSort?: SortMode,
 	) {
 		super(app);
-		this.sort = settings.defaultSort;
-		this.searchDebounced = debounce((q) => {
-			this.filter.query = q;
-			this.cb.onFilterChange();
-		}, 200);
+		this.sort = currentSort ?? settings.defaultSort;
 	}
 
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('cardbox-filter-modal');
-		contentEl.createEl('h3', { text: i18n.mobileFilterTitle });
+		contentEl.createEl('h3', { text: i18n.filterTitle });
 
-		// 搜索
-		new Setting(contentEl).setName(i18n.searchPlaceholder.replace('…', '')).addText((text) => {
-			text.setPlaceholder(i18n.searchPlaceholder)
-				.setValue(this.filter.query)
-				.onChange((v) => this.searchDebounced(v));
+		// 标签：可在全库标签中模糊搜索
+		const tagCard = contentEl.createDiv({ cls: 'cardbox-filter-card' });
+		tagCard.createEl('h4', { text: i18n.filterGroupTags });
+		const tagSearch = new TextComponent(tagCard);
+		tagSearch.setPlaceholder(i18n.tagSearchPlaceholder).onChange((v) => {
+			this.tagQuery = v;
+			this.renderTags();
 		});
-
-		// 标签 chips
-		const tagSetting = new Setting(contentEl).setName(i18n.tagSelected);
-		const chipWrap = tagSetting.controlEl.createDiv({ cls: 'cardbox-chips cardbox-chips-wrap' });
-		const renderTags = () => {
-			chipWrap.empty();
-			const top = this.index.allTags().slice(0, 24);
-			for (const { tag } of top) {
-				const chip = chipWrap.createSpan({ cls: 'cardbox-chip' });
-				chip.setText(`#${tag}`);
-				chip.toggleClass('is-active', this.filter.selectedTags.has(tag));
-				chip.addEventListener('click', () => {
-					if (this.filter.selectedTags.has(tag)) this.filter.selectedTags.delete(tag);
-					else this.filter.selectedTags.add(tag);
-					renderTags();
-					this.cb.onFilterChange();
-				});
-			}
-			const add = chipWrap.createSpan({ cls: 'cardbox-chip cardbox-chip-add', text: i18n.moreTags });
-			add.addEventListener('click', () => this.cb.onAddTag());
-		};
-		renderTags();
+		tagSearch.inputEl.addClass('cardbox-tag-search-field');
+		this.chipWrap = tagCard.createDiv({ cls: 'cardbox-chips cardbox-chips-wrap' });
+		this.renderTags();
 
 		// 颜色
-		const colorSetting = new Setting(contentEl).setName(i18n.colorLabel);
-		const colorRow = colorSetting.controlEl.createDiv({ cls: 'cardbox-color-row cardbox-color-filter' });
-		const renderColors = () => {
-			colorRow.empty();
-			for (const color of CARD_COLORS) {
-				const dot = colorRow.createDiv({ cls: `cardbox-color-dot cardbox-color-${color}` });
-				dot.setAttribute('aria-label', i18n.colorNames[color] ?? color);
-				dot.toggleClass('is-selected', this.filter.selectedColors.has(color as CardColor));
-				dot.addEventListener('click', () => {
-					const c = color as CardColor;
-					if (this.filter.selectedColors.has(c)) this.filter.selectedColors.delete(c);
-					else this.filter.selectedColors.add(c);
-					renderColors();
-					this.cb.onFilterChange();
-				});
-			}
-		};
-		renderColors();
+		const colorCard = contentEl.createDiv({ cls: 'cardbox-filter-card' });
+		colorCard.createEl('h4', { text: i18n.filterGroupColors });
+		const colorRow = colorCard.createDiv({ cls: 'cardbox-color-row cardbox-color-filter' });
+		this.renderColors(colorRow);
 
-		// 快速开关
+		// 快捷开关
+		const quickCard = contentEl.createDiv({ cls: 'cardbox-filter-card' });
+		quickCard.createEl('h4', { text: i18n.filterGroupQuick });
 		for (const def of TOGGLE_DEFS) {
-			const setting = new Setting(contentEl).setName(def.label);
-			setting.addToggle((tg) =>
-				tg.setValue(this.filter[def.key] as boolean).onChange((v) => {
-					(this.filter[def.key] as boolean) = v;
-					this.cb.onFilterChange();
-				}),
-			);
+			const row = quickCard.createDiv({ cls: 'cardbox-filter-toggle' });
+			const label = row.createSpan({ text: def.label });
+			const toggle = row.createEl('input', { type: 'checkbox' });
+			toggle.checked = this.filter[def.key] as boolean;
+			toggle.addEventListener('change', () => {
+				(this.filter[def.key] as boolean) = toggle.checked;
+				this.cb.onFilterChange();
+			});
+			label.addEventListener('click', () => {
+				toggle.checked = !toggle.checked;
+				toggle.dispatchEvent(new Event('change'));
+			});
 		}
 
 		// 排序
-		new Setting(contentEl).setName(i18n.mobileSort).addDropdown((dd) => {
-			for (const [value, label] of SORT_OPTIONS) dd.addOption(value, label);
-			dd.setValue(this.sort).onChange((v) => {
-				this.sort = v as SortMode;
-				this.cb.onSortChange(this.sort);
-			});
+		const sortCard = contentEl.createDiv({ cls: 'cardbox-filter-card' });
+		sortCard.createEl('h4', { text: i18n.filterGroupSort });
+		const select = sortCard.createEl('select');
+		select.addClass('dropdown');
+		for (const [value, text] of SORT_OPTIONS) {
+			const opt = select.createEl('option', { text, value });
+			if (value === this.sort) opt.selected = true;
+			select.appendChild(opt);
+		}
+		select.addEventListener('change', () => {
+			this.sort = select.value as SortMode;
+			this.cb.onSortChange(this.sort);
 		});
 
 		// 重置
-		new Setting(contentEl).addButton((btn) =>
-			btn
-				.setButtonText('清除筛选')
-				.onClick(() => {
-					this.filter.query = '';
-					this.filter.selectedTags.clear();
-					this.filter.selectedColors.clear();
-					for (const def of TOGGLE_DEFS) (this.filter[def.key] as boolean) = false;
-					this.cb.onFilterChange();
-					this.close();
-				}),
-		);
+		const clear = contentEl.createEl('button', { cls: 'mod-cta', text: i18n.clearFilters });
+		clear.addEventListener('click', () => {
+			this.filter.selectedTags.clear();
+			this.filter.selectedColors.clear();
+			for (const def of TOGGLE_DEFS) (this.filter[def.key] as boolean) = false;
+			this.cb.onFilterChange();
+			this.close();
+		});
 	}
 
 	onClose(): void {
 		this.contentEl.empty();
+	}
+
+	private renderTags(): void {
+		this.chipWrap.empty();
+		const q = this.tagQuery.trim().toLowerCase();
+		const all = this.index.allTags().filter(({ tag }) => !q || tag.toLowerCase().includes(q));
+		if (!all.length) {
+			this.chipWrap.createSpan({ cls: 'cardbox-chip', text: i18n.tagSearchEmpty });
+			return;
+		}
+		for (const { tag } of all.slice(0, MAX_TAG_CHIPS)) {
+			const chip = this.chipWrap.createSpan({ cls: 'cardbox-chip' });
+			chip.setText(`#${tag}`);
+			chip.toggleClass('is-active', this.filter.selectedTags.has(tag));
+			chip.addEventListener('click', () => {
+				if (this.filter.selectedTags.has(tag)) this.filter.selectedTags.delete(tag);
+				else this.filter.selectedTags.add(tag);
+				this.renderTags();
+				this.cb.onFilterChange();
+			});
+		}
+		const add = this.chipWrap.createSpan({ cls: 'cardbox-chip cardbox-chip-add', text: i18n.moreTags });
+		add.addEventListener('click', () => this.cb.onAddTag());
+	}
+
+	private renderColors(host: HTMLElement): void {
+		host.empty();
+		for (const color of CARD_COLORS) {
+			const dot = host.createDiv({ cls: `cardbox-color-dot cardbox-color-${color}` });
+			dot.setAttribute('aria-label', i18n.colorNames[color] ?? color);
+			dot.toggleClass('is-selected', this.filter.selectedColors.has(color as CardColor));
+			dot.addEventListener('click', () => {
+				const c = color as CardColor;
+				if (this.filter.selectedColors.has(c)) this.filter.selectedColors.delete(c);
+				else this.filter.selectedColors.add(c);
+				this.renderColors(host);
+				this.cb.onFilterChange();
+			});
+		}
 	}
 }

@@ -1,4 +1,4 @@
-/* ===== CardBox 卡片盒 ===== */
+/* ===== Slipbox ===== */
 
 .cardbox-root {
 	display: flex;
@@ -374,7 +374,7 @@
 
 .cardbox-tile-title {
 	font-size: 14px;
-	color: #1a1a1a;
+	color: var(--text-normal);
 	font-weight: 700;
 	letter-spacing: -0.01em;
 	line-height: 1.4;
@@ -1041,7 +1041,7 @@ body.is-mobile .cardbox-color-dot {
 	font-weight: 700;
 	letter-spacing: -0.01em;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-	color: #1a1a1a;
+	color: var(--text-normal);
 	line-height: 1.35;
 	-webkit-line-clamp: 3;
 }
@@ -1761,7 +1761,7 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-title {
 	font-weight: 700;
 	letter-spacing: -0.01em;
 	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-	color: #1a1a1a;
+	color: var(--text-normal);
 }
 
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile-snippet {
@@ -1955,3 +1955,314 @@ body.is-mobile .cardbox-list.is-masonry {
 	z-index: 1000;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+
+/* 视图层辅助类（此前缺少样式定义） */
+.cardbox-boxtab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardbox-color-filter { display: inline-flex; align-items: center; gap: 4px; }
+.cardbox-expand-wrap { display: flex; flex-direction: column; gap: 4px; }
+.cardbox-select-action.is-active { color: var(--interactive-accent); }
+
+/* ===== 写拉松式快速记录（依据官网 wt-mobile.png 参考图重做） =====
+   结构：白色大字输入区（占满上方） + 图标工具栏（紧贴键盘上沿）。
+   配色：白底 / 深灰字 / 浅灰分隔 / 薄荷绿强调 #A1D4CA。 */
+
+/* 写拉松卡片是纯文本，没有独立标题输入框 */
+.cardbox-capture-modal .cardbox-capture-title { display: none; }
+
+/* 输入区：大字、宽松行距、无边框 */
+.cardbox-capture-modal .cardbox-capture-input { min-height: 0; }
+.cardbox-capture-modal .cardbox-capture-input .cm-editor {
+	font-size: 20px;
+	line-height: 1.65;
+	font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+}
+.cardbox-capture-modal .cardbox-capture-input .cm-scroller { padding: 18px 20px 12px; }
+.cardbox-capture-modal .cardbox-capture-input .cm-content { line-height: 1.65; }
+
+/* 图标工具栏：紧贴键盘上沿 */
+.cardbox-capture-modal .cardbox-capture-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+	padding: 6px 10px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+.cardbox-capture-modal .cardbox-capture-tool {
+	width: 36px; height: 36px;
+	display: flex; align-items: center; justify-content: center;
+	border: none; background: transparent; box-shadow: none;
+	border-radius: 8px; cursor: pointer; padding: 0;
+	color: var(--text-muted);
+}
+.cardbox-capture-modal .cardbox-capture-tool:hover { background: var(--background-modifier-hover); }
+.cardbox-capture-modal .cardbox-capture-tool.is-active { color: #5FAE9C; }
+.cardbox-capture-modal .cardbox-capture-tool svg { width: 18px; height: 18px; }
+.cardbox-capture-modal .cardbox-capture-send {
+	margin-left: auto;
+	width: 44px; height: 36px;
+	display: flex; align-items: center; justify-content: center;
+	border: 1.5px solid #A1D4CA;
+	background: transparent;
+	border-radius: 10px;
+	color: #5FAE9C;
+	cursor: pointer; padding: 0;
+}
+.cardbox-capture-modal .cardbox-capture-send svg { width: 18px; height: 18px; }
+.cardbox-capture-modal .cardbox-capture-send:active { background: rgba(161, 212, 202, 0.2); }
+/* 旧版 footer（连续创建文字 / 紫色胶囊）已由工具栏取代 */
+.cardbox-capture-modal .cardbox-capture-footer { display: none; }
+
+/* 键盘态：卡片铺满键盘上方，工具栏正好落在键盘上沿 */
+body.is-mobile .cardbox-capture-modal.is-keyboard-open { border-radius: 0; }
+body.is-mobile .cardbox-capture-modal.is-keyboard-open .modal-header-button {
+	width: 34px !important; height: 34px !important; opacity: 0.45;
+}
+
+/* ===== 手机端默认双排信息流：按写拉松真机逐项校准 =====
+   关键兼容：手机 WebView 是 Chrome 83，不支持 flexbox gap（Chrome 84+ 才有），
+   所以卡片间隙一律用 margin 实现；gap 显式置 0 避免新 WebView 上叠加。
+   写拉松实测：卡片上下/左右间隙 22 物理 px ≈ 8 CSS px，页面底 #EEEEEE。 */
+body.is-mobile .cardbox-list.is-masonry {
+	gap: 0;
+	--cardbox-masonry-gap: 0px;
+	background: transparent;
+	padding: 8px 8px 88px;
+}
+/* 列组之间、列之间、卡片之间：全部用 margin */
+body.is-mobile .cardbox-list.is-masonry .cardbox-masonry-group {
+	gap: 0; margin-bottom: 8px;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-masonry-col {
+	gap: 0; margin-right: 8px;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-masonry-col:last-child { margin-right: 0; }
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile { margin-bottom: 8px; }
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile:last-child { margin-bottom: 0; }
+body.is-mobile .cardbox-list.is-masonry .cardbox-masonry-full,
+body.is-mobile .cardbox-list.is-masonry .cardbox-sentinel { margin-bottom: 8px; }
+
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 16px;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-main { padding: 20px; max-height: none; }
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-text { padding-right: 0; }
+/* 顶部薄荷绿标签 */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-tags {
+	display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 10px;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-tags .cardbox-chip {
+	background: transparent !important; border: none !important; box-shadow: none !important;
+	padding: 0 !important; margin: 0 10px 0 0 !important; border-radius: 0 !important;
+	color: #5FAE9C !important; font-size: 15px !important; font-weight: 600;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-title {
+	font-size: 16px; line-height: 1.6; font-weight: 600;
+	letter-spacing: 0; color: var(--text-normal); -webkit-line-clamp: 3;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-snippet {
+	font-size: 16px; line-height: 1.8; color: var(--text-normal);
+	opacity: 1; margin-top: 10px; -webkit-line-clamp: 8;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-meta {
+	margin-top: 14px; opacity: 1; gap: 6px 10px;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-time {
+	font-size: 15px; color: var(--text-faint); opacity: 1; margin-left: 0;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-more-btn {
+	opacity: 0.55; top: 10px; right: 8px; width: 28px; height: 28px;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-parent {
+	font-size: 12px; opacity: 0.5;
+	border-top: 1px solid var(--background-modifier-border); padding-top: 8px; margin-top: 8px;
+}
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-pinned { border-left: 3px solid #A1D4CA; }
+body.is-mobile .cardbox-tile.is-selected { outline: 1px solid #A1D4CA; }
+/* ===== v0.6.54 手机端 P0：图标按钮重置（对标方案 2/4/8/9/12） =====
+   Obsidian 手机端给 <button> 默认 padding:4px 12px + 灰底 + 阴影，
+   会把 28px 按钮里的 SVG 压成 4px，且 FAB 背景被改成灰、白图标看不见。 */
+body.is-mobile .cardbox-tile button.cardbox-more-btn {
+	padding: 0 !important;
+	background-color: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	border: none !important;
+	width: 32px !important;
+	height: 32px !important;
+	min-height: 32px !important;
+	top: 8px !important;
+	right: 6px !important;
+	opacity: 0.6;
+}
+body.is-mobile .cardbox-tile button.cardbox-more-btn svg {
+	width: 18px !important;
+	height: 18px !important;
+	flex-shrink: 0;
+}
+/* #8 第一行（标签/父卡/标题）右侧留出 ⋮ 的位置，不再横向重叠 */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile .cardbox-tile-body > :first-child {
+	margin-right: 24px !important;
+}
+/* #4 FAB：实心主题色圆，白色 + 号 */
+body.is-mobile .workspace-leaf-content button.cardbox-fab {
+	padding: 0 !important;
+	background-color: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+body.is-mobile button.cardbox-fab svg {
+	width: 24px; height: 24px; flex-shrink: 0;
+}
+/* #9 扩展卡片「↑ 主卡」上方不再多一条分割线 */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile-parent {
+	border-top: none !important;
+	padding-top: 0 !important;
+	margin: 0 24px 6px 0 !important;
+	font-size: 12px;
+	color: var(--text-faint);
+}
+/* #12 顶栏图标跟随 --icon-size，点击区 >= 40px */
+.cardbox-mode-action svg,
+.cardbox-filter-action svg {
+	width: var(--icon-size, 24px);
+	height: var(--icon-size, 24px);
+}
+body.is-mobile .cardbox-mode-action,
+body.is-mobile .cardbox-filter-action {
+	min-width: 40px;
+	min-height: 40px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+/* ===== 卡片笔记页净化：隐藏属性区与文件名标题，只留正文 ===== */
+body.is-mobile .cardbox-card-note .metadata-container,
+body.is-mobile .cardbox-card-note .inline-title { display: none !important; }
+body.is-mobile .cardbox-card-note .cm-content { font-size: 17px; line-height: 1.8; }
+/* ===== #7 摘要轻量渲染 ===== */
+.cardbox-tile-title.is-timestamp { display: none; }
+.cardbox-snippet-line { min-height: 1.2em; }
+.cb-b { font-weight: 700; }
+.cb-link { color: var(--interactive-accent); }
+.cb-code { font-family: var(--font-monospace); background: var(--background-modifier-hover); border-radius: 3px; padding: 0 2px; }
+.cb-tag { color: #5FAE9C; }
+/* ===== #3 筛选生效角标 ===== */
+body.is-mobile .cardbox-filter-action { position: relative; }
+body.is-mobile .cardbox-filter-action.is-filter-active::after {
+	content: ''; position: absolute; top: 6px; right: 6px;
+	width: 7px; height: 7px; border-radius: 50%;
+	background: var(--interactive-accent);
+}
+/* ===== 顶栏图标整排对齐 =====
+   上一版只给 filter/mode 加了 40×40 + inline-flex，其余原生 action 是 36×32 + flex，
+   导致图标高低差 1px、SVG 垂直差 3px。这里对卡片盒 leaf 的整排 view-action 统一。 */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-action:not(.mod-bookmark) {
+	min-width: 40px;
+	min-height: 40px;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+}
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-action:not(.mod-bookmark) svg {
+	width: var(--icon-size, 24px);
+	height: var(--icon-size, 24px);
+	flex-shrink: 0;
+}
+/* 左侧原生侧栏按钮与右侧功能图标同高对齐（原生 top=5，右侧 top=8） */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-action.mod-left-split-toggle {
+	position: relative;
+	top: 3px;
+}
+/* ===== 全局搜索 / 筛选面板：与瀑布流一致的卡片语言 ===== */
+.cardbox-search-modal, .cardbox-filter-modal { background: var(--background-primary); }
+.cardbox-search-modal h3, .cardbox-filter-modal h3 { margin: 0 0 12px; font-size: 18px; }
+.cardbox-search-input-row, .cardbox-tag-search-row { margin-bottom: 12px; }
+.cardbox-search-field, .cardbox-tag-search-field { width: 100%; box-sizing: border-box; font-size: 16px; min-height: 40px; }
+.cardbox-search-hint, .cardbox-tag-search-empty { color: var(--text-faint); font-size: 14px; padding: 16px 4px; }
+.cardbox-search-count { color: var(--text-muted); font-size: 13px; margin: 0 0 10px 2px; }
+.cardbox-search-group { margin-bottom: 16px; }
+.cardbox-search-group-head { font-size: 14px; font-weight: 600; color: var(--text-muted); margin: 0 0 8px 2px; }
+.cardbox-search-group-list .cardbox-search-hit { margin-bottom: 8px; }
+.cardbox-search-hit, .cardbox-filter-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 16px;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	padding: 16px; cursor: pointer;
+}
+.cardbox-search-hit:active { background: var(--background-modifier-hover); }
+.cardbox-search-hit .cardbox-tile-main { padding: 0; }
+.cardbox-search-hit .cardbox-tile-tags { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 8px; }
+.cardbox-search-hit .cardbox-tile-tags .cardbox-chip {
+	background: transparent; border: none; box-shadow: none; padding: 0; margin: 0 10px 0 0;
+	border-radius: 0; color: #5FAE9C; font-size: 14px; font-weight: 600;
+}
+.cardbox-search-hit .cardbox-tile-title { font-size: 16px; font-weight: 600; line-height: 1.55; color: var(--text-normal); }
+.cardbox-search-hit .cardbox-tile-snippet { font-size: 15px; line-height: 1.7; color: var(--text-normal); opacity: 0.85; margin-top: 4px; }
+.cardbox-search-hit .cardbox-tile-meta { margin-top: 10px; gap: 6px 10px; }
+.cardbox-search-hit .cardbox-tile-time { font-size: 13px; color: var(--text-faint); }
+.cardbox-hit-cat { font-size: 11px; color: #5FAE9C; border: 1px solid #A1D4CA; border-radius: 999px; padding: 1px 8px; }
+.cardbox-filter-card { margin-bottom: 8px; padding: 12px 14px; cursor: default; }
+.cardbox-filter-card h4 { margin: 0 0 8px; font-size: 14px; color: var(--text-muted); font-weight: 600; }
+.cardbox-filter-card .setting-item { border: none; padding: 4px 0; }
+.cardbox-filter-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; }
+.cardbox-filter-toggle input { width: 20px; height: 20px; flex: none; }
+/* ===== 卡片盒顶栏：标题更大更粗，整行图标与文字中心对齐 ===== */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-header-title {
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 28px;
+	color: var(--text-normal);
+}
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header {
+	align-items: center;
+}
+/* 取消上一版给左侧原生按钮的 3px 偏移，让它回到整行中心 */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-action.mod-left-split-toggle {
+	top: 0;
+}
+/* 标题紧跟左上角 Obsidian 图标：取消容器内的水平居中，左对齐并留 8px 间距 */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-header-title-container {
+	justify-content: flex-start !important;
+	padding-left: 8px !important;
+}
+/* 标题与图标等高同中心：40px flex 容器 + line-height:1，消除汉字视觉重心偏移 */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-header-title {
+	position: static;
+	display: flex;
+	align-items: center;
+	height: 40px;
+	line-height: 1;
+}
+/* 右上角功能图标比左上角 Obsidian 图标小一挡；
+   容器仍 40×40 flex 居中，SVG 缩小后中心不变，整行水平对齐保持。 */
+body.is-mobile .workspace-leaf-content[data-type="cardbox-main"] .view-header .view-action:not(.mod-left-split-toggle) svg {
+	width: calc(var(--icon-size, 24px) - 4px);
+	height: calc(var(--icon-size, 24px) - 4px);
+}
+/* ===== 审核整改：静态样式改由 class 承担，动态值走 CSS 自定义属性 ===== */
+.cardbox-capture-modal { padding: 0; }
+.cardbox-capture-modal .modal-header,
+.cardbox-capture-modal .modal-title { display: none !important; }
+.cardbox-capture { padding: 0; }
+body.is-mobile .cardbox-capture-modal.is-keyboard-open {
+	bottom: var(--cb-bottom, 0);
+	height: var(--cb-height, auto);
+	max-height: var(--cb-max-height, none);
+}
+body.is-mobile .cardbox-capture-modal.is-keyboard-open .cardbox-capture {
+	height: var(--cb-capture-height, auto);
+	min-height: var(--cb-capture-min-height, 0);
+}
+.cardbox-flex-spacer { flex: 1; }
+.cardbox-settings-heading .setting-item-name { font-size: 20px; font-weight: 700; }
+/* 审核整改：危险操作按钮（替代废弃的 setWarning） */
+.cardbox-btn-destructive { background: var(--background-modifier-error, #d05a5a); color: #fff; border-color: transparent; }

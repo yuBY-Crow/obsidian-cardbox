@@ -82,7 +82,8 @@ export function cardMatchesBox(card: Card, def: CardBoxDef, now: number = Date.n
 	return true;
 }
 
-/** 卡片盒条件摘要，用于 UI 提示（无条件时返回「全部卡片」） */
+
+/** 卡片盒条件摘要，用于 UI 提示（无条件时返回「全部卡片」）；scripts/boxtest.mjs 会调用 */
 export function describeBox(def: CardBoxDef): string {
 	const parts: string[] = [];
 	const t = def.time;

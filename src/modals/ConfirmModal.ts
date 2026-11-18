@@ -9,6 +9,9 @@ export interface ConfirmModalOptions {
 }
 
 export class ConfirmModal extends Modal {
+	/** 防止双击/连点把破坏性操作执行两遍 */
+	private submitting = false;
+
 	constructor(
 		app: App,
 		private opts: ConfirmModalOptions,
@@ -26,12 +29,19 @@ export class ConfirmModal extends Modal {
 
 		new ButtonComponent(row).setButtonText(i18n.cancel).onClick(() => this.close());
 
-		new ButtonComponent(row)
-			.setButtonText(this.opts.confirmText ?? i18n.confirm)
-			.setWarning()
-			.onClick(async () => {
+		const confirmBtn = new ButtonComponent(row).setButtonText(this.opts.confirmText ?? i18n.confirm);
+		confirmBtn.buttonEl.addClass('cardbox-btn-destructive');
+		confirmBtn.onClick(async () => {
+			if (this.submitting) return;
+			this.submitting = true;
+			confirmBtn.setDisabled(true);
+			try {
 				await this.opts.onConfirm();
 				this.close();
-			});
+			} finally {
+				this.submitting = false;
+				confirmBtn.setDisabled(false);
+			}
+		});
 	}
 }

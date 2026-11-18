@@ -26,6 +26,8 @@ export class CanvasSendModal extends Modal {
 	private drawEdges: boolean;
 	private remember = true;
 	private previewEl!: HTMLDivElement;
+	/** 防止双击把白板投放提交两遍 */
+	private submitting = false;
 
 	constructor(
 		app: App,
@@ -93,6 +95,8 @@ export class CanvasSendModal extends Modal {
 				.setButtonText(i18n.canvasSendButton)
 				.setCta()
 				.onClick(() => {
+					if (this.submitting) return;
+					this.submitting = true;
 					this.close();
 					this.onSubmit({
 						depth: this.depth,

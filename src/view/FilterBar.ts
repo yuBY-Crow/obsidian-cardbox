@@ -2,7 +2,6 @@ import { i18n } from '../i18n';
 import type { CardIndex } from '../index';
 import type { CardBoxSettings, CardColor, FilterState, SortMode, ViewMode } from '../types';
 import { CARD_COLORS } from '../types';
-import { debounce } from '../utils/dom';
 
 export interface FilterBarCallbacks {
 	onFilterChange: () => void;
@@ -20,6 +19,9 @@ const TOGGLE_DEFS: { key: keyof FilterState; label: string }[] = [
 	{ key: 'showArchived', label: i18n.showArchived },
 ];
 
+/** 搜索输入防抖（ms） */
+const SEARCH_DEBOUNCE_MS = 200;
+
 /** 顶部筛选栏：模式切换 + 搜索 + 标签 chips + 颜色 + 快速开关 + 排序 */
 export class FilterBar {
 	private filter: FilterState;
@@ -30,7 +32,7 @@ export class FilterBar {
 	private modeBtns = new Map<ViewMode, HTMLButtonElement>();
 	private toggleEls = new Map<keyof FilterState, HTMLElement>();
 	private searchInput!: HTMLInputElement;
-	private searchDebounced: (q: string) => void;
+	private searchTimer: number | undefined;
 
 	constructor(
 		filter: FilterState,
@@ -41,10 +43,6 @@ export class FilterBar {
 		this.filter = filter;
 		this.mode = settings.defaultViewMode;
 		this.sort = settings.defaultSort;
-		this.searchDebounced = debounce((q) => {
-			this.filter.query = q;
-			this.cb.onFilterChange();
-		}, 200);
 	}
 
 	getMode(): ViewMode {
@@ -80,12 +78,12 @@ export class FilterBar {
 			cls: 'cardbox-search-input',
 			attr: { type: 'search', placeholder: i18n.searchPlaceholder },
 		});
-		this.searchInput.addEventListener('input', () => this.searchDebounced(this.searchInput.value));
+		this.searchInput.addEventListener('input', () => this.onSearchInput(this.searchInput.value));
 		const clearBtn = searchRow.createEl('button', { cls: 'cardbox-search-clear', attr: { 'aria-label': '×' } });
 		clearBtn.setText('×');
 		clearBtn.addEventListener('click', () => {
 			this.searchInput.value = '';
-			this.searchDebounced('');
+			this.onSearchInput('');
 		});
 
 		// 标签 chips（横滑）
@@ -133,6 +131,14 @@ export class FilterBar {
 		return el;
 	}
 
+	/** 视图关闭时取消未触发的搜索 debounce，避免回调访问已销毁的视图 */
+	destroy(): void {
+		if (this.searchTimer !== undefined) {
+			window.clearTimeout(this.searchTimer);
+			this.searchTimer = undefined;
+		}
+	}
+
 	/** 索引变化后刷新标签 chips（保留选中状态，不重建整个筛选栏，避免搜索框失焦） */
 	refreshTags(): void {
 		if (!this.chipsRow) return;
@@ -151,6 +157,15 @@ export class FilterBar {
 		}
 		const add = this.chipsRow.createSpan({ cls: 'cardbox-chip cardbox-chip-add', text: i18n.moreTags });
 		add.addEventListener('click', () => this.cb.onAddTag());
+	}
+
+	private onSearchInput(q: string): void {
+		if (this.searchTimer !== undefined) window.clearTimeout(this.searchTimer);
+		this.searchTimer = window.setTimeout(() => {
+			this.searchTimer = undefined;
+			this.filter.query = q;
+			this.cb.onFilterChange();
+		}, SEARCH_DEBOUNCE_MS);
 	}
 
 	private renderColors(): void {

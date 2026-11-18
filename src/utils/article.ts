@@ -38,7 +38,9 @@ export async function createArticleFile(
 	title: string,
 	content: string,
 ): Promise<TFile | null> {
-	const folder = ctx.settings.mergeOutputFolder.trim().replace(/^\/+|\/+$/g, '');
+	const folder = ctx.settings.mergeOutputFolder.trim().replace(/^\/+|\/+$/g, '')
+		|| ctx.settings.cardsFolder.trim().replace(/^\/+|\/+$/g, '')
+		|| 'Cards';
 	const fileName = sanitizeFileName(title) || toDayKey(Date.now());
 	await ctx.service.ensureFolder(folder);
 	let path = `${folder}/${fileName}.md`;

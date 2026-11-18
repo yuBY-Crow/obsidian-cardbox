@@ -1,7 +1,7 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
 import { i18n } from '../i18n';
 import { CARD_COLORS } from '../types';
-import type { BoxTimeMode, CardBoxDef, CardColor } from '../types';
+import type { BoxTimeMode, BoxTimeRule, CardBoxDef, CardColor } from '../types';
 import type { CardIndex } from '../index';
 import { TagPickerModal } from './TagPickerModal';
 
@@ -17,6 +17,10 @@ export class BoxEditModal extends Modal {
 	private keywordsEl!: HTMLElement;
 	private colorsEl!: HTMLElement;
 	private timeDetailEl!: HTMLElement;
+	/** 防止双击把保存/删除执行两遍 */
+	private submitting = false;
+	private saveBtn?: HTMLButtonElement;
+	private deleteBtn?: HTMLButtonElement;
 
 	constructor(
 		app: App,
@@ -25,13 +29,18 @@ export class BoxEditModal extends Modal {
 		opts: { onSave: (def: CardBoxDef) => void | Promise<void>; onDelete?: () => void | Promise<void> },
 	) {
 		super(app);
-		// 深拷贝，取消时不污染原对象
+		// 深拷贝，取消时不污染原对象；旧/损坏数据缺字段时给出默认值，避免 [...undefined] 抛错
+		const src: Partial<CardBoxDef> | undefined = def;
+		const fallbackTime: BoxTimeRule = { mode: 'any' };
 		this.draft = {
-			...def,
-			time: { ...def.time },
-			tags: [...def.tags],
-			keywords: [...def.keywords],
-			colors: [...def.colors],
+			id: src?.id ?? '',
+			name: src?.name ?? '',
+			time: { ...(src?.time ?? fallbackTime) },
+			tags: [...(src?.tags ?? [])],
+			keywords: [...(src?.keywords ?? [])],
+			keywordMatch: src?.keywordMatch ?? 'any',
+			colors: [...(src?.colors ?? [])],
+			pinnedOnly: src?.pinnedOnly ?? false,
 		};
 		this.onSave = opts.onSave;
 		this.onDelete = opts.onDelete;
@@ -129,18 +138,26 @@ export class BoxEditModal extends Modal {
 		const footer = contentEl.createDiv({ cls: 'cardbox-modal-footer' });
 		if (this.onDelete) {
 			const del = footer.createEl('button', { cls: 'mod-warning', text: i18n.boxDelete });
+			this.deleteBtn = del;
 			del.addEventListener('click', () => {
+				if (this.submitting) return;
+				this.setSubmitting(true);
 				void (async () => {
-					await this.onDelete?.();
-					this.close();
+					try {
+						await this.onDelete?.();
+						this.close();
+					} finally {
+						this.setSubmitting(false);
+					}
 				})();
 			});
 		}
 		const spacer = footer.createDiv();
-		spacer.style.flex = '1';
+		spacer.addClass('cardbox-flex-spacer');
 		const cancel = footer.createEl('button', { text: i18n.cancel });
 		cancel.addEventListener('click', () => this.close());
 		const save = footer.createEl('button', { cls: 'mod-cta', text: i18n.boxSave });
+		this.saveBtn = save;
 		save.addEventListener('click', () => void this.save());
 	}
 
@@ -148,15 +165,28 @@ export class BoxEditModal extends Modal {
 		this.contentEl.empty();
 	}
 
+	/** 提交期间禁用保存/删除按钮，避免重复提交 */
+	private setSubmitting(active: boolean): void {
+		this.submitting = active;
+		if (this.saveBtn) this.saveBtn.disabled = active;
+		if (this.deleteBtn) this.deleteBtn.disabled = active;
+	}
+
 	private async save(): Promise<void> {
+		if (this.submitting) return;
 		const name = this.draft.name.trim();
 		if (!name) {
 			new Notice(i18n.boxNameRequired);
 			return;
 		}
+		this.setSubmitting(true);
 		this.draft.name = name;
-		await this.onSave(this.draft);
-		this.close();
+		try {
+			await this.onSave(this.draft);
+			this.close();
+		} finally {
+			this.setSubmitting(false);
+		}
 	}
 
 	private renderTimeDetail(): void {

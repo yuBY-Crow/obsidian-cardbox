@@ -2,12 +2,13 @@ node_modules/
 *.map
 *.hot-update.js
 *.hot-update.json
+*.log
 .claude/
+.workbuddy/
 release/
 test-vault/
 preview.html
+data.json
 shot-*.png
 scripts/shot.mjs
-shot-render-*.png
-shot-related-count.png
 mobile-floating-nav/
