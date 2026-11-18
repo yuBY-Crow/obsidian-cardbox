@@ -261,7 +261,7 @@ export class BoxEditModal extends Modal {
 				const has = this.draft.colors.includes(color);
 				this.draft.colors = has
 					? this.draft.colors.filter((c) => c !== color)
-					: [...this.draft.colors, color as CardColor];
+					: [...this.draft.colors, color];
 				this.renderColors();
 			});
 		}

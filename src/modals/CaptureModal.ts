@@ -112,7 +112,7 @@ export class CaptureModal extends Modal {
 		tool('hash', i18n.addTag, () => this.insertText('#'));
 		tool('image', '插入图片', () => this.insertText('![]()'));
 		tool('pencil', '继续编辑', () => this.editorView?.focus());
-		tool('keyboard', '收起键盘', () => (this.editorView?.contentDOM as HTMLElement | undefined)?.blur());
+		tool('keyboard', '收起键盘', () => this.editorView?.contentDOM?.blur());
 		const pin = tool('pin', i18n.continuousMode, () => {
 			this.continuous = !this.continuous;
 			pin.toggleClass('is-active', this.continuous);
@@ -213,12 +213,16 @@ export class CaptureModal extends Modal {
 				const layoutH = window.innerHeight;
 				const usable = Math.max(160, layoutH - inset);
 				const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
-				modal.style.setProperty('--cb-bottom', `${inset}px`);
-				modal.style.setProperty('--cb-height', `${cardH}px`);
-				modal.style.setProperty('--cb-max-height', 'none');
+				modal.setCssProps({
+					'--cb-bottom': `${inset}px`,
+					'--cb-height': `${cardH}px`,
+					'--cb-max-height': 'none',
+				});
 				modal.addClass('is-keyboard-open');
-				capture.style.setProperty('--cb-capture-height', '100%');
-				capture.style.setProperty('--cb-capture-min-height', '0');
+				capture.setCssProps({
+					'--cb-capture-height': '100%',
+					'--cb-capture-min-height': '0',
+				});
 				log.debug('kb', '贴合键盘', { inset, cardH, usable });
 			} else {
 				reset();

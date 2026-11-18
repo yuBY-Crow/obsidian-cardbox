@@ -31,21 +31,11 @@ class Logger {
 	private buffer: LogEntry[] = [];
 	/** 运行时级别：debug 会输出更多细节 */
 	minLevel: LogLevel = 'info';
-	/** 是否同时输出到 console（默认关闭，避免生产环境刷屏） */
-	mirrorToConsole = false;
-
 	private push(level: LogLevel, tag: string, msg: string, data?: unknown): void {
 		if (LEVEL_ORDER[level] < LEVEL_ORDER[this.minLevel]) return;
 		const entry: LogEntry = { ts: Date.now(), level, tag, msg, data };
 		this.buffer.push(entry);
 		if (this.buffer.length > MAX) this.buffer.splice(0, this.buffer.length - MAX);
-		if (this.mirrorToConsole) {
-			const line = `[Slipbox:${tag}] ${msg}`;
-			const extra = data === undefined ? '' : data instanceof Error ? ` ${String(data.stack || data)}` : ` ${JSON.stringify(data)}`;
-			if (level === 'error') console.error(line + extra);
-			else if (level === 'warn') console.warn(line + extra);
-			else console.log(line + extra);
-		}
 	}
 
 	debug(tag: string, msg: string, data?: unknown): void {

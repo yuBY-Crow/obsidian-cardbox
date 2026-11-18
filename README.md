@@ -1,156 +1,59 @@
 # Slipbox
 
-> Writeathon-style slip box plugin for Obsidian
+> A Writeathon-style slip box plugin for Obsidian.
 
-**Slipbox** is a mobile-first Obsidian plugin inspired by Writeathon. It follows a simple flow: **capture ideas → organize cards → assemble articles**. Cards are plain Markdown notes with wikilinks, shown in a two-column masonry feed. It only uses Obsidian's official APIs and needs no third-party plugins such as Dataview.
+**Slipbox** is a mobile-first Obsidian plugin inspired by Writeathon. It follows a simple workflow: **capture ideas → organize cards → assemble articles**. Each card is a plain Markdown note, linked with standard Obsidian `[[wikilinks]]`, and displayed in a two-column masonry feed on phones. It only uses official Obsidian APIs and does not require Dataview or any third-party plugin.
 
-Key features: quick capture with a keyboard-hugging editor, global search across titles/bodies/tags with category-grouped results, condition-based card boxes and tag filtering, child cards backed by standard [[wikilinks]], a masonry/列表/timeline view switcher, Canvas whiteboard placement, and merging cards into an article.
+## Features
 
-> Writeathon 风格卡片盒 · Obsidian 插件
+### Capture
 
-本插件灵感来自 Writeathon，结合了 Obsidian 双链功能。
+- **Quick capture**: a keyboard-hugging editor with an icon toolbar (`#`, image, pencil, keyboard, pin, clock) and a mint send button. Continuous mode keeps the dialog open after saving.
+- **Child cards**: create or link extension cards from any card, with arbitrary nesting. Relations are stored as `[[wikilinks]]` so they show up in the graph and backlinks panel, and are kept in sync by `fileManager.renameFile`.
 
-Writeathon 风格卡片盒：**记录灵感 → 整理卡片 → 组合成文**。移动端优先，PC 端支持全卡片平铺；自包含（只依赖 Obsidian 官方 API，无需 Dataview 等第三方插件）。
+### Card box
 
-## 功能
+- **Two-column masonry feed** on mobile, plus list and timeline views. Cards use a Writeathon-like plain-text layout: mint `#tags`, body text, and a muted timestamp.
+- **Global search** (independent from filtering): matches titles, body text, and tags, and groups results by match category.
+- **Independent filter panel**: tag chips with fuzzy search over all tags, colors, quick toggles, sorting, and clear.
+- **Same-leaf navigation**: opening a card uses the card box leaf, so the Android back key, back gesture, or the bottom bar `<` returns in one step, with scroll position and filters preserved.
 
-### 记录
-- ⚡ **快速记录卡片**：弹幕式连续录入，保存后保持打开、自动清空，手机上零阻力收集灵感
-- 🌿 **扩展卡片**：为卡片新建或关联扩展卡片，支持多层级（扩展卡片也能成为主卡）
+### Organize and output
 
-### 卡片扩展 × Obsidian 双链（深度整合）
+- **Condition-based boxes**: rules on tags, keywords, dates, and more.
+- **Canvas placement**: send cards to an Obsidian whiteboard.
+- **Merge into article**: combine selected cards into a single note.
+- **Diagnostics**: an in-app log panel for troubleshooting on mobile.
 
-关联关系以 **Obsidian 标准 wikilink** 存放，卡片扩展与双链是同一套东西。默认文件名就是**卡片标题**，所以链接一眼就能看懂：
+## Installation
 
-```yaml
-children:
-  - "[[闪念笔记：48 小时法则]]"
-  - "[[文献笔记：用自己的话提炼]]"
-parent: "[[卡片笔记写作法：核心框架]]"
-```
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/yuby-crow/obsidian-cardbox/releases).
+2. Put them in `<vault>/.obsidian/plugins/cardbox-mobile/`.
+3. Enable **Slipbox** in Obsidian → Settings → Community plugins.
 
-因此：
-- 🕸️ **图谱可见**：卡片关系直接显示在 Obsidian 关系图谱里
-- 🔗 **反向链接可见**：原生「反向链接」面板能看到卡片间引用
-- ✏️ **重命名自动跟随**：卡片改名走 `fileManager.renameFile`，Obsidian 自动更新全库链接，关联不会断
-- 📝 **正文双链自动识别**：在正文里手写 `[[某卡片]]`，它**自动成为扩展卡片**，无需额外操作
-- 🏷️ **来源标识**：扩展视图区分「已关联」（frontmatter，可拖拽排序）与「正文双链」（顺序由正文决定，虚线边框标识）
-- 📌 **一键固定**：正文双链可「固定为扩展卡片」，转为可排序的显式关联
-- ↩️ **反向链接区**：扩展视图底部显示哪些卡片引用了当前主卡，可一键提升为扩展卡片
-- 🖇️ **反向写入正文**：显式关联可「在正文插入双链」，便于在阅读视图直接点击跳转
-- 🔢 **关联数量前置**：展开按钮旁直接显示关联卡片数量（含正文双链），不必展开就知道有多少
-- 🗂️ **分区可收起**：扩展视图的「扩展卡片」与「引用此卡片」两个分区都能整体折叠
-- 🔁 **向后兼容**：旧的纯 id 写法、以及 frontmatter 里残留的旧 `id` 字段都会作为别名解析，历史关联不断链
-
-### 标题即链接（文件名方案）
-
-默认 `filenameFormat: title`——新建卡片以**标题**（无标题则取正文首行）作文件名：
-
-- 文件名自动清理 Windows 非法字符与 wikilink 语法字符（`[ ] # ^ | : / \ * ? " < >`），避免破坏链接
-- 同名自动追加 `-2`、`-3`（而非时间戳），保持可读
-- 标题为空或全是非法字符时回落到时间戳，不会创建失败
-- 已有时间戳命名的卡片可用命令 **「用标题重命名卡片」** 批量迁移，链接由 Obsidian 自动跟随
-- 想保留原行为的话，设置里可切回`时间戳`
-
-### 卡片盒（核心）
-- 📦 **条件抓取**：卡片盒不存放卡片，只存放**抓取条件**，卡片自动落入所有符合条件的盒子——同一张卡片可以同时出现在多个盒子里
-- 条件维度：**卡片时间**（不限 / 动态最近 N 天 / 静态固定区间）、**多标签**（支持嵌套前缀，`读书` 命中 `读书/笔记`）、**关键字**（匹配标题与正文全文，因此行内标签 `#写作心得` 能被关键字「写作」命中，支持任一/全部命中）、**色彩卡片**、**仅置顶**
-- 条件之间是「与」关系，**留空的条件不生效**，按需设定即可
-- 盒切换栏显示每个盒的实时卡片数；再次点击当前盒或长按可编辑
-
-### 整理
-- 🎨 **色彩卡片**：为卡片标记「眉头颜色」（7 色），卡片顶部显示彩条
-- 🔝 **卡片置顶**：置顶卡片恒定悬浮在列表最前
-- 🔍 **筛选**：全文搜索、标签 chips、颜色筛选、快捷开关（有标签 / 无标签 / 空内容 / 含任务 / 仅置顶 / 含归档）、4 种排序
-- ☑️ **多选批量操作**：长按（触屏）或按钮进入多选 → 批量打标签、合并成文、投放白板、归档、删除
-
-### 视图
-- 📋 **列表模式**：紧凑，适合快速浏览
-- 🧱 **瀑布流平铺**：PC 端多列铺开全部卡片，显示更多正文；列宽可配置，窄屏自动降为单列
-- 📅 **时间线模式**：按天分组
-- 🌳 **卡片扩展同屏视图**：左侧固定主卡片、右侧扩展卡片分支列表；展开看全文（按钮旁显示关联数量）、点击编辑、**拖拽排序**、解除关联；「扩展卡片」与「引用此卡片」两个分区可整体收起
-
-### 输出
-- 📄 **合并成文**：多选卡片合并生成新文章（简单拼接 / 按标题层级）
-- 🏗️ **层级成文**：在扩展视图中按主次层级自动生成带一二三级标题的文章
-- ▦ **白板打通（种子居中布局）**：选中卡片一键投放为 Obsidian **Canvas** 节点。投放时可选**引用层级**（0–5 层）与**引用方向**（它引用的 / 引用它的 / 双向），弹窗实时显示会投放多少张卡片。**单卡片投放时，当前卡片放在正中**：
-  - **左侧** = 引用它的卡片（入链），层级越深越靠左
-  - **右侧** = 它引用的卡片（出链），层级越深越靠右
-  - **上下** = 与它互为引用的**双链卡片**，连线用**双向箭头**并按设置标色（默认蓝，设置中可改）
-  - 单向引用画单箭头，连线自动走最近方向不横穿节点
-  - file 类型节点意味着卡片改动白板同步；卡片颜色映射为 Canvas 颜色；节点不重叠、追加到已有白板时整体右移不压旧内容、重复投放自动去重、指向白板外卡片的连线自动丢弃
-  - 也可反向把当前 Canvas 中的卡片节点合并成文
-- 🗄️ **归档**：frontmatter 标记归档，不移动文件、不破坏链接，随时可逆
-
-## 数据模型
-
-每张卡片 = 一个独立的 Markdown 笔记，存放在可配置的文件夹（默认 `Cards/`）：
-
-```markdown
----
-title: "卡片笔记写作法：核心框架"
-tags:
-  - flash
-  - 读书/笔记
-created: 1723181696000
-updated: 1723181696000
-parent: "[[上级卡片标题]]"
-children:
-  - "[[闪念笔记：48 小时法则]]"
-archived: false
-color: red
-pinned: true
----
-卡片正文……可以在这里手写 [[另一张卡片]]，它会自动成为扩展卡片。
-```
-
-- **卡片 id = 文件名**（去掉 `.md`），与 Obsidian 链接解析口径一致
-- 默认文件名用**标题**（`filenameFormat: title`），因此双链写成 `[[卡片标题]]`，易读易记；可切换为时间戳 `YYYY-MM-DD-HHmmss-xxx`
-- **不写 `id` 字段**：id 由文件名决定，额外写 id 会在重命名后产生歧义。老卡片里残留的 `id` 会作为别名解析，历史关联不断链
-- 时间戳用纪元毫秒整数
-- 关联写成 **wikilink**，Obsidian 图谱 / 反向链接 / 重命名跟随都能识别；读取时兼容旧的纯 id 写法
-- `children` 的**数组顺序即展示顺序**，拖拽排序会写回此字段
-- 正文中的 `[[链接]]` 若指向卡片，自动视为扩展卡片（顺序由正文决定）
-
-**卡片盒定义**存放在插件 `data.json`（不污染 vault，不产生额外笔记文件），随 Obsidian Sync 同步。
-
-## 安装
-
-### 桌面端
-1. 从 GitHub Release 下载 `main.js` / `manifest.json` / `styles.css`，放进 `<vault>/.obsidian/plugins/cardbox-mobile/`（**目录名必须等于 `manifest.json` 的 `id`**）；或本地 `npm install && npm run build` 后取用这三个文件
-2. Obsidian → 设置 → 第三方插件 → 启用 **Slipbox**
-
-### 移动端
-1. 把 vault 同步到手机（Obsidian Sync / iCloud / 手动复制）
-2. 在手机上启用插件
-3. **移动端入口**：侧栏 ribbon 卡片盒图标 + 命令面板。推荐给「快速记录卡片」绑定一个快捷键
-
-> Obsidian 移动端底部编辑器工具栏没有稳定的插件 API，因此移动端入口为 ribbon + 命令/快捷键。
-
-## 开发
+Or build from source:
 
 ```bash
-npm ci                     # 按 package-lock.json 安装依赖（与 CI 一致）
-npm run dev                # esbuild watch（配合 pjeby Hot Reload 插件热重载）
-npm run build              # tsc 类型检查 + 生产构建
-npm test                   # 链接解析/抓取引擎/Canvas/图遍历/文件名/加载场景等测试
-npm run preview            # 生成 preview.html 视觉预览（真实 CSS）
-npm run zip:mobile         # 打包手机端友好 zip（正斜杠路径）
-
-node scripts/seed.mjs <vault路径> <数量>   # 生成测试卡片（含颜色/置顶/扩展关系）
-npm run seed:links test-vault               # 生成双链示例卡片（图谱可见）
-npm run test:dom            # 真实 DOM 渲染测试（playwright）
-npm run test:links          # 双链整合测试（正文双链/反向链接/写入格式）
-npm run test:count          # 关联数量渲染测试（含位置断言 + 截图）
-npm run test:title          # 标题作文件名 + 重命名后链接跟随（端到端）
-npm run test:depth          # 白板按引用层级投放（用测试库真实卡片）
-npm run test:touch          # 手机触摸交互测试
-npm run test:masonry        # 手机平铺层级测试
-npm run test:expand         # 卡片扩展视图测试
-npm run test:load           # 加载场景测试
-npm run preview:canvas      # 白板布局视觉预览（SVG 示意图）
+npm ci
+npm run build
+npm test
 ```
 
-### 测试 Vault
+`npm run build` produces `main.js`; `npm test` runs the link, box, canvas, graph, rename, and diagnostic suites.
 
-`test-vault/` 不随仓库分发（已被 `.gitignore` 忽略，git 未跟踪）。需要时在本地用 `node scripts/seed.mjs <vault路径> <数量>` 与 `npm run seed:links` 生成测试卡片，再用 Obsidian 打开该目录并启用 **Slipbox** 即可。
+## Settings
+
+Cards folder, filename format (title or timestamp), default properties, continuous capture, card preview highlighting, default view mode, default sort, masonry column width, timestamp fields, and more. All settings are stored in `data.json` inside the plugin folder.
+
+## Compatibility
+
+- `minAppVersion`: 1.5.0 (verified on Obsidian 1.5.12 / Android WebView Chrome 83).
+- Mobile-first, but also works on desktop.
+
+## 中文简介
+
+Slipbox 是受写拉松启发的 Obsidian 卡片盒插件：快速记录灵感、以双链整理卡片、再组合成文章。手机端提供贴键盘的输入体验、双排信息流、独立的全局搜索与筛选面板，以及一次返回卡片盒的导航。详细说明见上方英文文档。
+
+## License
+
+MIT

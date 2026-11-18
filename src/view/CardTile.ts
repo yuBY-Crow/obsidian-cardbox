@@ -69,7 +69,7 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 	const { card } = opts;
 	const el = createDiv({ cls: 'cardbox-tile' });
 	el.setAttribute('data-card-id', card.id);
-	el.style.setProperty('--depth', String(opts.depth));
+	el.setCssProps({ '--depth': String(opts.depth) });
 	if (card.archived) el.addClass('is-archived');
 	if (opts.depth > 0) el.addClass('is-child');
 	if (opts.selected) el.addClass('is-selected');

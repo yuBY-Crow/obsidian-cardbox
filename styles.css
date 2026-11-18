@@ -85,7 +85,6 @@
 .cardbox-chips-scroll {
 	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
-	scrollbar-width: none;
 	margin-bottom: 6px;
 }
 
@@ -835,7 +834,6 @@ body.is-mobile .cardbox-capture-input {
 	display: flex;
 	gap: 6px;
 	overflow-x: auto;
-	scrollbar-width: none;
 	-webkit-overflow-scrolling: touch;
 }
 
@@ -1096,13 +1094,6 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile-main {
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-child {
 	margin-left: calc(var(--depth, 0) * 18px);
 	border-left: 3px solid var(--background-modifier-border-hover);
-}
-
-/* 双列下内容超出卡片高度的渐隐遮罩，而不是硬切 */
-body.is-mobile .cardbox-list.is-masonry .cardbox-tile.is-rich .cardbox-tile-snippet {
-	position: relative;
-	mask-image: linear-gradient(to bottom, black 0, black calc(100% - 28px), transparent 100%);
-	-webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 28px), transparent 100%);
 }
 
 /* ===== 卡片盒设置弹窗 ===== */

@@ -60,10 +60,6 @@ function parseColor(v: unknown): CardColor | undefined {
 	return (CARD_COLORS as string[]).includes(c) ? (c as CardColor) : undefined;
 }
 
-/** 转义正则元字符（卡片 id 含连字符，用于安全构造检测用正则） */
-function escapeRegExp(s: string): string {
-	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 /**
  * CardService：卡片创建 / 读取 / 变更的唯一入口。
@@ -273,11 +269,23 @@ export class CardService {
 		}
 	}
 
-	/** 批量删除（进 Obsidian 回收站） */
+	/**
+	 * 批量删除。优先用 1.6.6+ 的 FileManager#trashFile（尊重用户回收站偏好），
+	 * 旧版回退 Vault#trash。用 Reflect.get 动态取方法：既不静态绑定到高于
+	 * minAppVersion(1.5.0) 的 API，也保证 1.5.12 真机可用。
+	 */
 	async deleteCards(cards: Card[]): Promise<void> {
 		for (const card of cards) {
 			const file = this.getFile(card.path);
-			if (file) await this.app.fileManager.trashFile(file);
+			if (!file) continue;
+			const fm = this.app.fileManager;
+			const modern = Reflect.get(fm, 'trashFile') as ((f: TFile) => Promise<void>) | undefined;
+			if (typeof modern === 'function') {
+				await modern.call(fm, file);
+				continue;
+			}
+			const legacy = Reflect.get(this.app.vault, 'trash') as ((f: TFile, system: boolean) => Promise<void>) | undefined;
+			if (typeof legacy === 'function') await legacy.call(this.app.vault, file, false);
 		}
 	}
 

@@ -243,7 +243,7 @@ export class CardExtendView extends ItemView {
 	): HTMLElement {
 		const branch = createDiv({ cls: 'cardbox-extend-branch' });
 		branch.setAttribute('data-card-id', card.id);
-		branch.style.setProperty('--depth', String(depth));
+		branch.setCssProps({ '--depth': String(depth) });
 		branch.appendChild(this.buildPanel(card, false, parent, source));
 
 		// A↔B 互链且都展开时递归会爆栈：沿当前路径记录已出现的卡片，命中或超深即停止展开

@@ -476,7 +476,7 @@ export class CardBoxView extends ItemView {
 
 		// 平铺模式走真瀑布流：按容器宽度算列数，交给 IncrementalList 分配到最短列
 		this.listEl.toggleClass('is-masonry', mode === 'masonry');
-		this.listEl.style.setProperty('--cardbox-col-min', `${this.ctx.settings.masonryMinColumnWidth}px`);
+		this.listEl.setCssProps({ '--cardbox-col-min': `${this.ctx.settings.masonryMinColumnWidth}px` });
 		this.list.setColumnCount(mode === 'masonry' ? this.masonryColumns() : 0);
 
 		if (filtered.length === 0) {
@@ -896,7 +896,7 @@ export class CardBoxView extends ItemView {
 					si
 						.setTitle(i18n.colorNames[color] ?? color)
 						.setChecked(card.color === color)
-						.onClick(() => apply(color as CardColor)),
+						.onClick(() => apply(color)),
 				);
 			}
 			sub.addSeparator();
@@ -911,7 +911,7 @@ export class CardBoxView extends ItemView {
 				si
 					.setTitle(`${i18n.colorLabel}：${name}`)
 					.setChecked(card.color === color)
-					.onClick(() => apply(color as CardColor)),
+					.onClick(() => apply(color)),
 			);
 		}
 		menu.addItem((si) => si.setTitle(i18n.colorClear).onClick(() => apply(null)));

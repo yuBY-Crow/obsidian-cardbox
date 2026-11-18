@@ -88,7 +88,7 @@ export class IncrementalList<T> {
 			// 批量追加后统一测量一次各列真实高度；不再逐卡读 getBoundingClientRect 触发强制同步布局。
 			// 续接上一 chunk 的列组时也要先备好各列 fragment。
 			let frags: DocumentFragment[] = this.groupEl
-				? this.columns.map(() => document.createDocumentFragment())
+				? this.columns.map(() => new DocumentFragment())
 				: [];
 			for (let i = this.rendered; i < end; i++) {
 				const item = this.items[i];
@@ -105,7 +105,7 @@ export class IncrementalList<T> {
 				} else {
 					if (!this.groupEl) {
 						this.ensureGroup();
-						frags = this.columns.map(() => document.createDocumentFragment());
+						frags = this.columns.map(() => new DocumentFragment());
 					}
 					const idx = this.shortestColumnIndex();
 					frags[idx].appendChild(el);
@@ -114,7 +114,7 @@ export class IncrementalList<T> {
 			}
 			this.landFragments(frags);
 		} else {
-			const frag = document.createDocumentFragment();
+			const frag = new DocumentFragment();
 			for (let i = this.rendered; i < end; i++) {
 				frag.appendChild(this.renderItem(this.items[i], i));
 			}

@@ -412,7 +412,8 @@ var CardBoxSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName(i18n.settingsTitle).setClass("cardbox-settings-heading");
+    const heading = new import_obsidian.Setting(containerEl).setName(i18n.settingsTitle);
+    heading.settingEl.addClass("cardbox-settings-heading");
     const s = this.access.settings;
     new import_obsidian.Setting(containerEl).setName(i18n.cardsFolderName).setDesc(i18n.cardsFolderDesc).addText((text) => {
       text.setPlaceholder(i18n.folderPlaceholder).setValue(s.cardsFolder).onChange(async (value) => {
@@ -943,11 +944,23 @@ var CardService = class {
       });
     }
   }
-  /** 批量删除（进 Obsidian 回收站） */
+  /**
+   * 批量删除。优先用 1.6.6+ 的 FileManager#trashFile（尊重用户回收站偏好），
+   * 旧版回退 Vault#trash。用 Reflect.get 动态取方法：既不静态绑定到高于
+   * minAppVersion(1.5.0) 的 API，也保证 1.5.12 真机可用。
+   */
   async deleteCards(cards) {
     for (const card of cards) {
       const file = this.getFile(card.path);
-      if (file) await this.app.fileManager.trashFile(file);
+      if (!file) continue;
+      const fm = this.app.fileManager;
+      const modern = Reflect.get(fm, "trashFile");
+      if (typeof modern === "function") {
+        await modern.call(fm, file);
+        continue;
+      }
+      const legacy = Reflect.get(this.app.vault, "trash");
+      if (typeof legacy === "function") await legacy.call(this.app.vault, file, false);
     }
   }
   /** 批量设置眉头颜色；color 传 null 表示清除标记 */
@@ -1230,21 +1243,12 @@ var Logger = class {
     this.buffer = [];
     /** 运行时级别：debug 会输出更多细节 */
     this.minLevel = "info";
-    /** 是否同时输出到 console（默认关闭，避免生产环境刷屏） */
-    this.mirrorToConsole = false;
   }
   push(level, tag, msg, data) {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[this.minLevel]) return;
     const entry = { ts: Date.now(), level, tag, msg, data };
     this.buffer.push(entry);
     if (this.buffer.length > MAX) this.buffer.splice(0, this.buffer.length - MAX);
-    if (this.mirrorToConsole) {
-      const line = `[Slipbox:${tag}] ${msg}`;
-      const extra = data === void 0 ? "" : data instanceof Error ? ` ${String(data.stack || data)}` : ` ${JSON.stringify(data)}`;
-      if (level === "error") console.error(line + extra);
-      else if (level === "warn") console.warn(line + extra);
-      else console.log(line + extra);
-    }
   }
   debug(tag, msg, data) {
     this.push("debug", tag, msg, data);
@@ -1826,7 +1830,7 @@ function buildCardTile(opts) {
   const { card } = opts;
   const el = createDiv({ cls: "cardbox-tile" });
   el.setAttribute("data-card-id", card.id);
-  el.style.setProperty("--depth", String(opts.depth));
+  el.setCssProps({ "--depth": String(opts.depth) });
   if (card.archived) el.addClass("is-archived");
   if (opts.depth > 0) el.addClass("is-child");
   if (opts.selected) el.addClass("is-selected");
@@ -2686,7 +2690,7 @@ var IncrementalList = class {
     if (this.rendered >= this.items.length) return;
     const end = Math.min(this.rendered + this.chunk, this.items.length);
     if (this.columnCount > 1) {
-      let frags = this.groupEl ? this.columns.map(() => document.createDocumentFragment()) : [];
+      let frags = this.groupEl ? this.columns.map(() => new DocumentFragment()) : [];
       for (let i = this.rendered; i < end; i++) {
         const item = this.items[i];
         const el = this.renderItem(item, i);
@@ -2701,7 +2705,7 @@ var IncrementalList = class {
         } else {
           if (!this.groupEl) {
             this.ensureGroup();
-            frags = this.columns.map(() => document.createDocumentFragment());
+            frags = this.columns.map(() => new DocumentFragment());
           }
           const idx = this.shortestColumnIndex();
           frags[idx].appendChild(el);
@@ -2710,7 +2714,7 @@ var IncrementalList = class {
       }
       this.landFragments(frags);
     } else {
-      const frag = document.createDocumentFragment();
+      const frag = new DocumentFragment();
       for (let i = this.rendered; i < end; i++) {
         frag.appendChild(this.renderItem(this.items[i], i));
       }
@@ -3664,7 +3668,7 @@ var CardBoxView = class extends import_obsidian16.ItemView {
     const filtered = this.ctx.index.search(this.filter.query, this.filter, sort, box);
     (_a = this.mobileHeader) == null ? void 0 : _a.setInfo(box ? box.name || i18n.boxUnnamed : i18n.boxAll, filtered.length);
     this.listEl.toggleClass("is-masonry", mode === "masonry");
-    this.listEl.style.setProperty("--cardbox-col-min", `${this.ctx.settings.masonryMinColumnWidth}px`);
+    this.listEl.setCssProps({ "--cardbox-col-min": `${this.ctx.settings.masonryMinColumnWidth}px` });
     this.list.setColumnCount(mode === "masonry" ? this.masonryColumns() : 0);
     if (filtered.length === 0) {
       const hasFilters = this.filter.query.trim() !== "" || this.filter.selectedTags.size > 0 || this.filter.selectedColors.size > 0 || this.filter.hasTag || this.filter.noTag || this.filter.emptyContent || this.filter.hasTaskList || this.filter.pinnedOnly || box !== void 0;
@@ -4265,7 +4269,7 @@ var CardExtendView = class extends import_obsidian18.ItemView {
   buildBranch(parent, card, depth, source = "explicit", seen = /* @__PURE__ */ new Set()) {
     const branch = createDiv({ cls: "cardbox-extend-branch" });
     branch.setAttribute("data-card-id", card.id);
-    branch.style.setProperty("--depth", String(depth));
+    branch.setCssProps({ "--depth": String(depth) });
     branch.appendChild(this.buildPanel(card, false, parent, source));
     if (seen.has(card.id) || depth >= MAX_BRANCH_DEPTH) return branch;
     const path = new Set(seen);
@@ -4776,12 +4780,16 @@ var CaptureModal = class extends import_obsidian19.Modal {
         const layoutH = window.innerHeight;
         const usable = Math.max(160, layoutH - inset);
         const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
-        modal.style.setProperty("--cb-bottom", `${inset}px`);
-        modal.style.setProperty("--cb-height", `${cardH}px`);
-        modal.style.setProperty("--cb-max-height", "none");
+        modal.setCssProps({
+          "--cb-bottom": `${inset}px`,
+          "--cb-height": `${cardH}px`,
+          "--cb-max-height": "none"
+        });
         modal.addClass("is-keyboard-open");
-        capture.style.setProperty("--cb-capture-height", "100%");
-        capture.style.setProperty("--cb-capture-min-height", "0");
+        capture.setCssProps({
+          "--cb-capture-height": "100%",
+          "--cb-capture-min-height": "0"
+        });
         log.debug("kb", "\u8D34\u5408\u952E\u76D8", { inset, cardH, usable });
       } else {
         reset();
@@ -5590,11 +5598,11 @@ var CardBoxPlugin = class extends import_obsidian23.Plugin {
     });
   }
   activeView() {
+    const active = this.app.workspace.getActiveViewOfType(CardBoxView);
+    if (active) return active;
     const leaves = this.app.workspace.getLeavesOfType(CARD_BOX_VIEW_TYPE);
     if (!leaves.length) return null;
-    const active = this.app.workspace.activeLeaf;
-    const target = active && leaves.includes(active) ? active : leaves[0];
-    const view = target.view;
+    const view = leaves[0].view;
     return view instanceof CardBoxView ? view : null;
   }
   // ---------- 打开动作 ----------
@@ -5813,7 +5821,7 @@ var CardBoxPlugin = class extends import_obsidian23.Plugin {
     try {
       const adapter = this.app.vault.adapter;
       if (!adapter || typeof adapter.exists !== "function") return null;
-      const legacy = ".obsidian/plugins/cardbox/data.json";
+      const legacy = `${this.app.vault.configDir}/plugins/cardbox/data.json`;
       if (await adapter.exists(legacy)) {
         return JSON.parse(await adapter.read(legacy));
       }

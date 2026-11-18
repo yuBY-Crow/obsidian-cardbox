@@ -173,9 +173,9 @@ export class FilterBar {
 		for (const color of CARD_COLORS) {
 			const dot = this.colorRow.createDiv({ cls: `cardbox-color-dot cardbox-color-${color}` });
 			dot.setAttribute('aria-label', i18n.colorNames[color] ?? color);
-			dot.toggleClass('is-selected', this.filter.selectedColors.has(color as CardColor));
+			dot.toggleClass('is-selected', this.filter.selectedColors.has(color));
 			dot.addEventListener('click', () => {
-				const c = color as CardColor;
+				const c = color;
 				if (this.filter.selectedColors.has(c)) this.filter.selectedColors.delete(c);
 				else this.filter.selectedColors.add(c);
 				this.renderColors();

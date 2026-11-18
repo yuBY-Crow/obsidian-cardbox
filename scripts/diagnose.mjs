@@ -69,8 +69,9 @@ class PluginSettingTab {
 	}
 }
 class Setting {
-	constructor() { this.controlEl = mockEl(); }
+	constructor() { this.controlEl = mockEl(); this.settingEl = mockEl(); }
 	setName() { return this; } setDesc() { return this; } setHeading() { return this; }
+	setClass() { return this; }
 	addText(cb) { cb(mkText()); return this; } addToggle(cb) { cb(mkToggle()); return this; }
 	addDropdown(cb) { cb(mkDrop()); return this; } addButton(cb) { cb(mkBtn()); return this; }
 }
@@ -117,6 +118,7 @@ function mockEl(tag = 'div') {
 	el.querySelector = () => null;
 	el.querySelectorAll = () => [];
 	el.getBoundingClientRect = () => ({ top: 0, left: 0, bottom: 0, right: 0, width: 100, height: 20 });
+	el.setCssProps = (props) => { for (const [k, v] of Object.entries(props)) el.style.setProperty(k, v); };
 	el.setPointerCapture = () => {}; el.releasePointerCapture = () => {};
 	el.focus = () => {}; el.remove = () => {}; el.onclick = null;
 	return el;
@@ -136,6 +138,7 @@ globalThis.createSpan = globalThis.createDiv;
 globalThis.createEl = (t, o) => { const e = mockEl(t); if (o?.cls) String(o.cls).split(/\s+/).forEach((c) => e.classList.add(c)); if (o?.text) e.textContent = o.text; return e; };
 globalThis.window = { setTimeout, clearTimeout, requestAnimationFrame: (f) => setTimeout(f, 0), cancelAnimationFrame: clearTimeout, setInterval, clearInterval };
 globalThis.document = { createElement: mockEl, createDocumentFragment: () => mockEl(), body: mockEl() };
+globalThis.DocumentFragment = class { constructor() { return mockEl(); } };
 globalThis.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
 
 function parseYaml(s) {

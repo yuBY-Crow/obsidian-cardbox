@@ -57,7 +57,8 @@ export class CardBoxSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		new Setting(containerEl).setName(i18n.settingsTitle).setClass('cardbox-settings-heading');
+		const heading = new Setting(containerEl).setName(i18n.settingsTitle);
+		heading.settingEl.addClass('cardbox-settings-heading');
 		const s = this.access.settings;
 
 		new Setting(containerEl)

@@ -252,11 +252,11 @@ export default class CardBoxPlugin extends Plugin {
 	}
 
 	private activeView(): CardBoxView | null {
+		const active = this.app.workspace.getActiveViewOfType(CardBoxView);
+		if (active) return active;
 		const leaves = this.app.workspace.getLeavesOfType(CARD_BOX_VIEW_TYPE);
 		if (!leaves.length) return null;
-		const active = this.app.workspace.activeLeaf;
-		const target = active && leaves.includes(active) ? active : leaves[0];
-		const view = target.view;
+		const view = leaves[0].view;
 		return view instanceof CardBoxView ? view : null;
 	}
 
@@ -508,7 +508,7 @@ export default class CardBoxPlugin extends Plugin {
 		try {
 			const adapter = this.app.vault.adapter;
 			if (!adapter || typeof adapter.exists !== 'function') return null;
-			const legacy = '.obsidian/plugins/cardbox/data.json';
+			const legacy = `${this.app.vault.configDir}/plugins/cardbox/data.json`;
 			if (await adapter.exists(legacy)) {
 				return JSON.parse(await adapter.read(legacy)) as Partial<CardBoxSettings>;
 			}
