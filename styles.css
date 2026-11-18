@@ -927,12 +927,12 @@ body.is-mobile .cardbox-boxbar-add {
 	--cardbox-color: var(--text-faint, #8d8d8d);
 }
 
-/* 卡片顶部颜色条 */
-.cardbox-tile-colorbar {
-	height: 4px;
-	border-radius: 16px 16px 0 0;
-	background: var(--cardbox-color);
+/* 眉头颜色 = 卡片自身的上边框：随 border-radius 完整贴合卡片圆角，
+   左右两端不再因 border 内缩而露出缝隙（旧的颜色条 div 已不再创建） */
+body.is-mobile .cardbox-list.is-masonry .cardbox-tile.has-color {
+	border-top: 4px solid var(--cardbox-color);
 }
+.cardbox-tile-colorbar { display: none; }
 
 .cardbox-tile.is-pinned {
 	border-color: var(--interactive-accent);

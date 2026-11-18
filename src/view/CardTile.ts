@@ -82,8 +82,7 @@ export function buildCardTile(opts: CardTileOptions): HTMLElement {
 		el.setCssProps({ '--cardbox-color': card.customColor });
 	}
 
-	// 眉头颜色条
-	if (card.color || card.customColor) el.createDiv({ cls: 'cardbox-tile-colorbar' });
+
 
 	const main = el.createDiv({ cls: 'cardbox-tile-main' });
 

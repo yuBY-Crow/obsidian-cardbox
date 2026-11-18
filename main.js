@@ -1871,7 +1871,6 @@ function buildCardTile(opts) {
     el.addClass("has-color");
     el.setCssProps({ "--cardbox-color": card.customColor });
   }
-  if (card.color || card.customColor) el.createDiv({ cls: "cardbox-tile-colorbar" });
   const main = el.createDiv({ cls: "cardbox-tile-main" });
   const childCount = (_a = opts.childCount) != null ? _a : card.children.length;
   const buildExpandCount = (host) => {
