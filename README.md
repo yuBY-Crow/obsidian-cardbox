@@ -8,7 +8,7 @@ Key features: quick capture with a keyboard-hugging editor, global search across
 
 > Writeathon 风格卡片盒 · Obsidian 插件
 
-本插件灵感来自 Writeathon，结合了 Obsidian 双链功能。
+本插件灵感来自 Writeathon，结合了 Obsidian 双链功能。开发过程中使用了Deepseek以及Hy模型，Workbuddy以及Dsh。
 
 Writeathon 风格卡片盒：**记录灵感 → 整理卡片 → 组合成文**。移动端优先，PC 端支持全卡片平铺；自包含（只依赖 Obsidian 官方 API，无需 Dataview 等第三方插件）。
 
