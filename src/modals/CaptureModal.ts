@@ -204,15 +204,19 @@ export class CaptureModal extends Modal {
 
 		const apply = (force = false): void => {
 			const { visible, inset } = keyboardState();
-			const key = visible ? inset : -1;
+			const layoutH = window.innerHeight;
+			// 关键：key 必须包含 layoutH。adjustResize 机型上 inset 恒为 0，
+			// 但键盘弹出动画期间 innerHeight 会从 777 连续缩到 496；
+			// 若只用 inset 做 key，第一次（按旧视口算出的高度）会被锁死，
+			// 卡片就变成 320px 铺在屏幕上部、离键盘很远。
+			const key = visible ? inset * 100000 + layoutH : -1;
 			if (!force && key === lastApplied) return;
 			lastApplied = key;
 			if (visible && modal) {
-				// 卡片只占键盘上方约一半空间，上沿留出压暗背景（写拉松参考图），
-				// 底边连同图标工具栏正好落在键盘上沿，光标不再跑到屏幕最顶。
-				const layoutH = window.innerHeight;
+				// 卡片只占键盘上方一小段：底边贴键盘上沿，文字底对齐让光标
+				// 始终紧挨工具栏，上沿留出压暗背景。
 				const usable = Math.max(160, layoutH - inset);
-				const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
+				const cardH = Math.round(Math.min(260, Math.max(180, usable * 0.42)));
 				modal.setCssProps({
 					'--cb-bottom': `${inset}px`,
 					'--cb-height': `${cardH}px`,

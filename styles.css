@@ -2257,3 +2257,10 @@ body.is-mobile .cardbox-capture-modal.is-keyboard-open .cardbox-capture {
 .cardbox-settings-heading .setting-item-name { font-size: 20px; font-weight: 700; }
 /* 审核整改：危险操作按钮（替代废弃的 setWarning） */
 .cardbox-btn-destructive { background: var(--background-modifier-error, #d05a5a); color: #fff; border-color: transparent; }
+/* 键盘态：输入文字底部对齐，光标始终紧贴工具栏（= 键盘上沿），
+   不再出现「白色区在屏幕中部、光标离键盘大半个屏幕」 */
+body.is-mobile .cardbox-capture-modal.is-keyboard-open .cardbox-capture-input .cm-content {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+}

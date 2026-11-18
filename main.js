@@ -4773,13 +4773,13 @@ var CaptureModal = class extends import_obsidian19.Modal {
     };
     const apply = (force = false) => {
       const { visible, inset } = keyboardState();
-      const key = visible ? inset : -1;
+      const layoutH = window.innerHeight;
+      const key = visible ? inset * 1e5 + layoutH : -1;
       if (!force && key === lastApplied) return;
       lastApplied = key;
       if (visible && modal) {
-        const layoutH = window.innerHeight;
         const usable = Math.max(160, layoutH - inset);
-        const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
+        const cardH = Math.round(Math.min(260, Math.max(180, usable * 0.42)));
         modal.setCssProps({
           "--cb-bottom": `${inset}px`,
           "--cb-height": `${cardH}px`,
