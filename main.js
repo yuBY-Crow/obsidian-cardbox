@@ -4779,7 +4779,7 @@ var CaptureModal = class extends import_obsidian19.Modal {
       lastApplied = key;
       if (visible && modal) {
         const usable = Math.max(160, layoutH - inset);
-        const cardH = Math.round(Math.min(260, Math.max(180, usable * 0.42)));
+        const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
         modal.setCssProps({
           "--cb-bottom": `${inset}px`,
           "--cb-height": `${cardH}px`,

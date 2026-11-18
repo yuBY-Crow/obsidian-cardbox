@@ -213,10 +213,9 @@ export class CaptureModal extends Modal {
 			if (!force && key === lastApplied) return;
 			lastApplied = key;
 			if (visible && modal) {
-				// 卡片只占键盘上方一小段：底边贴键盘上沿，文字底对齐让光标
-				// 始终紧挨工具栏，上沿留出压暗背景。
+				// 卡片占键盘上方约一半空间：底边贴键盘上沿，上沿留出压暗背景
 				const usable = Math.max(160, layoutH - inset);
-				const cardH = Math.round(Math.min(260, Math.max(180, usable * 0.42)));
+				const cardH = Math.round(Math.min(320, Math.max(200, usable * 0.55)));
 				modal.setCssProps({
 					'--cb-bottom': `${inset}px`,
 					'--cb-height': `${cardH}px`,
