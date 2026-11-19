@@ -4837,13 +4837,11 @@ var CaptureModal = class extends import_obsidian20.Modal {
    * modal 的 bottom 取键盘上沿偏移；卡片高度按可视区比例计算
    * （正文区随之变大，上沿不顶到屏幕顶）。
    *
-   * 信号源（取最大值）：Capacitor keyboardWillShow/WillHide 事件 /
-   * Platform.mobileKeyboardHeight / visualViewport 差值；编辑器聚焦时
-   * 立即轮询一次。
+   * 键盘可见性以「视口相对基线被压缩」为准，不依赖具体输入法发出的事件；
+   * Capacitor / 聚焦 / resize 只作为「立即重新检查」的触发信号。
    */
   bindKeyboard() {
     var _a, _b, _c, _d;
-    const pm = import_obsidian20.Platform;
     const cap = window.Capacitor;
     const kb = (_a = cap == null ? void 0 : cap.Plugins) == null ? void 0 : _a.Keyboard;
     if (!import_obsidian20.Platform.isMobile) {
@@ -4856,9 +4854,9 @@ var CaptureModal = class extends import_obsidian20.Modal {
     const modal = this.modalEl;
     const capture = this.contentEl;
     const vv = window.visualViewport;
-    let reported = 0;
     let lastApplied = -1;
-    let suppressUntil = 0;
+    let baseLayoutH = window.innerHeight;
+    let baseVvH = vv ? vv.height : window.innerHeight;
     const reset = () => {
       if (modal) {
         for (const p of ["--cb-bottom", "--cb-height", "--cb-max-height"]) modal.style.removeProperty(p);
@@ -4868,12 +4866,12 @@ var CaptureModal = class extends import_obsidian20.Modal {
       capture.style.removeProperty("--cb-capture-min-height");
     };
     const keyboardState = () => {
-      if (Date.now() < suppressUntil) return { visible: false, inset: 0 };
       const layoutH = window.innerHeight;
-      const visibleBottom = vv ? (vv.offsetTop || 0) + vv.height : layoutH;
-      const inset = Math.max(0, Math.round(layoutH - visibleBottom));
-      const visible = reported > 0 || pm.mobileSoftKeyboardVisible === true || inset > 40;
-      return { visible, inset };
+      const vvH = vv ? vv.height : layoutH;
+      const vvTop = vv ? vv.offsetTop || 0 : 0;
+      const inset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
+      const shrunk = baseLayoutH - layoutH > 40 || baseVvH - vvH > 40;
+      return { visible: shrunk || inset > 40, inset };
     };
     const apply = (force = false) => {
       const { visible, inset } = keyboardState();
@@ -4899,10 +4897,6 @@ var CaptureModal = class extends import_obsidian20.Modal {
         reset();
       }
     };
-    const sync = (h) => {
-      if (typeof h === "number") reported = Math.max(0, h);
-      apply();
-    };
     const handles = [];
     let listenersClosed = false;
     const track = (p) => {
@@ -4915,19 +4909,14 @@ var CaptureModal = class extends import_obsidian20.Modal {
       });
     };
     if (kb == null ? void 0 : kb.addListener) {
-      track(kb.addListener("keyboardWillShow", (info) => {
-        var _a2, _b2;
-        log.debug("kb", "\u952E\u76D8\u5F39\u51FA", { height: (_a2 = info == null ? void 0 : info.keyboardHeight) != null ? _a2 : 0 });
-        sync((_b2 = info == null ? void 0 : info.keyboardHeight) != null ? _b2 : 0);
-      }));
-      track(kb.addListener("keyboardWillHide", () => {
-        log.debug("kb", "\u952E\u76D8\u6536\u8D77");
-        reported = 0;
-        suppressUntil = Date.now() + 1e3;
-        apply(true);
-      }));
+      track(kb.addListener("keyboardWillShow", () => apply()));
+      track(kb.addListener("keyboardWillHide", () => apply(true)));
     }
     const poll = () => {
+      const curLayout = window.innerHeight;
+      const curVv = vv ? vv.height : curLayout;
+      if (curLayout > baseLayoutH) baseLayoutH = curLayout;
+      if (curVv > baseVvH) baseVvH = curVv;
       apply();
     };
     this.keyboardPoll = window.setInterval(poll, 200);

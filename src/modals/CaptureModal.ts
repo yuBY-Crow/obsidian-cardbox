@@ -143,15 +143,10 @@ export class CaptureModal extends Modal {
 	 * modal 的 bottom 取键盘上沿偏移；卡片高度按可视区比例计算
 	 * （正文区随之变大，上沿不顶到屏幕顶）。
 	 *
-	 * 信号源（取最大值）：Capacitor keyboardWillShow/WillHide 事件 /
-	 * Platform.mobileKeyboardHeight / visualViewport 差值；编辑器聚焦时
-	 * 立即轮询一次。
+	 * 键盘可见性以「视口相对基线被压缩」为准，不依赖具体输入法发出的事件；
+	 * Capacitor / 聚焦 / resize 只作为「立即重新检查」的触发信号。
 	 */
 	private bindKeyboard(): void {
-		const pm = Platform as unknown as {
-			mobileKeyboardHeight?: number;
-			mobileSoftKeyboardVisible?: boolean;
-		};
 		const cap = (window as unknown as {
 			Capacitor?: { Plugins?: { Keyboard?: {
 				addListener?: (event: string, cb: (info?: { keyboardHeight?: number }) => void) => Promise<{ remove?: () => void }>;
@@ -171,9 +166,11 @@ export class CaptureModal extends Modal {
 		const capture = this.contentEl;
 		const vv = window.visualViewport;
 		// 各信号源写入的键盘高度；每次 apply 重新测量，避免「只增不减」
-		let reported = 0;
 		let lastApplied = -1;
-		let suppressUntil = 0;
+		// 键盘未弹出时的视口基线。轮询中用观测到的最大值更新，
+		// 即使打开弹窗时键盘已在动画中也能逐步收敛。
+		let baseLayoutH = window.innerHeight;
+		let baseVvH = vv ? vv.height : window.innerHeight;
 
 		const reset = (): void => {
 			if (modal) {
@@ -194,12 +191,18 @@ export class CaptureModal extends Modal {
 		 * 等于多抬了一个键盘高度，编辑区就跑到屏幕最顶、离键盘很远。
 		 */
 		const keyboardState = (): { visible: boolean; inset: number } => {
-			if (Date.now() < suppressUntil) return { visible: false, inset: 0 };
 			const layoutH = window.innerHeight;
-			const visibleBottom = vv ? (vv.offsetTop || 0) + vv.height : layoutH;
-			const inset = Math.max(0, Math.round(layoutH - visibleBottom));
-			const visible = reported > 0 || pm.mobileSoftKeyboardVisible === true || inset > 40;
-			return { visible, inset };
+			const vvH = vv ? vv.height : layoutH;
+			const vvTop = vv ? (vv.offsetTop || 0) : 0;
+			const inset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
+			// 键盘可见的可靠信号 = 视口相对基线被压缩：
+			//  - adjustResize：innerHeight 缩小（WebView 被压到键盘上沿）
+			//  - adjustPan / 全屏输入法：visualViewport.height 缩小而 innerHeight 不变
+			// 不再依赖 Capacitor keyboardWillShow 或 Platform.mobileSoftKeyboardVisible——
+			// 部分输入法/安卓版本下这两个信号缺失，卡片就会停在原位被键盘盖住。
+			// 视口恢复时 shrunk 自动变 false，也无需等 keyboardWillHide 才能复位。
+			const shrunk = baseLayoutH - layoutH > 40 || baseVvH - vvH > 40;
+			return { visible: shrunk || inset > 40, inset };
 		};
 
 		const apply = (force = false): void => {
@@ -231,10 +234,6 @@ export class CaptureModal extends Modal {
 				reset();
 			}
 		};
-		const sync = (h?: number): void => {
-			if (typeof h === 'number') reported = Math.max(0, h);
-			apply();
-		};
 
 		// 信号 1：Capacitor Keyboard 事件
 		const handles: Array<{ remove?: () => void }> = [];
@@ -249,20 +248,18 @@ export class CaptureModal extends Modal {
 			}).catch(() => {});
 		};
 		if (kb?.addListener) {
-			track(kb.addListener('keyboardWillShow', (info) => {
-				log.debug('kb', '键盘弹出', { height: info?.keyboardHeight ?? 0 });
-				sync(info?.keyboardHeight ?? 0);
-			}));
-			track(kb.addListener('keyboardWillHide', () => {
-				log.debug('kb', '键盘收起');
-				reported = 0;
-				suppressUntil = Date.now() + 1000;
-				apply(true);
-			}));
+			track(kb.addListener('keyboardWillShow', () => apply()));
+			track(kb.addListener('keyboardWillHide', () => apply(true)));
 		}
 
-		// 信号 2 + 3：Platform 内置值 + visualViewport 差值
-		const poll = () => { apply(); };
+		// 轮询：键盘收起后视口恢复到最大，用最大值持续修正基线，然后重新判定
+		const poll = () => {
+			const curLayout = window.innerHeight;
+			const curVv = vv ? vv.height : curLayout;
+			if (curLayout > baseLayoutH) baseLayoutH = curLayout;
+			if (curVv > baseVvH) baseVvH = curVv;
+			apply();
+		};
 		this.keyboardPoll = window.setInterval(poll, 200);
 		window.visualViewport?.addEventListener('resize', poll);
 		window.visualViewport?.addEventListener('scroll', poll);
