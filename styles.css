@@ -934,10 +934,10 @@ body.is-mobile .cardbox-list.is-masonry .cardbox-tile { position: relative; }
 body.is-mobile .cardbox-list.is-masonry .cardbox-tile.has-color::before {
 	content: '';
 	position: absolute;
-	top: 4px; left: 14px; right: 14px;
-	height: 8px;
-	/* 两侧为圆弧渐细、中间饱满的扁椭圆弧，整体比直胶囊更圆润 */
-	border-radius: 50% / 100%;
+	top: 5px; left: 14px; right: 14px;
+	height: 6px;
+	/* 标准胶囊：矩形主体 + 两侧半圆（半径 = 高度一半），不收尖 */
+	border-radius: 999px;
 	background: var(--cardbox-color);
 	z-index: 1;
 }
