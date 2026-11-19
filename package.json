@@ -1,6 +1,6 @@
 {
 	"name": "cardbox-mobile",
-	"version": "0.7.9",
+	"version": "0.7.10",
 	"description": "Slipbox: a Writeathon-style slip box plugin for quick capture, condition-based filtering, wikilinks and backlinks, a masonry view, Canvas whiteboard placement, and merging cards into an article.",
 	"main": "main.js",
 	"scripts": {
