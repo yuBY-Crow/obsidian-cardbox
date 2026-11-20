@@ -147,6 +147,11 @@ export class CaptureModal extends Modal {
 	 * Capacitor / 聚焦 / resize 只作为「立即重新检查」的触发信号。
 	 */
 	private bindKeyboard(): void {
+		// 原生键盘高度/可见性：少数输入法以 overlay 显示、完全不改 WebView 视口时兜底
+		const pm = Platform as unknown as {
+			mobileKeyboardHeight?: number;
+			mobileSoftKeyboardVisible?: boolean;
+		};
 		const cap = (window as unknown as {
 			Capacitor?: { Plugins?: { Keyboard?: {
 				addListener?: (event: string, cb: (info?: { keyboardHeight?: number }) => void) => Promise<{ remove?: () => void }>;
@@ -195,14 +200,33 @@ export class CaptureModal extends Modal {
 			const vvH = vv ? vv.height : layoutH;
 			const vvTop = vv ? (vv.offsetTop || 0) : 0;
 			const inset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
-			// 键盘可见的可靠信号 = 视口相对基线被压缩：
-			//  - adjustResize：innerHeight 缩小（WebView 被压到键盘上沿）
-			//  - adjustPan / 全屏输入法：visualViewport.height 缩小而 innerHeight 不变
-			// 不再依赖 Capacitor keyboardWillShow 或 Platform.mobileSoftKeyboardVisible——
-			// 部分输入法/安卓版本下这两个信号缺失，卡片就会停在原位被键盘盖住。
-			// 视口恢复时 shrunk 自动变 false，也无需等 keyboardWillHide 才能复位。
-			const shrunk = baseLayoutH - layoutH > 40 || baseVvH - vvH > 40;
-			return { visible: shrunk || inset > 40, inset };
+			const screenH = window.screen.height || layoutH;
+			// 关键：不能只依赖 baseLayoutH。点「+」时 onOpen() 会先 editorView.focus()
+			// 才调用 bindKeyboard()，某些输入法（如微信输入法）此时键盘已开始弹出，
+			// 基线会被记成压缩后的值，shrunk 永远算不出来 → 卡片被键盘盖住。
+			// 用「屏幕高度扣除状态栏/导航栏（约 10%）」推导无键盘视口，取两者最大值：
+			// 无论基线在何时记录，都能判定出视口被压缩。
+			const screenRef = Math.round(screenH * 0.9);
+			const ref = Math.max(baseLayoutH, screenRef);
+			// 比例保护：屏幕推导值与真实无键盘视口可能差几个百分点（大导航栏/刘海屏），
+			// 要求缩小量同时超过 40px 和参考值的 12%，避免无键盘时误判。
+			const layoutDelta = ref - layoutH;
+			const shrunk = (layoutDelta > 40 && layoutDelta > ref * 0.12) || baseVvH - vvH > 40;
+
+			// 兜底：输入法以 overlay 方式显示、完全不改变 WebView 视口时，
+			// 视口信号全失效，用「编辑器聚焦 + 原生键盘高度」把卡片抬到键盘上方。
+			let overlayInset = 0;
+			if (!shrunk && inset <= 40) {
+				const editing = capture.contains(document.activeElement);
+				const kbH = typeof pm.mobileKeyboardHeight === 'number' ? pm.mobileKeyboardHeight : 0;
+				if (editing && (kbH > 80 || pm.mobileSoftKeyboardVisible === true)) {
+					overlayInset = Math.round(kbH > 80 ? kbH : screenH * 0.38);
+				}
+			}
+			return {
+				visible: shrunk || inset > 40 || overlayInset > 0,
+				inset: inset > 40 ? inset : overlayInset,
+			};
 		};
 
 		const apply = (force = false): void => {
