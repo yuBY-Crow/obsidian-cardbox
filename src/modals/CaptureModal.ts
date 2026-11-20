@@ -199,7 +199,6 @@ export class CaptureModal extends Modal {
 			const layoutH = window.innerHeight;
 			const vvH = vv ? vv.height : layoutH;
 			const vvTop = vv ? (vv.offsetTop || 0) : 0;
-			const inset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
 			const screenH = window.screen.height || layoutH;
 			// 关键：不能只依赖 baseLayoutH。点「+」时 onOpen() 会先 editorView.focus()
 			// 才调用 bindKeyboard()，某些输入法（如微信输入法）此时键盘已开始弹出，
@@ -211,12 +210,20 @@ export class CaptureModal extends Modal {
 			// 比例保护：屏幕推导值与真实无键盘视口可能差几个百分点（大导航栏/刘海屏），
 			// 要求缩小量同时超过 40px 和参考值的 12%，避免无键盘时误判。
 			const layoutDelta = ref - layoutH;
-			const shrunk = (layoutDelta > 40 && layoutDelta > ref * 0.12) || baseVvH - vvH > 40;
+			// adjustResize：布局视口已被压缩到键盘上沿
+			const resized = layoutDelta > 40 && layoutDelta > ref * 0.12;
+			const shrunk = resized || baseVvH - vvH > 40;
+			// 关键：布局视口已压缩时 WebView 底部就是键盘上沿，inset 必须为 0。
+			// 部分输入法（如微信输入法）此时 vv.height 还会略小于 innerHeight
+			// （把候选栏也计入可视遮挡），若照 rawInset 上抬卡片，底边与键盘之间
+			// 就会空出一段明显间隔。只有 adjustPan（布局视口未压缩）才需要上移。
+			const inset = resized ? 0 : Math.max(0, Math.round(layoutH - (vvTop + vvH)));
 
 			// 兜底：输入法以 overlay 方式显示、完全不改变 WebView 视口时，
 			// 视口信号全失效，用「编辑器聚焦 + 原生键盘高度」把卡片抬到键盘上方。
 			let overlayInset = 0;
-			if (!shrunk && inset <= 40) {
+			const rawInset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
+			if (!shrunk && rawInset <= 40) {
 				const editing = capture.contains(document.activeElement);
 				const kbH = typeof pm.mobileKeyboardHeight === 'number' ? pm.mobileKeyboardHeight : 0;
 				if (editing && (kbH > 80 || pm.mobileSoftKeyboardVisible === true)) {
@@ -224,7 +231,7 @@ export class CaptureModal extends Modal {
 				}
 			}
 			return {
-				visible: shrunk || inset > 40 || overlayInset > 0,
+				visible: shrunk || rawInset > 40 || overlayInset > 0,
 				inset: inset > 40 ? inset : overlayInset,
 			};
 		};

@@ -4870,14 +4870,16 @@ var CaptureModal = class extends import_obsidian20.Modal {
       const layoutH = window.innerHeight;
       const vvH = vv ? vv.height : layoutH;
       const vvTop = vv ? vv.offsetTop || 0 : 0;
-      const inset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
       const screenH = window.screen.height || layoutH;
       const screenRef = Math.round(screenH * 0.9);
       const ref = Math.max(baseLayoutH, screenRef);
       const layoutDelta = ref - layoutH;
-      const shrunk = layoutDelta > 40 && layoutDelta > ref * 0.12 || baseVvH - vvH > 40;
+      const resized = layoutDelta > 40 && layoutDelta > ref * 0.12;
+      const shrunk = resized || baseVvH - vvH > 40;
+      const inset = resized ? 0 : Math.max(0, Math.round(layoutH - (vvTop + vvH)));
       let overlayInset = 0;
-      if (!shrunk && inset <= 40) {
+      const rawInset = Math.max(0, Math.round(layoutH - (vvTop + vvH)));
+      if (!shrunk && rawInset <= 40) {
         const editing = capture.contains(document.activeElement);
         const kbH = typeof pm.mobileKeyboardHeight === "number" ? pm.mobileKeyboardHeight : 0;
         if (editing && (kbH > 80 || pm.mobileSoftKeyboardVisible === true)) {
@@ -4885,7 +4887,7 @@ var CaptureModal = class extends import_obsidian20.Modal {
         }
       }
       return {
-        visible: shrunk || inset > 40 || overlayInset > 0,
+        visible: shrunk || rawInset > 40 || overlayInset > 0,
         inset: inset > 40 ? inset : overlayInset
       };
     };

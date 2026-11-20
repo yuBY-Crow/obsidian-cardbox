@@ -553,7 +553,7 @@ body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 	font-weight: 600;
 	line-height: 52px;
 	letter-spacing: -0.01em;
-	font-family: var(--font-text);
+	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 .cardbox-capture-modal .cardbox-capture-title:focus,
 .cardbox-capture-modal .cardbox-capture-title:hover,
@@ -586,7 +586,7 @@ body.is-mobile .cardbox-capture-container .cardbox-capture-modal {
 	color: var(--text-normal);
 	font-size: 16px;
 	line-height: 1.7;
-	font-family: var(--font-text);
+	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
 	height: 100%;
 }
 .cardbox-capture-modal .cardbox-capture-input .cm-scroller {
@@ -1979,10 +1979,18 @@ body.is-mobile .cardbox-list.is-masonry {
 .cardbox-capture-modal .cardbox-capture-input .cm-editor {
 	font-size: 20px;
 	line-height: 1.65;
-	font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+	/* CodeMirror 运行时注入的 .cm-editor{font-family:var(--font-text)} 后加载会压过类名规则，
+	   导致正文与标题/界面默认字体不一致；用 !important 强制统一到 --font-interface。 */
+	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif !important;
 }
 .cardbox-capture-modal .cardbox-capture-input .cm-scroller { padding: 18px 20px 12px; }
 .cardbox-capture-modal .cardbox-capture-input .cm-content { line-height: 1.65; }
+/* 正文实际渲染在 .cm-content / .cm-line：Obsidian 主题给它们注入了 --font-text，
+   与标题/列表用的 --font-interface 不同。强制统一到界面默认字体。 */
+.cardbox-capture-modal .cardbox-capture-input .cm-content,
+.cardbox-capture-modal .cardbox-capture-input .cm-line {
+	font-family: var(--font-interface), -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif !important;
+}
 
 /* 图标工具栏：紧贴键盘上沿 */
 .cardbox-capture-modal .cardbox-capture-toolbar {
